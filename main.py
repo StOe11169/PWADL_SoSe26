@@ -18,12 +18,12 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # data preparation
-    trainset = YawDDDataset()
-    valset = YawDDDataset()
+    trainset = YawDDDataset('train')
+    valset = YawDDDataset('val')
 
-    # # dataloader 
-    # trainloader = DataLoader(trainset, batch_size=, num_workers=0, shuffle=True)
-    # valloader = DataLoader(valset, batch_size=, num_workers=0, shuffle=False)
+    # dataloader 
+    trainloader = DataLoader(trainset, batch_size=32, num_workers=0, shuffle=True)
+    valloader = DataLoader(valset, batch_size=32, num_workers=0, shuffle=False)
 
     # # model
     # model = 
