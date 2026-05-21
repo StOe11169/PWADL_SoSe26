@@ -2,15 +2,14 @@ import argparse, time
 import torch
 from torch.utils.data import DataLoader
 from src.utils import setup_env
-from src.data import YawDDDataset
+from src.data import CustomDataset
 from src.training import trainer
-
 
 def main():
 
     # get args 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data", type=str, default='YawDD')
+    parser.add_argument("--data", type=str, default='data')
     args = parser.parse_args()
 
     # set seed and precision and get device
@@ -18,8 +17,8 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # data preparation
-    trainset = YawDDDataset()
-    valset = YawDDDataset()
+    trainset = CustomDataset("Train")
+    valset = CustomDataset("Val")
 
     # # dataloader 
     # trainloader = DataLoader(trainset, batch_size=, num_workers=0, shuffle=True)
