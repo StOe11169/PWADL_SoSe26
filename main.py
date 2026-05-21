@@ -7,6 +7,7 @@ from src.training import trainer
 
 
 def main():
+    print("Starting Main")
 
     # get args 
     parser = argparse.ArgumentParser()
