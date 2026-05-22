@@ -19,7 +19,7 @@ def get_image_paths(split):
     df = pd.DataFrame([fn.split('-') for fn in file_names], columns=['id', 'info_labels', 'activity'])
 
     df['filepath'] = file_paths
-    df['yawning'] = ['1' if 'yawning' in g.lower() else '0' for g in df['activity']]
+    df['yawning'] = [1.0 if 'yawning' in g.lower() else 0.0 for g in df['activity']]
 
     return df
 
@@ -36,30 +36,32 @@ def load_images_from_path(file_path, steps):
 
 
 class YawDDDataset(Dataset):
-    def __init__(self, split): # is called only once
+    def __init__(self, split, steps): # is called only once
         df_image_paths = get_image_paths(split)
 
         self.image_paths = df_image_paths['filepath'].tolist() # data_paths for efficient data handling with large datasets
         self.labels = df_image_paths['yawning'].tolist()
+
+        # transforms
+        self.transform = transforms.Compose([
+             transforms.ToPILImage(), 
+             transforms.Resize((128, 171)),    # resize
+             transforms.CenterCrop(112),       # crop
+             transforms.ToTensor(),            # back to C×H×W tensor
+        ])
+
+        self.steps = steps
         
 
     def __len__(self):
         return len(self.labels)
 
     def __getitem__(self, idx): # is called multiple times during training and evaluation and should be written efficiently
-        # load image from path
-        images = load_images_from_path(self.image_paths[idx], steps=10)
+        # load one image sequence from path
+        image_sequence = load_images_from_path(self.image_paths[idx], steps=self.steps)
+        images = [self.transform(frame) for frame in image_sequence] 
 
-        # # apply transforms
-        # img_transforms = transforms.Compose([
-        #     transforms.ToPILImage(),          # C×H×W tensor → PIL Image
-        #     transforms.Resize((128, 128)),    # resize
-        #     transforms.CenterCrop(112),       # crop
-        #     transforms.ToTensor(),            # back to C×H×W tensor
-        # ])
-
-        # images = img_transforms(images) 
-
+        # get corresponding label
         label = self.labels[idx]
 
-        return images, label
+        return torch.stack(images), torch.tensor(label)
