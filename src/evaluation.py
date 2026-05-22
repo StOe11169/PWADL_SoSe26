@@ -24,14 +24,14 @@ def evaluate(loader,
             all_labels.append(labels.cpu())
             all_preds.append(preds.cpu())
             
-            # convert to numpy
-            y_true = torch.cat(all_labels).numpy()
-            y_pred = torch.cat(all_preds).numpy()   
+        # convert to numpy
+        y_true = torch.cat(all_labels).numpy()
+        y_pred = torch.cat(all_preds).numpy()   
             
-            # return metrics
-            return {
-                'accuracy':  accuracy_score(y_true, y_pred),
-                'precision': precision_score(y_true, y_pred, zero_division=0),
-                'recall':    recall_score(y_true, y_pred, zero_division=0),
-                'f1':        f1_score(y_true, y_pred, zero_division=0),
-            }
+        # return metrics
+        return {
+            'accuracy':  accuracy_score(y_true, y_pred),
+            'precision': precision_score(y_true, y_pred, zero_division=0),
+            'recall':    recall_score(y_true, y_pred, zero_division=0),
+            'f1':        f1_score(y_true, y_pred, zero_division=0),
+        }

@@ -1,12 +1,15 @@
 import argparse, time
 import torch
 from torch.utils.data import DataLoader
-from torchinfo import summary
 from src.utils import setup_env
 from src.data import YawDDDataset
 from src.training import trainer, YawDDclassifier
 from src.evaluation import evaluate
 
+# TODOs: 
+# * Tensorboard
+# * Logging of results
+# * Optuna
 
 def main():
 
@@ -14,6 +17,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
     parser.add_argument("--steps", type=int, default=10)
+    parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--batch_size", type=int, default=4)
     args = parser.parse_args()
 
@@ -27,18 +31,17 @@ def main():
     testset = YawDDDataset('test', steps=args.steps)
 
     # dataloader 
-    trainloader = DataLoader(trainset, batch_size=args.batch_size, num_workers=0, shuffle=True)
+    trainloader = DataLoader(trainset, batch_size=args.batch_size, num_workers=0, shuffle=True, drop_last=True)
     valloader = DataLoader(valset, batch_size=args.batch_size, num_workers=0, shuffle=False)
 
     # model
     model = YawDDclassifier().to(device)
-    summary(model)
     
     # start training
     trainer(trainloader=trainloader,
             valloader=valloader,
             model=model,
-            epochs=2,
+            epochs=args.epochs,
             lr=0.001,
             device=device
             )

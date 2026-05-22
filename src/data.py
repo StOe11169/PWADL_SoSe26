@@ -21,6 +21,12 @@ def get_image_paths(split):
     df['filepath'] = file_paths
     df['yawning'] = [1.0 if 'yawning' in g.lower() else 0.0 for g in df['activity']]
 
+    if split == 'train':
+        idx_pos = df[df['yawning']>0.5].index.tolist()
+        idx_neg = df[df['yawning']<0.5].sample(len(idx_pos)).index.tolist()
+
+        df = df.loc[idx_pos+idx_neg]
+
     return df
 
 
@@ -45,7 +51,7 @@ class YawDDDataset(Dataset):
         # transforms
         self.transform = transforms.Compose([
              transforms.ToPILImage(), 
-             transforms.Resize(256),            # resize
+             transforms.Resize((256, 341)),            # resize
              transforms.CenterCrop(224),        # crop
              transforms.ToTensor(),             # back to C×H×W tensor
              transforms.Normalize(

@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchvision.models import resnet18, ResNet18_Weights
+from torchinfo import summary
 from tqdm import tqdm  
 
 from src.evaluation import evaluate
@@ -66,6 +67,8 @@ def trainer(trainloader,
     # Get trainable parameters and hand to optimizer
     tp = [p for p in model.parameters() if p.requires_grad]
     optimizer = optim.Adam(tp, lr=lr)
+    
+    summary(model)
 
     # train loop
     for epoch in range(epochs):
@@ -80,13 +83,13 @@ def trainer(trainloader,
 
             # forward + backward pass
             optimizer.zero_grad()
-            logits = model(frames)           
+            logits = model(frames)          
             loss    = criterion(logits, labels)
             loss.backward()                   
             optimizer.step()
 
             # update running loss
-            running_loss += loss.item() * frames.size(0)
+            running_loss += loss.item()
         
         print(f'  Loss: {running_loss:0.4f}')
 
@@ -94,6 +97,7 @@ def trainer(trainloader,
         train_metrics = evaluate(trainloader, model, device)
         val_metrics = evaluate(valloader, model, device)
 
-        print(f"Train Acc: {train_metrics['accuracy']:.3f}   --   Val Acc: {val_metrics['accuracy']:.3f}")  
+        print(f"Train Acc: {train_metrics['accuracy']:.3f}   --   Val Acc: {val_metrics['accuracy']:.3f}")
+        print(f"Train F1: {train_metrics['f1']:.3f}   --   Val F1c: {val_metrics['f1']:.3f}")  
 
         
