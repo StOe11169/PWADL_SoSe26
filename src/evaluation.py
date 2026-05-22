@@ -23,12 +23,10 @@ def evaluate(loader,
             # save labels and predictions
             all_labels.append(labels.cpu())
             all_preds.append(preds.cpu())
-
             
             # convert to numpy
             y_true = torch.cat(all_labels).numpy()
             y_pred = torch.cat(all_preds).numpy()   
-
             
             # return metrics
             return {

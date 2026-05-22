@@ -45,9 +45,13 @@ class YawDDDataset(Dataset):
         # transforms
         self.transform = transforms.Compose([
              transforms.ToPILImage(), 
-             transforms.Resize((128, 171)),    # resize
-             transforms.CenterCrop(112),       # crop
-             transforms.ToTensor(),            # back to C×H×W tensor
+             transforms.Resize(256),            # resize
+             transforms.CenterCrop(224),        # crop
+             transforms.ToTensor(),             # back to C×H×W tensor
+             transforms.Normalize(
+                  mean=[0.485, 0.456, 0.406],
+                  std=[0.229, 0.224, 0.225]
+             )
         ])
 
         self.steps = steps

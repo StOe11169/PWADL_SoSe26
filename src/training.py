@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torchvision.models import resnet18, ResNet18_Weights
 from tqdm import tqdm  
 
 from src.evaluation import evaluate
@@ -10,13 +11,42 @@ class YawDDclassifier(nn.Module):
     def __init__(self):
         super().__init__()
 
-        # define layer
-        self.fc1 = nn.Linear(376320, 1)
+        # pretrained resnet model
+        backbone = resnet18(weights=ResNet18_Weights.DEFAULT)
+        self.feature_extractor = nn.Sequential(*list(backbone.children())[:-1]) # keep only the model backbone and remove the final head
+        
+        # temporal attention pooling
+        self.attn = nn.Sequential(
+            nn.Linear(backbone.fc.in_features, 512),
+            nn.Tanh(),
+            nn.Linear(512, 1),
+        )
+
+        # classification head
+        self.cls_head = nn.Sequential(
+            nn.Linear(backbone.fc.in_features, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.25),
+            nn.Linear(128, 1),
+        )
 
     def forward(self, x):
-        x = torch.flatten(x, start_dim=1)
-        x = self.fc1(x)
-        return x.squeeze(-1)
+        B, T, C, H, W = x.shape
+        
+        # frame-wise feature extraction with 2D backbone
+        x = x.view(B * T, C, H, W)    # (B*T, C, H, W)
+        x = self.feature_extractor(x)           # (B*T, F, 1, 1)
+        x = x.view(B, T, -1)                    # (B, T, F)
+
+        # attention pooling over time
+        scores = self.attn(x)               # (B, T, 1)
+        weights = torch.softmax(scores, dim=1)
+        pooled = (x * weights).sum(dim=1)   # (B, F)
+
+        # final logits
+        logits = self.cls_head(pooled).squeeze(-1)  # (B,)
+        return logits
     
 
 def trainer(trainloader,
