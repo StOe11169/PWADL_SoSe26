@@ -56,9 +56,16 @@ def trainer(trainloader,
             lr,
             device):
 
-    # optimizer 
+    # objective function is binary cross entropy loss with logits 
     criterion = nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    
+    # set non-trainable parameters
+    for p in model.feature_extractor.parameters():
+        p.requires_grad=False
+
+    # Get trainable parameters and hand to optimizer
+    tp = [p for p in model.parameters() if p.requires_grad]
+    optimizer = optim.Adam(tp, lr=lr)
 
     # train loop
     for epoch in range(epochs):
