@@ -9,7 +9,7 @@ from src.evaluation import evaluate
 
 
 class YawDDclassifier(nn.Module):
-    def __init__(self):
+    def __init__(self, dropout):
         super().__init__()
 
         # pretrained resnet model
@@ -18,17 +18,21 @@ class YawDDclassifier(nn.Module):
         
         # temporal attention pooling
         self.attn = nn.Sequential(
-            nn.Linear(backbone.fc.in_features, 512),
+            nn.Linear(backbone.fc.in_features, 128),
             nn.Tanh(),
-            nn.Linear(512, 1),
+            nn.Linear(128, 1),
         )
 
         # classification head
         self.cls_head = nn.Sequential(
-            nn.Linear(backbone.fc.in_features, 128),
+            nn.Linear(backbone.fc.in_features, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(inplace=True),
+            nn.Dropout(dropout),
+            nn.Linear(256, 128),
             nn.BatchNorm1d(128),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.25),
+            nn.Dropout(dropout),
             nn.Linear(128, 1),
         )
 
@@ -55,23 +59,28 @@ def trainer(trainloader,
             model,
             epochs,
             lr,
+            freeze_backbone, 
             device):
+    
+    best_f1 = 0
+    best_epoch = 0
 
     # objective function is binary cross entropy loss with logits 
-    criterion = nn.BCEWithLogitsLoss()
+    criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(2.0))
     
     # set non-trainable parameters
-    for p in model.feature_extractor.parameters():
-        p.requires_grad=False
+    if freeze_backbone:
+        for p in model.feature_extractor.parameters():
+            p.requires_grad=False
 
     # Get trainable parameters and hand to optimizer
     tp = [p for p in model.parameters() if p.requires_grad]
-    optimizer = optim.Adam(tp, lr=lr)
+    optimizer = optim.AdamW(tp, lr=lr, weight_decay=1e-2) # AdamW uses weight decay with default 1e-2
     
-    summary(model)
+    # summary(model)
 
     # train loop
-    for epoch in range(epochs):
+    for epoch in range(epochs): 
 
         # init running loss
         running_loss = 0
@@ -85,7 +94,8 @@ def trainer(trainloader,
             optimizer.zero_grad()
             logits = model(frames)          
             loss    = criterion(logits, labels)
-            loss.backward()                   
+            loss.backward()        
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) # gradient clipping                
             optimizer.step()
 
             # update running loss
@@ -99,5 +109,12 @@ def trainer(trainloader,
 
         print(f"Train Acc: {train_metrics['accuracy']:.3f}   --   Val Acc: {val_metrics['accuracy']:.3f}")
         print(f"Train F1: {train_metrics['f1']:.3f}   --   Val F1c: {val_metrics['f1']:.3f}")  
+
+        # Save best model checkpoint
+        if val_metrics['f1'] > best_f1:
+            best_f1 = val_metrics['f1']
+            best_epoch = epoch
+
+    return best_f1, best_epoch
 
         
