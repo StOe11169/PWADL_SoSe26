@@ -73,7 +73,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
     parser.add_argument("--num_frames", type=int, default=64)
-    parser.add_argument("--epochs", type=int, default=15)
+    parser.add_argument("--epochs", type=int, default=2)
     parser.add_argument("--n_trials", type=int, default=40)
     args = parser.parse_args()
 

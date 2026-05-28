@@ -1,0 +1,15 @@
+.venv/Lib/site-packages/isympy.py
+.venv/Lib/site-packages/__pycache__/six.cpython-312.pyc
+.venv/
+venv/
+env/
+C:\PWADL\PWADL_SoSe26\.venv
+C:\PWADL\data
+venv/*
+data/*
+.venv/*
+src/__pycache__/data.cpython-312.pyc
+src/__pycache__/evaluation.cpython-312.pyc
+src/__pycache__/model.cpython-312.pyc
+src/__pycache__/training.cpython-312.pyc
+src/__pycache__/utils.cpython-312.pyc
