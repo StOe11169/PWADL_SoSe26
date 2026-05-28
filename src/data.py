@@ -19,7 +19,7 @@ def get_image_paths(split):
     df = pd.DataFrame([fn.split('-') for fn in file_names], columns=['id', 'info_labels', 'activity'])
 
     df['filepath'] = file_paths
-    df['yawning'] = ['1' if 'yawning' in g.lower() else '0' for g in df['activity']]
+    df['yawning'] = [1.0 if 'yawning' in g.lower() else 0.0 for g in df['activity']]
 
     return df
 
@@ -37,17 +37,36 @@ def transform(file_path):
      return
 
 class CustomDataset(Dataset):
-    def __init__(self, split_type): # is called only once
+    def __init__(self, split_type, num_frames): # is called only once
         df_image_paths = get_image_paths(split_type)
 
         self.image_paths = df_image_paths['filepath'].tolist() # data_paths for efficient data handling with large datasets
         self.labels = df_image_paths['yawning'].tolist()
+
+        # transforms
+        self.transform = transforms.Compose([
+             transforms.ToPILImage(), 
+             transforms.Resize((256, 341)),            # resize
+             transforms.CenterCrop(224),        # crop
+             transforms.ToTensor(),             # back to C×H×W tensor
+             transforms.Normalize(
+                  mean=[0.485, 0.456, 0.406],
+                  std=[0.229, 0.224, 0.225]
+             )
+        ])
+    
+        self.num_frames = num_frames      
 
 
     def __len__(self):
         return len(self.labels)
 
     def __getitem__(self, idx): # is called multiple times during training and evaluation and should be written efficiently
-        # load image from path
-    #     # apply transforms (resize, CenterCrop, normalization, ToTensor, data augmentation operations, ...)
-        return #images[idx], labels[idx]
+        # load one image sequence from path
+        image_sequence = load_images_from_path(self.image_paths[idx], num_frames=self.num_frames)
+        images = [self.transform(frame) for frame in image_sequence] 
+
+        # get corresponding label
+        label = self.labels[idx]
+
+        return torch.stack(images), torch.tensor(label)

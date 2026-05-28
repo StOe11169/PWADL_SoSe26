@@ -17,8 +17,8 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # data preparation
-    trainset = CustomDataset("Train")
-    valset = CustomDataset("Val")
+    trainset = CustomDataset("Train",10)
+    valset = CustomDataset("Val",10)
 
     # # dataloader 
     # trainloader = DataLoader(trainset, batch_size=, num_workers=0, shuffle=True)
