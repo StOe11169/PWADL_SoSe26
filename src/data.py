@@ -4,8 +4,13 @@ from torch.utils.data import Dataset
 from pathlib import Path
 import pandas as pd
 
+from omegaconf import OmegaConf
 from torchvision import transforms
 from torchcodec.decoders import VideoDecoder
+
+conf = OmegaConf.load("config.yml")
+
+NUM_FRAMES = conf.training.num_frames
 
 def get_image_paths(split):
     file_paths = []
@@ -32,6 +37,7 @@ def load_images_from_path(file_path, steps):
 
     # Get raw image frames
     return decoder.get_frames_at(indices=list(indices)).data
+
 
 def transform(file_path):
      return
