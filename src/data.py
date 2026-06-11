@@ -5,9 +5,11 @@ from torch.utils.data import Dataset
 
 from torchvision import transforms
 from torchcodec.decoders import VideoDecoder
+from sklearn.model_selection import train_test_split
 
 
 #Data Handling Functions
+"""
 def get_image_paths(split): #image paths are pre order according to their "split" i.e training, test or validation data
     file_paths = []
     file_names = []
@@ -30,7 +32,92 @@ def get_image_paths(split): #image paths are pre order according to their "split
     df['yawning'] = [1.0 if 'yawning' in g.lower() else 0.0 for g in df['activity']] #convert activity into binary classification label
 
     return df
+"""
+def get_all_data_paths(root="data"):
+    """
+    Scan dataset directory and returns a DataFrame with
+    filepath,id, info_labels, activity, yawning binary label
+    
+    Assumes filenames follow pattern:
+        <id>-<info>-<activity>.mp4
+    e.g:
+        001-driver-yawning.mp4
+    """
 
+    file_paths = []
+    file_names = []
+
+    # Walk through all subdirectories and collect videos
+    for dirpath, _, filenames in os.walk(root):
+        for fname in filenames:
+            if fname.lower().endswith((".mp4", ".avi", ".mov")):  # only consider video files
+                file_paths.append(dirpath+'/'+fname)
+                #full_path = os.path.join(dirpath, fname)
+                #file_paths.append(full_path)
+                file_names.append(os.path.splitext(fname)[0]) #remove extension names
+
+    # Split filenames
+    # Example: "001-driver-yawning" → ['001', 'driver', 'yawning']
+    df = pd.DataFrame([fn.split('-') for fn in file_names], columns=['id', 'info_labels', 'activity'])
+
+    # Add full file paths
+    df['filepath'] = file_paths
+
+    # Convert activity into binary label
+    df['activity'] = df['activity'].astype(str) #convert to string
+    # Create binary label: 1.0 if 'yawning' appears in activity 
+    # pd.notna + str() to safely handle missing or non-string values
+    df['yawning'] = df['activity'].apply(lambda x: 1.0 if pd.notna(x) and 'yawning' in str(x).lower() else 0.0)
+
+
+    # Optional: ensure consistent ordering (for reproducibility)
+    #df = df.sort_values(by='filepath').reset_index(drop=True)
+
+    return df
+
+def create_splits(df, test_size=0.2, val_size=0.1, seed=42):
+    """
+    Splits dataset into train, validation, and test sets.
+
+    Parameters:
+    - df: DataFrame returned by get_all_data_paths()
+    - test_size: fraction of total data used for test set
+    - val_size: fraction of total data used for validation set
+    - seed: random seed for reproducibility
+
+    Returns:
+    - train_df, val_df, test_df (all disjoint)
+
+    Notes:
+    - Splitting is done at VIDEO LEVEL
+    - test set size is determined by 1-test_size - val_size
+    """
+
+    #Split into train+val and test
+    train_val_df, test_df = train_test_split(
+        df,
+        test_size=test_size,
+        stratify=df['yawning'],   # maintain class distribution
+        random_state=seed
+    )
+
+    #Split train+val into train and validation
+    # Adjust validation size relative to remaining data
+    val_relative_size = val_size / (1 - test_size)
+
+    train_df, val_df = train_test_split(
+        train_val_df,
+        test_size=val_relative_size,
+        stratify=train_val_df['yawning'],
+        random_state=seed
+    )
+
+    # Data leakage sanity check
+    assert set(train_df.filepath).isdisjoint(val_df.filepath)
+    assert set(train_df.filepath).isdisjoint(test_df.filepath)
+    assert set(val_df.filepath).isdisjoint(test_df.filepath)
+
+    return train_df, val_df, test_df
 
 def load_images_from_path(file_path, num_frames): #get fixed number of frames from a video
     # Convert video into singular frames
@@ -49,11 +136,12 @@ def load_images_from_path(file_path, num_frames): #get fixed number of frames fr
 #Dataset Class
 
 class YawDDDataset(Dataset):
-    def __init__(self, split, num_frames): # is called only once
-        df_image_paths = get_image_paths(split) #get images paths as dataframe
+    def __init__(self, df, num_frames): # is called only once
+        #df_image_paths = get_image_paths(df) #get images paths as dataframe
 
-        self.image_paths = df_image_paths['filepath'].tolist() # data_paths for efficient data handling with large datasets, converts df to list
-        self.labels = df_image_paths['yawning'].tolist() 
+       # store data directly from dataframe
+        self.image_paths = df['filepath'].tolist()
+        self.labels = df['yawning'].tolist()
 
         # transform images to appropriate size upon initialisation
         self.transform = transforms.Compose([
@@ -76,6 +164,7 @@ class YawDDDataset(Dataset):
     def __getitem__(self, idx): #get dataset entrie at idx
         # load one image sequence from path
         image_sequence = load_images_from_path(self.image_paths[idx], num_frames=self.num_frames)
+        #apply transofrmation
         images = [self.transform(frame) for frame in image_sequence] 
 
         # get corresponding label
