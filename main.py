@@ -3,21 +3,17 @@ import torch
 from torch.utils.data import DataLoader
 import optuna
 from src.utils import setup_env
-from src.data import YawDDDataset, get_all_data_paths, create_splits
+from src.data import YawDDDataset, get_all_data_paths, create_group_splits
 from src.training import trainer
 from src.model import YawDDclassifier
 from src.evaluation import evaluate
 
 
-# Optional TODOs: 
-# * Hand more hyperparameters as arguments / add to optuna search space
-# * comparison with PWADL 2025: freeze/unfreeze backbone, two separate optimizers, lr scheduler
-# * Tensorboard
-# * Logging of results / save (best) model
+
 
 #Load dataset and create splits
 df = get_all_data_paths("data")
-train_df, val_df, test_df = create_splits(df, test_size=0.15, val_size=0.15,seed=42)
+train_df, val_df, test_df = create_group_splits(df, test_size=0.15, val_size=0.15,seed=42)
 
 
 def objective(trial):
@@ -78,9 +74,9 @@ if __name__ == "__main__":
     # get args (alternative to config file)
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
-    parser.add_argument("--num_frames", type=int, default=64)
-    parser.add_argument("--epochs", type=int, default=5)
-    parser.add_argument("--n_trials", type=int, default=10)
+    parser.add_argument("--num_frames", type=int, default=128)
+    parser.add_argument("--epochs", type=int, default=1)
+    parser.add_argument("--n_trials", type=int, default=1)
     args = parser.parse_args()
 
     # Create & run study, maximizing validation F1

@@ -5,7 +5,8 @@ from torch.utils.data import Dataset
 
 from torchvision import transforms
 from torchcodec.decoders import VideoDecoder
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GroupShuffleSplit
+
 
 
 #Data Handling Functions
@@ -116,6 +117,30 @@ def create_splits(df, test_size=0.2, val_size=0.1, seed=42):
     assert set(train_df.filepath).isdisjoint(val_df.filepath)
     assert set(train_df.filepath).isdisjoint(test_df.filepath)
     assert set(val_df.filepath).isdisjoint(test_df.filepath)
+
+    return train_df, val_df, test_df
+
+def create_group_splits(df, test_size = 0.15, val_size = 0.15, seed=42):
+
+    #Split into train+val and into test set
+    gss = GroupShuffleSplit(n_splits= 1, test_size= test_size, random_state= seed)
+    train_val_idx, test_idx = next(gss.split(df, groups=df['id']))
+
+    train_val_df = df.iloc[train_val_idx].reset_index(drop=True)
+    test_df      = df.iloc[test_idx].reset_index(drop=True)
+
+    #Split train+val again into train and val
+    val_relative_size = val_size / (1 - test_size)
+    gss_val = GroupShuffleSplit(n_splits=1, test_size=val_relative_size, random_state=seed)
+    train_idx, val_idx = next(gss_val.split(train_val_df, groups= train_val_df['id']))
+
+    train_df = train_val_df.iloc[train_idx].reset_index(drop=True)
+    val_df = train_val_df.iloc[val_idx].reset_index(drop=True)
+
+    #Sanity check for leakage
+    assert set(train_df['id']).isdisjoint(val_df['id'])
+    assert set(train_df['id']).isdisjoint(test_df['id'])
+    assert set(val_df['id']).isdisjoint(test_df['id'])
 
     return train_df, val_df, test_df
 
