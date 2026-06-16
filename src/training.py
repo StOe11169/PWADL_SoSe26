@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -7,11 +8,15 @@ from tqdm import tqdm
 
 from src.evaluation import evaluate
 
+#check Logs folder is there
+os.makedirs("logs", exist_ok=True)
 
-def trainer(trainloader, valloader, model, epochs, lr, freeze_backbone, device):
+def trainer(trainloader, valloader, model, epochs, lr, freeze_backbone, device, trial_number, study_dir):
     
-    best_f1 = 0
+    best_f1 = -1 # -1 so best model is saved at least once, even if it does not improve F1 score
     best_epoch = 0
+    best_model_path = os.path.join(study_dir, f"best_model_trial_{trial_number}.pth")
+    checkpoint_path = os.path.join(study_dir, f"checkpoint_trial_{trial_number}.pth")
 
     # objective function is binary cross entropy loss with logits 
     criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(2.0)) #missclafiying yawns is twice as costly 
@@ -58,10 +63,16 @@ def trainer(trainloader, valloader, model, epochs, lr, freeze_backbone, device):
         print(f"Train Acc: {train_metrics['accuracy']:.3f}   --   Val Acc: {val_metrics['accuracy']:.3f}")
         print(f"Train F1: {train_metrics['f1']:.3f}   --   Val F1c: {val_metrics['f1']:.3f}")  
 
-        # Save best model checkpoint
+        # Save best model weights
         if val_metrics['f1'] > best_f1:
             best_f1 = val_metrics['f1']
             best_epoch = epoch
+            torch.save({'model_state_dict': model.state_dict(), 'f1': best_f1, 'epoch': epoch},
+                       best_model_path)
+        #Save best Checkpoint
+        torch.save({'epoch': epoch, 'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict(), 'loss': running_loss,}, checkpoint_path)
+            
+    
 
     return best_f1, best_epoch
 

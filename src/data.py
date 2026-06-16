@@ -142,6 +142,14 @@ def create_group_splits(df, test_size = 0.15, val_size = 0.15, seed=42):
     assert set(train_df['id']).isdisjoint(test_df['id'])
     assert set(val_df['id']).isdisjoint(test_df['id'])
 
+    print("Train IDs:", len(train_df['id'].unique()))
+    print("Val IDs:", len(val_df['id'].unique()))
+    print("Test IDs:", len(test_df['id'].unique()))
+
+    print("Train samples:", len(train_df))
+    print("Val samples:", len(val_df))
+    print("Test samples:", len(test_df))
+
     return train_df, val_df, test_df
 
 def load_images_from_path(file_path, num_frames): #get fixed number of frames from a video
