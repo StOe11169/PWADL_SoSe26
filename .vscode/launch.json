@@ -10,7 +10,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
-            "python": "C:/PWADL/PWADL_SoSe26/.venv/Scripts/python.exe",
+            "python": "${command:python.interpreterPath}",
             //"args": ["-config"]
         }
     ]

@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import cv2
 
-from omegaconf import OmegaConf
+
 from torchvision import transforms
 #from torchcodec.decoders import VideoDecoder
 
