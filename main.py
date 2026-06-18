@@ -74,9 +74,9 @@ if __name__ == "__main__":
     parser.add_argument("--data", type=str, default='YawDD')
     parser.add_argument("--num_frames", type=int, default=64)
     parser.add_argument("--epochs", type=int, default=4)
-    parser.add_argument("--n_trials", type=int, default=2)
+    parser.add_argument("--n_trials", type=int, default=15)
     args = parser.parse_args()
-
+    about:blank#blocked
     # Create & run study, maximizing validation F1
     study = optuna.create_study(direction="maximize")
     study.optimize(objective, n_trials=args.n_trials, show_progress_bar=True)
