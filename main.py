@@ -1,10 +1,11 @@
+import os
 import argparse, time
 import torch
 from torch.utils.data import DataLoader
 import optuna
 
 from src.utils import setup_env
-from src.data import CustomDataset
+from src.data import CustomDataset, prepare_and_split_data
 from src.training import trainer, YawDDclassifier
 from src.evaluation import evaluate
 
@@ -18,7 +19,7 @@ from src.evaluation import evaluate
 def objective(trial):
 
     # training hyperparameters to tune
-    args.batch_size = trial.suggest_categorical("batch_size", [2, 2])
+    args.batch_size = trial.suggest_categorical("batch_size", [4, 8, 16])
     args.freeze_backbone = trial.suggest_categorical("freeze_backbone", [0, 1])
     args.lr = trial.suggest_float("lr", 1e-5, 1e-3, log=True)
     args.dropout = trial.suggest_float("dropout", 0.2, 0.6, step=0.1)
@@ -34,9 +35,9 @@ def objective(trial):
     testset = CustomDataset('test', num_frames=args.num_frames)
 
     # dataloaders
-    trainloader = DataLoader(trainset, batch_size=args.batch_size, num_workers=0, shuffle=True, drop_last=True)
-    valloader = DataLoader(valset, batch_size=args.batch_size, num_workers=0, shuffle=False)
-    testloader = DataLoader(testset, batch_size=args.batch_size, num_workers=0, shuffle=False)
+    trainloader = DataLoader(trainset, batch_size=args.batch_size, num_workers=4, shuffle=True, drop_last=True)
+    valloader = DataLoader(valset, batch_size=args.batch_size, num_workers=4, shuffle=False)
+    testloader = DataLoader(testset, batch_size=args.batch_size, num_workers=4, shuffle=False)
 
     # model
     model = YawDDclassifier(args.dropout).to(device)
@@ -73,9 +74,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
     parser.add_argument("--num_frames", type=int, default=64)
-    parser.add_argument("--epochs", type=int, default=15)
-    parser.add_argument("--n_trials", type=int, default=40)
+    parser.add_argument("--epochs", type=int, default=5)
+    parser.add_argument("--n_trials", type=int, default=2)
+    parser.add_argument("--prepare_data", action="store_true", help="Run data preparation and split raw files before training")
+    parser.add_argument("--data_fraction", type=float, default=1.0, help="Fraction of the dataset to use (0.0 to 1.0)")
     args = parser.parse_args()
+
+    # Prepare data if requested
+    if args.prepare_data:
+        print("=================================================================")
+        print("Running automated data preparation and split...")
+        prepare_and_split_data(data_fraction=args.data_fraction)
+        print("=================================================================")
 
     # Create & run study, maximizing validation F1
     study = optuna.create_study(direction="maximize")
@@ -85,6 +95,27 @@ if __name__ == "__main__":
     print(f'=================================================================\nBest trial (val_f1): {study.best_value:.4f}')
     print(f'  Params:')
     print(study.best_params.items())
+
+    best_trial = study.best_trial
+    best_model_state = best_trial.user_attrs.get("model_state_dict")
+
+    if best_model_state is not None:
+        # Create a directory for saved models if it doesn't exist
+        os.makedirs("models", exist_ok=True)
+        
+        # Initialize a fresh model using the best trial's dropout rate
+        best_dropout = best_trial.params.get("dropout", 0.5)
+        best_model = YawDDclassifier(best_dropout)
+        
+        # Load the best weights into this model structure
+        best_model.load_state_dict(best_model_state)
+        
+        # Save the model file (.pth or .pt is standard for PyTorch)
+        model_save_path = os.path.join("models", "best_yawdd_model.pth")
+        torch.save(best_model.state_dict(), model_save_path)
+        print(f"=================================================================\n-> Successfully saved the best model to: {model_save_path}")
+    else:
+        print("Warning: Could not extract best model weights.")
 
     # info on training time
     time_passed = time.time()-start_timestamp

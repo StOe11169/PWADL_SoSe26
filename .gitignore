@@ -1,3 +1,6 @@
 data/*
+Scripts/*
+resources/*
+models/*
 __pycache__/
 *.pyc
