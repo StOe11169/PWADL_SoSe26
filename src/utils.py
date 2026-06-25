@@ -19,4 +19,4 @@ def setup_env(seed):
         torch.backends.cudnn.benchmark = False
 
     # set precision
-    torch.set_float32_matmul_precision('high')     
+    torch.set_float32_matmul_precision('high')         
