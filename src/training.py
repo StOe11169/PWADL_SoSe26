@@ -5,18 +5,23 @@ import torch.optim as optim
 from torchvision.models import resnet18, ResNet18_Weights
 from torchinfo import summary
 from tqdm import tqdm  
+from torch.utils.tensorboard import SummaryWriter
 
 from src.evaluation import evaluate
+from src.utils import get_writer
 
 #check Logs folder is there
 os.makedirs("logs", exist_ok=True)
 
-def trainer(trainloader, valloader, model, epochs, lr, freeze_backbone, device, trial_number, study_dir):
+def trainer(trainloader, valloader, model, epochs, lr, freeze_backbone, device, trial_number, study_dir, writer = None):
     
     best_f1 = -1 # -1 so best model is saved at least once, even if it does not improve F1 score
     best_epoch = 0
     best_model_path = os.path.join(study_dir, f"best_model_trial_{trial_number}.pth")
     checkpoint_path = os.path.join(study_dir, f"checkpoint_trial_{trial_number}.pth")
+
+    #initialize Writer for tensorboard logging
+    writer = get_writer(study_dir, trial_number)
 
     # objective function is binary cross entropy loss with logits 
     criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(2.0)) #missclafiying yawns is twice as costly 
@@ -60,6 +65,14 @@ def trainer(trainloader, valloader, model, epochs, lr, freeze_backbone, device, 
         train_metrics = evaluate(trainloader, model, device)
         val_metrics = evaluate(valloader, model, device)
 
+        #Log to Tensorboard
+        if writer:
+            writer.add_scalar("Loss/train", running_loss, epoch)
+            writer.add_scalar("F1/train", train_metrics['f1'], epoch)
+            writer.add_scalar("F1/val", val_metrics['f1'], epoch)
+        for param_group in optimizer.param_groups:
+            writer.add_scalar("LR", param_group['lr'], epoch)
+
         print(f"Train Acc: {train_metrics['accuracy']:.3f}   --   Val Acc: {val_metrics['accuracy']:.3f}")
         print(f"Train F1: {train_metrics['f1']:.3f}   --   Val F1c: {val_metrics['f1']:.3f}")  
 
@@ -72,7 +85,10 @@ def trainer(trainloader, valloader, model, epochs, lr, freeze_backbone, device, 
         #Save best Checkpoint
         torch.save({'epoch': epoch, 'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict(), 'loss': running_loss,}, checkpoint_path)
             
-    
+    #Close Tensorboard writer
+    if writer:
+        writer.flush()
+        writer.close()
 
     return best_f1, best_epoch
 
