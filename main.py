@@ -42,6 +42,13 @@ def objective(trial):
     # model
     model = YawDDclassifier(args.dropout).to(device)
     
+    trial_params = {
+        "batch_size": args.batch_size,
+        "lr": args.lr,
+        "dropout": args.dropout,
+        "freeze_backbone": args.freeze_backbone
+    }
+
     # start training
     f1_val, epoch = trainer(trainloader=trainloader,
             valloader=valloader,
@@ -49,7 +56,9 @@ def objective(trial):
             epochs=args.epochs,
             lr=args.lr,
             freeze_backbone = args.freeze_backbone,
-            device=device
+            device=device,
+            save_dir=f"models/trial_{trial.number}",
+            trial_params=trial_params
             )
     
     # Decide if trial should be pruned
@@ -67,6 +76,9 @@ if __name__ == "__main__":
     # get start time
     start_timestamp = time.time()
 
+    print("Cuda status: ")
+    print(torch.cuda.is_available())
+
     # set seed and precision
     setup_env(seed=0)    
 
@@ -74,8 +86,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
     parser.add_argument("--num_frames", type=int, default=64)
-    parser.add_argument("--epochs", type=int, default=5)
-    parser.add_argument("--n_trials", type=int, default=2)
+    parser.add_argument("--epochs", type=int, default=3)
+    parser.add_argument("--n_trials", type=int, default=1)
     parser.add_argument("--prepare_data", action="store_true", help="Run data preparation and split raw files before training")
     parser.add_argument("--data_fraction", type=float, default=1.0, help="Fraction of the dataset to use (0.0 to 1.0)")
     args = parser.parse_args()
@@ -97,25 +109,17 @@ if __name__ == "__main__":
     print(study.best_params.items())
 
     best_trial = study.best_trial
-    best_model_state = best_trial.user_attrs.get("model_state_dict")
+    best_path = f"models/trial_{best_trial.number}/best_model.pth"
 
-    if best_model_state is not None:
-        # Create a directory for saved models if it doesn't exist
-        os.makedirs("models", exist_ok=True)
-        
-        # Initialize a fresh model using the best trial's dropout rate
-        best_dropout = best_trial.params.get("dropout", 0.5)
-        best_model = YawDDclassifier(best_dropout)
-        
-        # Load the best weights into this model structure
-        best_model.load_state_dict(best_model_state)
-        
-        # Save the model file (.pth or .pt is standard for PyTorch)
-        model_save_path = os.path.join("models", "best_yawdd_model.pth")
-        torch.save(best_model.state_dict(), model_save_path)
-        print(f"=================================================================\n-> Successfully saved the best model to: {model_save_path}")
-    else:
-        print("Warning: Could not extract best model weights.")
+    checkpoint = torch.load(best_path)
+
+    best_model = YawDDclassifier(best_trial.params.get("dropout", 0.5))
+    best_model.load_state_dict(checkpoint["model_state_dict"])
+
+    final_path = "models/best_yawdd_model.pth"
+    torch.save(best_model.state_dict(), final_path)
+
+    print(f"=================================================================\n-> Best model saved to: {final_path}")
 
     # info on training time
     time_passed = time.time()-start_timestamp

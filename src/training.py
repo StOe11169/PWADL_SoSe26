@@ -3,7 +3,8 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision.models import resnet18, ResNet18_Weights
 from torchinfo import summary
-from tqdm import tqdm  
+from tqdm import tqdm
+import os
 
 from src.evaluation import evaluate
 
@@ -60,14 +61,24 @@ def trainer(trainloader,
             epochs,
             lr,
             freeze_backbone, 
-            device):
+            device,
+            save_dir="models",
+            trial_params=None):
     
+    os.makedirs(save_dir, exist_ok=True)
+
     best_f1 = 0
     best_epoch = 0
 
+
     # objective function is binary cross entropy loss with logits 
-    criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(2.0))
+    # Change needs future evaluation
+    # Old code: criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(2.0))
+    pos_weight = torch.tensor(2.0, device=device)
+    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     
+
+
     # set non-trainable parameters
     if freeze_backbone:
         for p in model.feature_extractor.parameters():
@@ -114,7 +125,26 @@ def trainer(trainloader,
         if val_metrics['f1'] > best_f1:
             best_f1 = val_metrics['f1']
             best_epoch = epoch
+            best_state = {k: v.cpu() for k, v in model.state_dict().items()}
 
+            checkpoint = {
+                    "epoch": epoch,
+                    "model_state_dict": {k: v.cpu() for k, v in model.state_dict().items()},
+                    "optimizer_state_dict": optimizer.state_dict(),
+                    "val_f1": val_metrics['f1'],
+                    "val_acc": val_metrics['accuracy'],
+                    "train_f1": train_metrics['f1'],
+                    "train_acc": train_metrics['accuracy'],
+                    "lr": lr,
+                    "freeze_backbone": freeze_backbone,
+                    "trial_params": trial_params
+                }
+            
+            path = os.path.join(save_dir, "best_model.pth")
+            torch.save(checkpoint, path)
+
+            print(f"✅ Saved new best model (F1={best_f1:.3f}) at epoch {epoch}")
+            
     return best_f1, best_epoch
 
         
