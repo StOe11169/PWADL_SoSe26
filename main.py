@@ -45,7 +45,7 @@ def objective(trial):
     # Shuffle mischt Daten durch, drop_last entfernt unvollständige Batches, num_workers = 0 Daten werden im Hauptprozess geladen,
     # keine Parallelisierung. Sonst würde neben dem Training schon der nächste Batch vorbereitet werden, um GPU auszulasten
     # Könnte hier etwa auf CPU-Kerne/2 hochgesetzt werden AUSPROBIEREN
-    trainloader = DataLoader(trainset, batch_size=args.batch_size, num_workers=0, shuffle=True, drop_last=True)
+    trainloader = DataLoader(trainset, batch_size=args.batch_size, num_workers=6, shuffle=True, drop_last=True)
     valloader = DataLoader(valset, batch_size=args.batch_size, num_workers=0, shuffle=False)
     testloader = DataLoader(testset, batch_size=args.batch_size, num_workers=0, shuffle=False)
 
