@@ -98,6 +98,19 @@ def trainer(trainloader,
     #L2-Regularisierung: Fügt der Loss-Funktion eine Strafe proportional zum Quadrat der Gewichte des Modells hinzu
     # --> kleinere, besser verteilte Gewichte, reduziert Overfitting
     optimizer = optim.AdamW(tp, lr=lr, weight_decay=1e-2) # AdamW uses weight decay with default 1e-2
+
+    #LR-Schedluer eingefüht:
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+    optimizer,
+    mode='max',        # F1 maximieren
+    factor=0.5,        # LR bei Plateau halbieren
+    patience=2,        # Änderung nach 2 Epochen
+    verbose=True
+    )
+
+
+
+
     """
     WIRD IN MAIN ZUFÄLLIG ÜBER OPTUNA GELÖST
     Lernrate könnte angepasst werden:
@@ -146,6 +159,7 @@ def trainer(trainloader,
         train_metrics = evaluate(trainloader, model, device)
         val_metrics = evaluate(valloader, model, device)
 
+
         # Accuracy: Verhältnis zwischen richtigen und falschen Vorhersagen
         # F1:F-score or F-measure is a measure of predictive performance. 
         # It is calculated from the precision and recall of the test, where the precision is the number of true positive 
@@ -154,7 +168,13 @@ def trainer(trainloader,
         # divided by the number of all samples that should have been identified as positive.
         # F1c: ???
         print(f"Train Acc: {train_metrics['accuracy']:.3f}   --   Val Acc: {val_metrics['accuracy']:.3f}")
-        print(f"Train F1: {train_metrics['f1']:.3f}   --   Val F1c: {val_metrics['f1']:.3f}")  
+        print(f"Train F1: {train_metrics['f1']:.3f}   --   Val F1c: {val_metrics['f1']:.3f}")
+
+         #Für LR-Scheduler:
+        scheduler.step(val_metrics['f1']) 
+        #Aktuelle Lernrate ausgeben:
+        for param_group in optimizer.param_groups:
+        print("Current LR:", param_group['lr'])
 
         # Save best model checkpoint
         # Speichert bestes Ergebnis und gibt dieses aus
