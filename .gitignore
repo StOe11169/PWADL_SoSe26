@@ -3,5 +3,5 @@ Scripts/*
 resources/*
 models/*
 runs/*
-__pycache__/
-*.pyc
+__pycache__/*
+src/__pycache__/*
