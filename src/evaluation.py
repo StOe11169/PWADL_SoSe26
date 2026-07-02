@@ -26,7 +26,12 @@ def evaluate(loader,
             
         # convert to numpy
         y_true = torch.cat(all_labels).numpy()
-        y_pred = torch.cat(all_preds).numpy()   
+        y_pred = torch.cat(all_preds).numpy() 
+
+
+        #ZUm Test weil immer 0.667
+        preds = (torch.sigmoid(logits) > 0.5).float()
+        print(preds.unique())
             
         # return metrics
         return {

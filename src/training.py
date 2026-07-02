@@ -174,6 +174,7 @@ def trainer(trainloader,
         #Aktuelle Lernrate ausgeben:
         for param_group in optimizer.param_groups:
             print("Current LR:", param_group['lr'])
+            
 
         # Save best model checkpoint
         # Speichert bestes Ergebnis und gibt dieses aus
