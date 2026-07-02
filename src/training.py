@@ -105,7 +105,6 @@ def trainer(trainloader,
     mode='max',        # F1 maximieren
     factor=0.5,        # LR bei Plateau halbieren
     patience=2,        # Änderung nach 2 Epochen
-    verbose=True
     )
 
 
@@ -174,7 +173,7 @@ def trainer(trainloader,
         scheduler.step(val_metrics['f1']) 
         #Aktuelle Lernrate ausgeben:
         for param_group in optimizer.param_groups:
-        print("Current LR:", param_group['lr'])
+            print("Current LR:", param_group['lr'])
 
         # Save best model checkpoint
         # Speichert bestes Ergebnis und gibt dieses aus
