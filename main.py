@@ -87,9 +87,9 @@ if __name__ == "__main__":
     # get args 
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
-    parser.add_argument("--num_frames", type=int, default=64) # Anzahl Frames pro Sample
-    parser.add_argument("--epochs", type=int, default=2) # Anzahl Trainingsdurchläufe
-    parser.add_argument("--n_trials", type=int, default=10) # Anzahl Optuna-Versuche
+    parser.add_argument("--num_frames", type=int, default=16) # Anzahl Frames pro Sample
+    parser.add_argument("--epochs", type=int, default=5) # Anzahl Trainingsdurchläufe
+    parser.add_argument("--n_trials", type=int, default=2) # Anzahl Optuna-Versuche
     args = parser.parse_args() # Liest Parameter aus CLI
 
     # Create & run study, maximizing validation F1
