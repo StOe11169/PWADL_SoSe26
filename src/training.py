@@ -34,8 +34,9 @@ def trainer(trainloader, valloader, model, epochs, lr, freeze_backbone, device, 
     # Get trainable parameters and hand to optimizer
     tp = [p for p in model.parameters() if p.requires_grad]
     optimizer = optim.AdamW(tp, lr=lr, weight_decay=1e-2) # AdamW uses weight decay with default 1e-2, currently hardcoded, change that
+    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma = 0.9) #add lr scheduler to hyperparams
     
-    # summary(model)
+    
 
     # train loop
     for epoch in range(epochs): 
@@ -58,8 +59,9 @@ def trainer(trainloader, valloader, model, epochs, lr, freeze_backbone, device, 
 
             # update running loss
             running_loss += loss.item()
+        scheduler.step()
         
-        print(f'  Loss: {running_loss:0.4f}')
+        print(f'  Loss: {running_loss:0.4f}', f'    LR: {scheduler.get_last_lr()}')
 
         # evaluate train and validation data
         train_metrics = evaluate(trainloader, model, device)
