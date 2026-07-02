@@ -63,7 +63,8 @@ def trainer(trainloader,
             freeze_backbone, 
             device,
             save_dir="models",
-            trial_params=None):
+            trial_params=None,
+            tb_writer=None):
     
     os.makedirs(save_dir, exist_ok=True)
 
@@ -76,7 +77,6 @@ def trainer(trainloader,
     # Old code: criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(2.0))
     pos_weight = torch.tensor(2.0, device=device)
     criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
-    
 
 
     # set non-trainable parameters
@@ -111,15 +111,25 @@ def trainer(trainloader,
 
             # update running loss
             running_loss += loss.item()
-        
+            
+        avg_train_loss = running_loss / len(trainloader)
         print(f'  Loss: {running_loss:0.4f}')
+        print(f'  Avg Loss: {avg_train_loss:0.4f}')
 
         # evaluate train and validation data
         train_metrics = evaluate(trainloader, model, device)
         val_metrics = evaluate(valloader, model, device)
 
         print(f"Train Acc: {train_metrics['accuracy']:.3f}   --   Val Acc: {val_metrics['accuracy']:.3f}")
-        print(f"Train F1: {train_metrics['f1']:.3f}   --   Val F1c: {val_metrics['f1']:.3f}")  
+        print(f"Train F1: {train_metrics['f1']:.3f}   --   Val F1: {val_metrics['f1']:.3f}")  
+
+        # Pass metrics to TensorBoard
+        if tb_writer is not None:
+            tb_writer.add_scalar("Loss/Train", avg_train_loss, epoch)
+            tb_writer.add_scalar("Accuracy/Train", train_metrics['accuracy'], epoch)
+            tb_writer.add_scalar("Accuracy/Val", val_metrics['accuracy'], epoch)
+            tb_writer.add_scalar("F1/Train", train_metrics['f1'], epoch)
+            tb_writer.add_scalar("F1/Val", val_metrics['f1'], epoch)
 
         # Save best model checkpoint
         if val_metrics['f1'] > best_f1:
@@ -131,18 +141,17 @@ def trainer(trainloader,
                     "epoch": epoch,
                     "model_state_dict": {k: v.cpu() for k, v in model.state_dict().items()},
                     "optimizer_state_dict": optimizer.state_dict(),
-                    "val_f1": val_metrics['f1'],
-                    "val_acc": val_metrics['accuracy'],
-                    "train_f1": train_metrics['f1'],
-                    "train_acc": train_metrics['accuracy'],
-                    "lr": lr,
-                    "freeze_backbone": freeze_backbone,
-                    "trial_params": trial_params
+                    "val_f1": val_metrics['f1']
+                    #"val_acc": val_metrics['accuracy'],
+                    #"train_f1": train_metrics['f1'],
+                    #"train_acc": train_metrics['accuracy'],
+                    #"lr": lr,
+                    #"freeze_backbone": freeze_backbone,
+                    #"trial_params": trial_params
                 }
             
             path = os.path.join(save_dir, "best_model.pth")
             torch.save(checkpoint, path)
-
             print(f"✅ Saved new best model (F1={best_f1:.3f}) at epoch {epoch}")
             
     return best_f1, best_epoch

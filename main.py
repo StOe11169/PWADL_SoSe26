@@ -1,8 +1,10 @@
 import os
 import argparse, time
+import gc
 import torch
 from torch.utils.data import DataLoader
 import optuna
+from torch.utils.tensorboard import SummaryWriter
 
 from src.utils import setup_env
 from src.data import CustomDataset, prepare_and_split_data
@@ -13,8 +15,6 @@ from src.evaluation import evaluate
 # Optional TODOs: 
 # * Hand more hyperparameters as arguments / add to optuna search space
 # * comparison with PWADL 2025: freeze/unfreeze backbone, two separate optimizers, lr scheduler
-# * Tensorboard
-# * Logging of results / save (best) model
 
 def objective(trial):
 
@@ -35,9 +35,9 @@ def objective(trial):
     testset = CustomDataset('test', num_frames=args.num_frames)
 
     # dataloaders
-    trainloader = DataLoader(trainset, batch_size=args.batch_size, num_workers=4, shuffle=True, drop_last=True)
-    valloader = DataLoader(valset, batch_size=args.batch_size, num_workers=4, shuffle=False)
-    testloader = DataLoader(testset, batch_size=args.batch_size, num_workers=4, shuffle=False)
+    trainloader = DataLoader(trainset, batch_size=args.batch_size, num_workers=3, shuffle=True, drop_last=True)
+    valloader = DataLoader(valset, batch_size=args.batch_size, num_workers=3, shuffle=False)
+    testloader = DataLoader(testset, batch_size=args.batch_size, num_workers=3, shuffle=False)
 
     # model
     model = YawDDclassifier(args.dropout).to(device)
@@ -49,6 +49,9 @@ def objective(trial):
         "freeze_backbone": args.freeze_backbone
     }
 
+    log_dir = f"runs/trial_{trial.number}"
+    writer = SummaryWriter(log_dir=log_dir)
+
     # start training
     f1_val, epoch = trainer(trainloader=trainloader,
             valloader=valloader,
@@ -58,7 +61,8 @@ def objective(trial):
             freeze_backbone = args.freeze_backbone,
             device=device,
             save_dir=f"models/trial_{trial.number}",
-            trial_params=trial_params
+            trial_params=trial_params,
+            tb_writer=writer
             )
     
     # Decide if trial should be pruned
@@ -68,7 +72,33 @@ def objective(trial):
     
     # test
     test_metrics = evaluate(testloader, model, device)
-    print(f"=================================================================\nTest Acc: {test_metrics['accuracy']:.3f}") 
+    print(f"=================================================================\nTest Acc: {test_metrics['accuracy']:.3f}")
+
+    hparams_dict = {
+        "batch_size": args.batch_size,
+        "lr": args.lr,
+        "dropout": args.dropout,
+        "freeze_backbone": args.freeze_backbone
+    }
+    
+    metrics_dict = {
+        "hparam/best_val_f1": f1_val,
+        "hparam/best_val_epoch": epoch,
+        "hparam/test_acc": test_metrics['accuracy']
+    }
+    
+    # Wirte parameter result matching in the log
+    writer.add_hparams(hparams_dict, metrics_dict, run_name=".")
+    writer.close()
+    
+    # Clear GPU VRAM
+    del model
+    if 'optimizer' in locals():
+        del optimizer
+    
+    gc.collect()
+    torch.cuda.empty_cache()
+
     return f1_val
 
 
@@ -87,7 +117,7 @@ if __name__ == "__main__":
     parser.add_argument("--data", type=str, default='YawDD')
     parser.add_argument("--num_frames", type=int, default=64)
     parser.add_argument("--epochs", type=int, default=3)
-    parser.add_argument("--n_trials", type=int, default=1)
+    parser.add_argument("--n_trials", type=int, default=2)
     parser.add_argument("--prepare_data", action="store_true", help="Run data preparation and split raw files before training")
     parser.add_argument("--data_fraction", type=float, default=1.0, help="Fraction of the dataset to use (0.0 to 1.0)")
     args = parser.parse_args()

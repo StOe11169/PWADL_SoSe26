@@ -2,5 +2,6 @@ data/*
 Scripts/*
 resources/*
 models/*
+runs/*
 __pycache__/
 *.pyc
