@@ -5,7 +5,8 @@ from sklearn.metrics import accuracy_score , precision_score, recall_score, f1_s
 
 def evaluate(loader,
             model,
-            device):
+            device,
+            threshold):
     
     model.eval()
     with torch.no_grad():
@@ -18,7 +19,8 @@ def evaluate(loader,
             # forward pass
             logits = model(frames)
             probs = torch.sigmoid(logits)
-            preds = (probs > 0.4).float()
+            preds = (probs > threshold).float()
+            #preds = (probs > 0.4).float()
             #preds = (probs > 0.5).float()
             
             # save labels and predictions

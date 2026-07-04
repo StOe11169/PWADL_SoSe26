@@ -63,7 +63,8 @@ def trainer(trainloader,
             epochs,
             lr,
             freeze_backbone, 
-            device):
+            device,
+            threshold):
     
     #speichert bestes Ergebnis
     best_f1 = 0
@@ -165,8 +166,8 @@ def trainer(trainloader,
 
         # evaluate train and validation data
         # Berechne Performance-Metrics
-        train_metrics = evaluate(trainloader, model, device)
-        val_metrics = evaluate(valloader, model, device)
+        train_metrics = evaluate(trainloader, model, device, threshold)
+        val_metrics = evaluate(valloader, model, device, threshold)
 
 
         # Accuracy: Verhältnis zwischen richtigen und falschen Vorhersagen

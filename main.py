@@ -31,9 +31,11 @@ def objective(trial):
     args.lr = 1e-4 #trial.suggest_float("lr", 1e-5, 1e-3, log=True)
     # Dropout zwischen 0.2 - 0.6, in 0.1 Schritten 
     args.dropout = trial.suggest_float("dropout", 0.2, 0.6, step=0.1)
+    args.threshold = trial.suggest_float("threshold", 0.2, 0.7)
     # Gibt aktuelle Hyperparameter aus
     print(f'=================================================================')
     print(f' batch_size: {args.batch_size}, freeze_backbone: {args.freeze_backbone}, lr: {args.lr:0.5f}, dropout: {args.dropout:0.1f}')
+    print(f"... threshold: {args.threshold:.2f}")
 
     # get device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -64,7 +66,8 @@ def objective(trial):
             epochs=args.epochs,
             lr=args.lr,
             freeze_backbone = args.freeze_backbone,
-            device=device
+            device=device,
+            threshold=args.threshold
             )
     
     # Decide if trial should be pruned
@@ -123,7 +126,8 @@ if __name__ == "__main__":
     testloader = DataLoader(testset, batch_size=args.batch_size, num_workers=6, shuffle=False)
 
     # Evaluation
-    test_metrics = evaluate(testloader, best_model, device)
+    test_metrics = evaluate(testloader, best_model, device, study.best_params['threshold'])
+    #test_metrics = evaluate(testloader, best_model, device)
 
     print(f'\n================ FINAL TEST ================')
     print(f"Test Acc: {test_metrics['accuracy']:.3f}")
