@@ -194,4 +194,7 @@ def trainer(trainloader,
             best_f1 = val_metrics['f1']
             best_epoch = epoch
 
+            # Modell speichern
+            torch.save(model.state_dict(), "best_model.pt")
+
     return best_f1, best_epoch

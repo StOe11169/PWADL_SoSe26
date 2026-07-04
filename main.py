@@ -72,10 +72,12 @@ def objective(trial):
     if trial.should_prune(): # schlechte Trials werden früh abgebrochen, um Zeit zu sparen
         raise optuna.TrialPruned()
     
+    
+    #Komplett Entfernen, Data Leakage
     # test
     # Bewertet Modell auf Testdaten
-    test_metrics = evaluate(testloader, model, device)
-    print(f"=================================================================\nTest Acc: {test_metrics['accuracy']:.3f}") 
+    #test_metrics = evaluate(testloader, model, device)
+    #print(f"=================================================================\nTest Acc: {test_metrics['accuracy']:.3f}") 
     return f1_val #Optuna optimiert diesen Wert
 
 
@@ -106,6 +108,31 @@ if __name__ == "__main__":
     print(f'  Params:')
     print(study.best_params.items())
 
+
+    # ===== BESTES MODELL LADEN =====
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    # Modell mit besten Parametern erstellen
+    best_model = YawDDclassifier(study.best_params['dropout']).to(device)
+
+    # Gewichte laden
+    best_model.load_state_dict(torch.load("best_model.pt"))
+
+    # Testset laden
+    testset = YawDDDataset('test', num_frames=args.num_frames)
+    testloader = DataLoader(testset, batch_size=args.batch_size, num_workers=6, shuffle=False)
+
+    # Evaluation
+    test_metrics = evaluate(testloader, best_model, device)
+
+    print(f'\n================ FINAL TEST ================')
+    print(f"Test Acc: {test_metrics['accuracy']:.3f}")
+    print(f"Test F1:  {test_metrics['f1']:.3f}")
+
+
+
+
+
     # info on training time
     time_passed = time.time()-start_timestamp
     print(f'\nTraining finished in {time_passed//3600}h {(time_passed%3600)//60}min {time_passed%60:.0f}s\n')
@@ -119,4 +146,8 @@ if __name__ == "__main__":
     -----------------------------------------------------------
     Erledigt:
     - Learning Rate Scheduler hinzufügen
+    - Backbone unfreeze
+    - Testset nur am Ende nutzen
+    - Bestes Modell speichern
+    - Von Lern- zu Generalisierungs- zu overfitting- zu Dataleakage Problem
     """

@@ -4,3 +4,4 @@ src/__pycache__/data.cpython-313.pyc
 src/__pycache__/evaluation.cpython-313.pyc
 src/__pycache__/training.cpython-313.pyc
 src/__pycache__/utils.cpython-313.pyc
+best_model.pt
