@@ -18,7 +18,8 @@ def evaluate(loader,
             # forward pass
             logits = model(frames)
             probs = torch.sigmoid(logits)
-            preds = (probs > 0.5).float()
+            preds = (probs > 0.4).float()
+            #preds = (probs > 0.5).float()
             
             # save labels and predictions
             all_labels.append(labels.cpu())
@@ -29,9 +30,16 @@ def evaluate(loader,
         y_pred = torch.cat(all_preds).numpy() 
 
 
-        #ZUm Test weil immer 0.667
-        preds = (torch.sigmoid(logits) > 0.5).float()
-        print(preds.unique())
+        #Klassenvorhersage für alle Batches
+        all_preds_tensor = torch.cat(all_preds)
+        print("Vorhergesagte Klassen:", all_preds_tensor.unique())
+        
+        
+        
+        
+        #Klassenvorhersage ausgeben zum Test weil immer max. 0.667 (nur letzer Batch)
+        #preds = (torch.sigmoid(logits) > 0.5).float()
+        #print("Vorhergesagte Klassen:",preds.unique())
             
         # return metrics
         return {

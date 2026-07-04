@@ -69,8 +69,21 @@ def trainer(trainloader,
     best_f1 = 0
     best_epoch = 0
 
-    # objective function is binary cross entropy loss with logits 
-    criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(2.0)) #positive Klasse wird stärker gewichtet (bei Klassenungleichgewicht)
+
+
+
+
+
+
+    #Aus Trainingsdaten:
+    num_pos = 46 
+    num_neg = 132 -46
+    pos_weight = num_neg / num_pos
+    # objective function is binary cross entropy loss with logits
+    criterion = nn.BCEWithLogitsLoss(
+    pos_weight=torch.tensor(pos_weight).to(device)
+    )
+    #criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(2.0)) #positive Klasse wird stärker gewichtet (bei Klassenungleichgewicht)
     
     # set non-trainable parameters
     # ResNet wird nicht trainiert
@@ -103,18 +116,14 @@ def trainer(trainloader,
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
     optimizer,
     mode='max',        # F1 maximieren
-    factor=0.5,        # LR bei Plateau halbieren
-    patience=2,        # Änderung nach 2 Epochen
+    factor=0.7,        # LR bei Plateau halbieren (0.5)
+    patience=5,        # Änderung nach 2 Epochen (2)
     )
 
 
 
 
-    """
-    WIRD IN MAIN ZUFÄLLIG ÜBER OPTUNA GELÖST
-    Lernrate könnte angepasst werden:
-    lr = lr*0.1 --> Modell lernt langsamer
-    """
+   
     
     # summary(model)
 
@@ -168,6 +177,8 @@ def trainer(trainloader,
         # F1c: ???
         print(f"Train Acc: {train_metrics['accuracy']:.3f}   --   Val Acc: {val_metrics['accuracy']:.3f}")
         print(f"Train F1: {train_metrics['f1']:.3f}   --   Val F1c: {val_metrics['f1']:.3f}")
+
+        
 
          #Für LR-Scheduler:
         scheduler.step(val_metrics['f1']) 

@@ -21,12 +21,14 @@ def objective(trial):
 
     # Parameter und Einstellungen, die Optuna für das Training wählen kann
     # training hyperparameters to tune
-    # Batch Size, Optuna wählt entweder 4 oder 8
-    args.batch_size = trial.suggest_categorical("batch_size", [4, 8])
+    # Batch Size, Optuna wählt entweder 4 oder 8: Zum Test verkleinert
+    args.batch_size = trial.suggest_categorical("batch_size", [8])  #[4, 8])
     # Friert zufällig ein 0 = trainieren, 1 = einfrieren
     args.freeze_backbone = trial.suggest_categorical("freeze_backbone", [0]) #[0, 1])
     # Lernrate zwischen 0.00001 und 0.001, logarithmisch verteilt.
-    args.lr = trial.suggest_float("lr", 1e-5, 1e-3, log=True)
+    
+    #Fixe LR zum testen
+    args.lr = 1e-4 #trial.suggest_float("lr", 1e-5, 1e-3, log=True)
     # Dropout zwischen 0.2 - 0.6, in 0.1 Schritten 
     args.dropout = trial.suggest_float("dropout", 0.2, 0.6, step=0.1)
     # Gibt aktuelle Hyperparameter aus
@@ -46,7 +48,7 @@ def objective(trial):
     # Shuffle mischt Daten durch, drop_last entfernt unvollständige Batches, num_workers = 0 Daten werden im Hauptprozess geladen,
     # keine Parallelisierung. Sonst würde neben dem Training schon der nächste Batch vorbereitet werden, um GPU auszulasten
     # Könnte hier etwa auf CPU-Kerne/2 hochgesetzt werden AUSPROBIEREN
-    trainloader = DataLoader(trainset, batch_size=args.batch_size, num_workers=6, shuffle=True, drop_last=True)
+    trainloader = DataLoader(trainset, batch_size=args.batch_size, num_workers=6, shuffle=True, drop_last=False)   #=True)
     valloader = DataLoader(valset, batch_size=args.batch_size, num_workers=0, shuffle=False)
     testloader = DataLoader(testset, batch_size=args.batch_size, num_workers=0, shuffle=False)
 
@@ -88,9 +90,9 @@ if __name__ == "__main__":
     # get args 
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
-    parser.add_argument("--num_frames", type=int, default=128) # Anzahl Frames pro Sample
-    parser.add_argument("--epochs", type=int, default=10) # Anzahl Trainingsdurchläufe
-    parser.add_argument("--n_trials", type=int, default=3) # Anzahl Optuna-Versuche
+    parser.add_argument("--num_frames", type=int, default=16) # Anzahl Frames pro Sample
+    parser.add_argument("--epochs", type=int, default=15) # Anzahl Trainingsdurchläufe
+    parser.add_argument("--n_trials", type=int, default=1) # Anzahl Optuna-Versuche
     args = parser.parse_args() # Liest Parameter aus CLI
 
     # Create & run study, maximizing validation F1
