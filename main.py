@@ -50,9 +50,9 @@ def objective(trial):
     # Shuffle mischt Daten durch, drop_last entfernt unvollständige Batches, num_workers = 0 Daten werden im Hauptprozess geladen,
     # keine Parallelisierung. Sonst würde neben dem Training schon der nächste Batch vorbereitet werden, um GPU auszulasten
     # Könnte hier etwa auf CPU-Kerne/2 hochgesetzt werden AUSPROBIEREN
-    trainloader = DataLoader(trainset, batch_size=args.batch_size, num_workers=6, shuffle=True, drop_last=False)   #=True)
-    valloader = DataLoader(valset, batch_size=args.batch_size, num_workers=0, shuffle=False)
-    testloader = DataLoader(testset, batch_size=args.batch_size, num_workers=0, shuffle=False)
+    trainloader = DataLoader(trainset, batch_size=args.batch_size, num_workers=10, shuffle=True, drop_last=False)   #=True)
+    valloader = DataLoader(valset, batch_size=args.batch_size, num_workers=10, shuffle=False)
+    testloader = DataLoader(testset, batch_size=args.batch_size, num_workers=10, shuffle=False)
 
     # model
     # Initialisiert Modell, schieb es auf Device
@@ -96,8 +96,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
     parser.add_argument("--num_frames", type=int, default=16) # Anzahl Frames pro Sample
-    parser.add_argument("--epochs", type=int, default=15) # Anzahl Trainingsdurchläufe
-    parser.add_argument("--n_trials", type=int, default=3) # Anzahl Optuna-Versuche
+    parser.add_argument("--epochs", type=int, default=5) # Anzahl Trainingsdurchläufe
+    parser.add_argument("--n_trials", type=int, default=1) # Anzahl Optuna-Versuche
     args = parser.parse_args() # Liest Parameter aus CLI
 
     # Create & run study, maximizing validation F1
