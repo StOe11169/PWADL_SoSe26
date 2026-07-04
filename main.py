@@ -19,11 +19,12 @@ from src.evaluation import evaluate
 # Trial: Versuch mit bestimmten Hyperparametern (Optuna), wird mehrfach aufgerufen
 def objective(trial):
 
+    # Parameter und Einstellungen, die Optuna für das Training wählen kann
     # training hyperparameters to tune
     # Batch Size, Optuna wählt entweder 4 oder 8
     args.batch_size = trial.suggest_categorical("batch_size", [4, 8])
     # Friert zufällig ein 0 = trainieren, 1 = einfrieren
-    args.freeze_backbone = trial.suggest_categorical("freeze_backbone", [0, 1])
+    args.freeze_backbone = trial.suggest_categorical("freeze_backbone", [0]) #[0, 1])
     # Lernrate zwischen 0.00001 und 0.001, logarithmisch verteilt.
     args.lr = trial.suggest_float("lr", 1e-5, 1e-3, log=True)
     # Dropout zwischen 0.2 - 0.6, in 0.1 Schritten 
@@ -87,9 +88,9 @@ if __name__ == "__main__":
     # get args 
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
-    parser.add_argument("--num_frames", type=int, default=16) # Anzahl Frames pro Sample
-    parser.add_argument("--epochs", type=int, default=4) # Anzahl Trainingsdurchläufe
-    parser.add_argument("--n_trials", type=int, default=1) # Anzahl Optuna-Versuche
+    parser.add_argument("--num_frames", type=int, default=128) # Anzahl Frames pro Sample
+    parser.add_argument("--epochs", type=int, default=10) # Anzahl Trainingsdurchläufe
+    parser.add_argument("--n_trials", type=int, default=3) # Anzahl Optuna-Versuche
     args = parser.parse_args() # Liest Parameter aus CLI
 
     # Create & run study, maximizing validation F1
@@ -112,6 +113,8 @@ if __name__ == "__main__":
     - Testset nicht für jeden Trial benutzen --> Testset nur nach Optuna evaluieren
     - Freeze Backbone Booleans statt ints setzen (Form: True, False statt 0,1)
     - Nicht nur besten Score, sondern auch bestes Modell speichern
+    - Backbone teilweise unfreezen -> Aktuell Optuna Args und im Training Gradient = True gesetzt
+    -----------------------------------------------------------
+    Erledigt:
     - Learning Rate Scheduler hinzufügen
-    - Backbone teilweise unfreezen
     """

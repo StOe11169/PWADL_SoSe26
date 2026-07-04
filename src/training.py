@@ -77,7 +77,7 @@ def trainer(trainloader,
     # Backbone wird eingefroren, evt, zu restiktiv, könnte überarbeitet werden.
     if freeze_backbone:
         for p in model.feature_extractor.parameters():
-            p.requires_grad=False #keine Gradienten, keine Updates
+            p.requires_grad=True #=False #keine Gradienten, keine Updates
             # Modell lernt nur: Attention und Klassifikations-Head
     
     #Idee, um layer4 zu trainieren: (oder je nach Anzahl Epochen dynamisch gestalten)
