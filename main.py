@@ -7,6 +7,7 @@ from src.utils import setup_env
 from src.data import YawDDDataset
 from src.training import trainer, YawDDclassifier #importiert Modell und Trainingsfunktion
 from src.evaluation import evaluate
+import winsound #hier für Signalton
 
 
 # Optional TODOs: 
@@ -95,8 +96,8 @@ if __name__ == "__main__":
     # get args 
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
-    parser.add_argument("--num_frames", type=int, default=16) # Anzahl Frames pro Sample
-    parser.add_argument("--epochs", type=int, default=5) # Anzahl Trainingsdurchläufe
+    parser.add_argument("--num_frames", type=int, default=2) # Anzahl Frames pro Sample
+    parser.add_argument("--epochs", type=int, default=2) # Anzahl Trainingsdurchläufe
     parser.add_argument("--n_trials", type=int, default=1) # Anzahl Optuna-Versuche
     args = parser.parse_args() # Liest Parameter aus CLI
 
@@ -141,6 +142,12 @@ if __name__ == "__main__":
     time_passed = time.time()-start_timestamp
     print(f'\nTraining finished in {time_passed//3600}h {(time_passed%3600)//60}min {time_passed%60:.0f}s\n')
 
+
+    #Signaltöne
+    for _ in range(3):
+        winsound.Beep(1000, 500)
+
+
     """
     Ideen:
     - Testset nicht für jeden Trial benutzen --> Testset nur nach Optuna evaluieren
@@ -153,5 +160,6 @@ if __name__ == "__main__":
     - Backbone unfreeze
     - Testset nur am Ende nutzen
     - Bestes Modell speichern
+    - Signalton nach Trainingsende eingefügt
     - Von Lern- zu Generalisierungs- zu overfitting- zu Dataleakage Problem
     """
