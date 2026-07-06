@@ -14,6 +14,8 @@ from sklearn.model_selection import KFold #für KFold Cross Validation benötigt
 
 
 
+
+
 # Optional TODOs: 
 # * Hand more hyperparameters as arguments / add to optuna search space
 # * comparison with PWADL 2025: freeze/unfreeze backbone, two separate optimizers, lr scheduler
@@ -27,12 +29,12 @@ def objective(trial):
     # Parameter und Einstellungen, die Optuna für das Training wählen kann
     # training hyperparameters to tune
     # Batch Size, Optuna wählt entweder 4 oder 8: Zum Test verkleinert
-    args.batch_size = trial.suggest_categorical("batch_size", [8])  #[4, 8])
+    args.batch_size = trial.suggest_categorical("batch_size", [4, 8])  #[4, 8])
     # Friert zufällig ein 0 = trainieren, 1 = einfrieren
     args.freeze_backbone = trial.suggest_categorical("freeze_backbone", [0, 1]) #[0, 1])
     # Lernrate zwischen 0.00001 und 0.001, logarithmisch verteilt.
     
-    args.lr = trial.suggest_float("lr", 1e-5, 3e-4, log=True)
+    args.lr = trial.suggest_float("lr", 1e-5, 2e-4, log=True)
     #args.lr = trial.suggest_float("lr", 1e-5, 1e-3, log=True) #1e-4 #im Test ist 1e-3 zu groß
     # Dropout zwischen 0.2 - 0.6, in 0.1 Schritten 
     args.dropout = trial.suggest_float("dropout", 0.2, 0.6, step=0.1)
@@ -52,8 +54,13 @@ def objective(trial):
     #Komplettes Dataset für KFold
     
     
-    full_dataset = YawDDDataset('train', num_frames=args.num_frames, train=True)
-    #full_dataset = ConcatDataset([trainset, valset])
+    #full_dataset = YawDDDataset('train', num_frames=args.num_frames, train=True)
+    full_dataset = ConcatDataset([trainset, valset])
+    """full_dataset = ConcatDataset([
+        YawDDDataset('train', num_frames=args.num_frames, train=True),
+        YawDDDataset('val',   num_frames=args.num_frames, train=True)
+    ])"""
+
 
     testset = YawDDDataset('test', num_frames=args.num_frames, train = False)
 
@@ -110,10 +117,27 @@ def objective(trial):
         # Subsets erstellen
         #train_subset = torch.utils.data.Subset(full_dataset, train_idx)
         #val_subset   = torch.utils.data.Subset(full_dataset, val_idx)
-        train_subset = Subset(full_dataset, train_idx)
-        val_subset   = Subset(full_dataset, val_idx)
-        train_subset.dataset.train = True
-        val_subset.dataset.train = False
+        #train_dataset = YawDDDataset('train', num_frames=args.num_frames, train=True)
+        #val_dataset   = YawDDDataset('train', num_frames=args.num_frames, train=False)
+        #train_dataset = full_dataset
+        #val_dataset   = ConcatDataset([
+        #    YawDDDataset('train', num_frames=args.num_frames, train=False),
+        #    YawDDDataset('val',   num_frames=args.num_frames, train=False)
+        #])
+
+        train_dataset = ConcatDataset([
+            YawDDDataset('train', num_frames=args.num_frames, train=True),
+            YawDDDataset('val',   num_frames=args.num_frames, train=True)
+        ])
+
+        val_dataset = ConcatDataset([
+            YawDDDataset('train', num_frames=args.num_frames, train=False),
+            YawDDDataset('val',   num_frames=args.num_frames, train=False)
+        ])
+
+        train_subset = Subset(train_dataset, train_idx)
+        val_subset   = Subset(val_dataset, val_idx)
+
 
 
         # Dataloader
@@ -180,8 +204,8 @@ if __name__ == "__main__":
 
         # ===== FINAL TRAINING AUF GANZEM DATASET =====
 
-    trainset = YawDDDataset('train', num_frames=args.num_frames)
-    valset   = YawDDDataset('val', num_frames=args.num_frames)
+    trainset = YawDDDataset('train', num_frames=args.num_frames, train = True)
+    valset   = YawDDDataset('val', num_frames=args.num_frames, train = True)
 
     full_dataset = ConcatDataset([trainset, valset])
 
