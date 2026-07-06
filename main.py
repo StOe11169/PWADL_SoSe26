@@ -29,11 +29,11 @@ def objective(trial):
     # Batch Size, Optuna wählt entweder 4 oder 8: Zum Test verkleinert
     args.batch_size = trial.suggest_categorical("batch_size", [8])  #[4, 8])
     # Friert zufällig ein 0 = trainieren, 1 = einfrieren
-    args.freeze_backbone = trial.suggest_categorical("freeze_backbone", [0]) #[0, 1])
+    args.freeze_backbone = trial.suggest_categorical("freeze_backbone", [0, 1]) #[0, 1])
     # Lernrate zwischen 0.00001 und 0.001, logarithmisch verteilt.
     
     #Fixe LR zum testen
-    args.lr = 1e-4 #trial.suggest_float("lr", 1e-5, 1e-3, log=True)
+    args.lr =  trial.suggest_float("lr", 1e-5, 1e-3, log=True) #1e-4
     # Dropout zwischen 0.2 - 0.6, in 0.1 Schritten 
     args.dropout = trial.suggest_float("dropout", 0.2, 0.6, step=0.1)
     args.threshold = trial.suggest_float("threshold", 0.25, 0.35)
@@ -47,12 +47,15 @@ def objective(trial):
 
     # data preparation
     # Drei Splits, Wie viele Frames pro Video
-    trainset = YawDDDataset('train', num_frames=args.num_frames)
-    valset = YawDDDataset('val', num_frames=args.num_frames)
+    trainset = YawDDDataset('train', num_frames=args.num_frames, train = True)
+    valset = YawDDDataset('val', num_frames=args.num_frames, train = False)
     #Komplettes Dataset für KFold
-    full_dataset = ConcatDataset([trainset, valset])
+    
+    
+    full_dataset = YawDDDataset('train', num_frames=args.num_frames, train=True)
+    #full_dataset = ConcatDataset([trainset, valset])
 
-    testset = YawDDDataset('test', num_frames=args.num_frames)
+    testset = YawDDDataset('test', num_frames=args.num_frames, train = False)
 
     
     #Klassischer Split
@@ -105,12 +108,18 @@ def objective(trial):
         print(f"\n===== FOLD {fold} =====")
 
         # Subsets erstellen
-        train_subset = torch.utils.data.Subset(full_dataset, train_idx)
-        val_subset   = torch.utils.data.Subset(full_dataset, val_idx)
+        #train_subset = torch.utils.data.Subset(full_dataset, train_idx)
+        #val_subset   = torch.utils.data.Subset(full_dataset, val_idx)
+        train_subset = Subset(full_dataset, train_idx)
+        val_subset   = Subset(full_dataset, val_idx)
+        train_subset.dataset.train = True
+        val_subset.dataset.train = False
+
 
         # Dataloader
         trainloader = DataLoader(train_subset, batch_size=args.batch_size, num_workers=0, shuffle=True)
         valloader   = DataLoader(val_subset, batch_size=args.batch_size, num_workers=0, shuffle=False)
+
 
         # Modell NEU pro Fold!
         model = YawDDclassifier(args.dropout).to(device)
@@ -251,6 +260,7 @@ if __name__ == "__main__":
     - Signalton nach Trainingsende eingefügt
     - Von Lern- zu Generalisierungs- zu overfitting- zu Dataleakage Problem
     -KFold Cross Validation testweise implimentiert
+    -RandomFlip, Rotation, ColorJitter und getrennte Transforms integriert
     ----------------------------------------------------------------
     Erkenntnisse:
     - Treshold ideal bei ~0,33

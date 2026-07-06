@@ -37,14 +37,40 @@ def load_images_from_path(file_path, num_frames):
 
 
 class YawDDDataset(Dataset):
-    def __init__(self, split, num_frames): # is called only once
+    def __init__(self, split, num_frames, train=True): # is called only once
         df_image_paths = get_image_paths(split)
 
         self.image_paths = df_image_paths['filepath'].tolist() # data_paths for efficient data handling with large datasets
         self.labels = df_image_paths['yawning'].tolist()
+        self.train = train
 
-        # transforms
-        self.transform = transforms.Compose([
+        
+        #Transformer, bei dem Trainingsdaten augmentiert werden
+        self.train_transform = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.Resize((256, 341)),
+
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomRotation(10),
+            transforms.ColorJitter(
+                brightness=0.2,
+                contrast=0.2,
+                saturation=0.2,
+                hue=0.05
+            ),
+
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225]
+            )
+        ])
+        
+        
+        
+        # Validierungs- und Testdaten transformieren, ohne Augmentation
+        self.val_transform = transforms.Compose([
              transforms.ToPILImage(), 
              transforms.Resize((256, 341)),            # resize
              transforms.CenterCrop(224),        # crop
@@ -63,7 +89,12 @@ class YawDDDataset(Dataset):
     def __getitem__(self, idx): # is called multiple times during training and evaluation and should be written efficiently
         # load one image sequence from path
         image_sequence = load_images_from_path(self.image_paths[idx], num_frames=self.num_frames)
-        images = [self.transform(frame) for frame in image_sequence] 
+        if self.train:
+            images = [self.train_transform(frame) for frame in image_sequence]
+        else:
+            images = [self.val_transform(frame) for frame in image_sequence]
+        
+        # images = [self.transform(frame) for frame in image_sequence] 
 
         # get corresponding label
         label = self.labels[idx]
