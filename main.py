@@ -124,7 +124,7 @@ def objective(trial):
             freeze_backbone=args.freeze_backbone,
             device=device,
             threshold=args.threshold,
-            patience=3
+            patience=10
         )
 
         fold_f1s.append(f1_val)
@@ -149,8 +149,8 @@ if __name__ == "__main__":
     # get args 
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
-    parser.add_argument("--num_frames", type=int, default=2) # Anzahl Frames pro Sample
-    parser.add_argument("--epochs", type=int, default=2) # Anzahl Trainingsdurchläufe
+    parser.add_argument("--num_frames", type=int, default=32) # Anzahl Frames pro Sample
+    parser.add_argument("--epochs", type=int, default=20) # Anzahl Trainingsdurchläufe
     parser.add_argument("--n_trials", type=int, default=1) # Anzahl Optuna-Versuche
     args = parser.parse_args() # Liest Parameter aus CLI
 
@@ -194,7 +194,7 @@ if __name__ == "__main__":
         freeze_backbone=study.best_params['freeze_backbone'],
         device=device,
         threshold=study.best_params['threshold'],
-        patience=3
+        patience=10
     )
 
 

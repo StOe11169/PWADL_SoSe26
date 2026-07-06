@@ -66,7 +66,7 @@ def trainer(trainloader,
             freeze_backbone, 
             device,
             threshold,
-            patience=3): #für early stopping kfold
+            patience=10): #für early stopping kfold
     
     #speichert bestes Ergebnis
     best_f1 = 0
