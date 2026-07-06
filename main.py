@@ -32,8 +32,8 @@ def objective(trial):
     args.freeze_backbone = trial.suggest_categorical("freeze_backbone", [0, 1]) #[0, 1])
     # Lernrate zwischen 0.00001 und 0.001, logarithmisch verteilt.
     
-    #Fixe LR zum testen
-    args.lr =  trial.suggest_float("lr", 1e-5, 1e-3, log=True) #1e-4
+    args.lr = trial.suggest_float("lr", 1e-5, 3e-4, log=True)
+    #args.lr = trial.suggest_float("lr", 1e-5, 1e-3, log=True) #1e-4 #im Test ist 1e-3 zu groß
     # Dropout zwischen 0.2 - 0.6, in 0.1 Schritten 
     args.dropout = trial.suggest_float("dropout", 0.2, 0.6, step=0.1)
     args.threshold = trial.suggest_float("threshold", 0.25, 0.35)
@@ -158,8 +158,8 @@ if __name__ == "__main__":
     # get args 
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
-    parser.add_argument("--num_frames", type=int, default=32) # Anzahl Frames pro Sample
-    parser.add_argument("--epochs", type=int, default=20) # Anzahl Trainingsdurchläufe
+    parser.add_argument("--num_frames", type=int, default=2) # Anzahl Frames pro Sample
+    parser.add_argument("--epochs", type=int, default=2) # Anzahl Trainingsdurchläufe
     parser.add_argument("--n_trials", type=int, default=1) # Anzahl Optuna-Versuche
     args = parser.parse_args() # Liest Parameter aus CLI
 
