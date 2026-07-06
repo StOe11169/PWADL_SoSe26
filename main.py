@@ -123,7 +123,8 @@ def objective(trial):
             lr=args.lr,
             freeze_backbone=args.freeze_backbone,
             device=device,
-            threshold=args.threshold
+            threshold=args.threshold,
+            patience=3
         )
 
         fold_f1s.append(f1_val)
@@ -192,7 +193,8 @@ if __name__ == "__main__":
         lr=1e-4,
         freeze_backbone=study.best_params['freeze_backbone'],
         device=device,
-        threshold=study.best_params['threshold']
+        threshold=study.best_params['threshold'],
+        patience=3
     )
 
 

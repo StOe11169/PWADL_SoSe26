@@ -65,11 +65,13 @@ def trainer(trainloader,
             lr,
             freeze_backbone, 
             device,
-            threshold):
+            threshold,
+            patience=3): #für early stopping kfold
     
     #speichert bestes Ergebnis
     best_f1 = 0
     best_epoch = 0
+    epochs_no_improve = 0 #für early stopping kfold
 
 
 
@@ -195,7 +197,16 @@ def trainer(trainloader,
             best_f1 = val_metrics['f1']
             best_epoch = epoch
 
+            epochs_no_improve = 0  # für early stopping kfold
+
             # Modell speichern
             torch.save(model.state_dict(), "best_model.pt")
+        
+        else:
+            epochs_no_improve += 1 # für early stopping kfold
+        
+        if epochs_no_improve >= patience: # für early stopping kfold
+            print(f"\nEarly stopping triggered after {epoch+1} epochs")
+            break
 
     return best_f1, best_epoch
