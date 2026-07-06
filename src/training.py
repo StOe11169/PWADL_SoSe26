@@ -8,6 +8,7 @@ from tqdm import tqdm
 from src.evaluation import evaluate
 
 
+
 class YawDDclassifier(nn.Module): #Klasse für Neuronales Netz
     def __init__(self, dropout):
         super().__init__()

@@ -9,6 +9,10 @@ from src.training import trainer, YawDDclassifier #importiert Modell und Trainin
 from src.evaluation import evaluate
 import winsound #hier für Signalton
 
+from torch.utils.data import ConcatDataset, Subset # um Datensätze zusammenzufügen
+from sklearn.model_selection import KFold #für KFold Cross Validation benötigt
+
+
 
 # Optional TODOs: 
 # * Hand more hyperparameters as arguments / add to optuna search space
@@ -32,7 +36,7 @@ def objective(trial):
     args.lr = 1e-4 #trial.suggest_float("lr", 1e-5, 1e-3, log=True)
     # Dropout zwischen 0.2 - 0.6, in 0.1 Schritten 
     args.dropout = trial.suggest_float("dropout", 0.2, 0.6, step=0.1)
-    args.threshold = trial.suggest_float("threshold", 0.2, 0.7)
+    args.threshold = trial.suggest_float("threshold", 0.25, 0.35)
     # Gibt aktuelle Hyperparameter aus
     print(f'=================================================================')
     print(f' batch_size: {args.batch_size}, freeze_backbone: {args.freeze_backbone}, lr: {args.lr:0.5f}, dropout: {args.dropout:0.1f}')
@@ -45,8 +49,14 @@ def objective(trial):
     # Drei Splits, Wie viele Frames pro Video
     trainset = YawDDDataset('train', num_frames=args.num_frames)
     valset = YawDDDataset('val', num_frames=args.num_frames)
+    #Komplettes Dataset für KFold
+    full_dataset = ConcatDataset([trainset, valset])
+
     testset = YawDDDataset('test', num_frames=args.num_frames)
 
+    
+    #Klassischer Split
+    """
     # dataloaders
     # Shuffle mischt Daten durch, drop_last entfernt unvollständige Batches, num_workers = 0 Daten werden im Hauptprozess geladen,
     # keine Parallelisierung. Sonst würde neben dem Training schon der nächste Batch vorbereitet werden, um GPU auszulasten
@@ -83,6 +93,48 @@ def objective(trial):
     #test_metrics = evaluate(testloader, model, device)
     #print(f"=================================================================\nTest Acc: {test_metrics['accuracy']:.3f}") 
     return f1_val #Optuna optimiert diesen Wert
+    """
+
+    #Training mit KFold:
+    kfold = KFold(n_splits=5, shuffle=True, random_state=0)
+
+    fold_f1s = []
+
+    for fold, (train_idx, val_idx) in enumerate(kfold.split(full_dataset)):
+
+        print(f"\n===== FOLD {fold} =====")
+
+        # Subsets erstellen
+        train_subset = torch.utils.data.Subset(full_dataset, train_idx)
+        val_subset   = torch.utils.data.Subset(full_dataset, val_idx)
+
+        # Dataloader
+        trainloader = DataLoader(train_subset, batch_size=args.batch_size, num_workers=0, shuffle=True)
+        valloader   = DataLoader(val_subset, batch_size=args.batch_size, num_workers=0, shuffle=False)
+
+        # Modell NEU pro Fold!
+        model = YawDDclassifier(args.dropout).to(device)
+
+        f1_val, _ = trainer(
+            trainloader=trainloader,
+            valloader=valloader,
+            model=model,
+            epochs=args.epochs,
+            lr=args.lr,
+            freeze_backbone=args.freeze_backbone,
+            device=device,
+            threshold=args.threshold
+        )
+
+        fold_f1s.append(f1_val)
+    
+    mean_f1 = sum(fold_f1s) / len(fold_f1s)
+
+    print(f"\nMean F1 over folds: {mean_f1:.3f}")
+
+    return mean_f1
+
+
 
 
 if __name__ == "__main__":
@@ -113,6 +165,43 @@ if __name__ == "__main__":
     print(study.best_params.items())
 
 
+
+
+
+        # ===== FINAL TRAINING AUF GANZEM DATASET =====
+
+    trainset = YawDDDataset('train', num_frames=args.num_frames)
+    valset   = YawDDDataset('val', num_frames=args.num_frames)
+
+    full_dataset = ConcatDataset([trainset, valset])
+
+
+    batch_size = study.best_params['batch_size']
+
+    trainloader = DataLoader(full_dataset, batch_size=batch_size, num_workers=0, shuffle=True)
+
+    # Modell neu mit besten Parametern
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    best_model = YawDDclassifier(study.best_params['dropout']).to(device)
+
+    trainer(
+        trainloader=trainloader,
+        valloader=trainloader,  # egal, finales Training
+        model=best_model,
+        epochs=args.epochs,
+        lr=1e-4,
+        freeze_backbone=study.best_params['freeze_backbone'],
+        device=device,
+        threshold=study.best_params['threshold']
+    )
+
+
+
+
+
+
+
+
     # ===== BESTES MODELL LADEN =====
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -124,7 +213,7 @@ if __name__ == "__main__":
 
     # Testset laden
     testset = YawDDDataset('test', num_frames=args.num_frames)
-    testloader = DataLoader(testset, batch_size=args.batch_size, num_workers=6, shuffle=False)
+    testloader = DataLoader(testset, batch_size=args.batch_size, num_workers=0, shuffle=False)
 
     # Evaluation
     test_metrics = evaluate(testloader, best_model, device, study.best_params['threshold'])
@@ -151,7 +240,6 @@ if __name__ == "__main__":
     """
     Ideen:
     - Backbone teilweise unfreezen -> Aktuell Optuna Args und im Training Gradient = True gesetzt
-    - kfold cross validation implementieren
     -----------------------------------------------------------
     Erledigt:
     - Learning Rate Scheduler hinzufügen
@@ -160,6 +248,7 @@ if __name__ == "__main__":
     - Bestes Modell speichern
     - Signalton nach Trainingsende eingefügt
     - Von Lern- zu Generalisierungs- zu overfitting- zu Dataleakage Problem
+    -KFold Cross Validation testweise implimentiert
     ----------------------------------------------------------------
     Erkenntnisse:
     - Treshold ideal bei ~0,33
