@@ -150,10 +150,8 @@ if __name__ == "__main__":
 
     """
     Ideen:
-    - Testset nicht für jeden Trial benutzen --> Testset nur nach Optuna evaluieren
-    - Freeze Backbone Booleans statt ints setzen (Form: True, False statt 0,1)
-    - Nicht nur besten Score, sondern auch bestes Modell speichern
     - Backbone teilweise unfreezen -> Aktuell Optuna Args und im Training Gradient = True gesetzt
+    - kfold cross validation implementieren
     -----------------------------------------------------------
     Erledigt:
     - Learning Rate Scheduler hinzufügen
@@ -162,4 +160,9 @@ if __name__ == "__main__":
     - Bestes Modell speichern
     - Signalton nach Trainingsende eingefügt
     - Von Lern- zu Generalisierungs- zu overfitting- zu Dataleakage Problem
+    ----------------------------------------------------------------
+    Erkenntnisse:
+    - Treshold ideal bei ~0,33
+    - Auf 16GB RAM Systemen mit GPU Trainingsgeschwindigkeit durch RAM beschränkt
+    - Windows hat Probleme mit Multi-Worker-Systemen
     """

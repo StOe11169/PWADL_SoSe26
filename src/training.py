@@ -82,7 +82,7 @@ def trainer(trainloader,
     pos_weight = num_neg / num_pos
     # objective function is binary cross entropy loss with logits
     criterion = nn.BCEWithLogitsLoss(
-    pos_weight=torch.tensor(pos_weight).to(device)
+    pos_weight=torch.tensor(pos_weight).to(device) #pos_weigt ergibt sich aus manuell gezählten Labels
     )
     #criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(2.0)) #positive Klasse wird stärker gewichtet (bei Klassenungleichgewicht)
     
@@ -93,8 +93,6 @@ def trainer(trainloader,
         for p in model.feature_extractor.parameters():
             p.requires_grad=True #=False #keine Gradienten, keine Updates
             # Modell lernt nur: Attention und Klassifikations-Head
-    
-    #Idee, um layer4 zu trainieren: (oder je nach Anzahl Epochen dynamisch gestalten)
     """
 
     #Nur letzte Schicht des Backbone unfreezen
