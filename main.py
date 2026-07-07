@@ -290,4 +290,8 @@ if __name__ == "__main__":
     - Treshold ideal bei ~0,33
     - Auf 16GB RAM Systemen mit GPU Trainingsgeschwindigkeit durch RAM beschränkt
     - Windows hat Probleme mit Multi-Worker-Systemen
+    - Beste Parameter so far: Batch Size: 8, Freeze Backbone: 0, lr:  0.00013121430541763315, dropout: 0,4, threshold:0.30596314369198296 (32 FPS, 25 Epochen)
+        --> val_f1: 0.9074
+        --> Test Acc: 0.900
+        --> Test F1:  0.882
     """
