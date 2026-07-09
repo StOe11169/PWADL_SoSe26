@@ -14,29 +14,18 @@ from sklearn.model_selection import KFold #für KFold Cross Validation benötigt
 
 
 
-
-
-# Optional TODOs: 
-# * Hand more hyperparameters as arguments / add to optuna search space
-# * comparison with PWADL 2025: freeze/unfreeze backbone, two separate optimizers, lr scheduler
-# * Tensorboard
-# * Logging of results / save (best) model
-
-
 # Trial: Versuch mit bestimmten Hyperparametern (Optuna), wird mehrfach aufgerufen
 def objective(trial):
 
     # Parameter und Einstellungen, die Optuna für das Training wählen kann
     # training hyperparameters to tune
-    # Batch Size, Optuna wählt entweder 4 oder 8: Zum Test verkleinert
-    args.batch_size = trial.suggest_categorical("batch_size", [4, 8])  #[4, 8])
+    # Batch Size, Optuna wählt entweder 4 oder 8
+    args.batch_size = trial.suggest_categorical("batch_size", [4, 8])
     # Friert zufällig ein 0 = trainieren, 1 = einfrieren
-    args.freeze_backbone = trial.suggest_categorical("freeze_backbone", [0, 1]) #[0, 1])
-    # Lernrate zwischen 0.00001 und 0.001, logarithmisch verteilt.
-    
+    args.freeze_backbone = trial.suggest_categorical("freeze_backbone", [0, 1])
+    # Lernrate variieren
     args.lr = trial.suggest_float("lr", 1e-5, 2e-4, log=True)
-    #args.lr = trial.suggest_float("lr", 1e-5, 1e-3, log=True) #1e-4 #im Test ist 1e-3 zu groß
-    # Dropout zwischen 0.2 - 0.6, in 0.1 Schritten 
+    # Dropout variieren
     args.dropout = trial.suggest_float("dropout", 0.2, 0.6, step=0.1)
     args.threshold = trial.suggest_float("threshold", 0.25, 0.35)
     # Gibt aktuelle Hyperparameter aus
@@ -44,66 +33,22 @@ def objective(trial):
     print(f' batch_size: {args.batch_size}, freeze_backbone: {args.freeze_backbone}, lr: {args.lr:0.5f}, dropout: {args.dropout:0.1f}')
     print(f"... threshold: {args.threshold:.2f}")
 
-    # get device
+    # Falls verfügbar Training auf NVIDIA GPU, sonst CPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # data preparation
-    # Drei Splits, Wie viele Frames pro Video
+    # Trainings- und Validierungs-Datasets erstellen
     trainset = YawDDDataset('train', num_frames=args.num_frames, train = True)
     valset = YawDDDataset('val', num_frames=args.num_frames, train = False)
-    #Komplettes Dataset für KFold
+
     
     
-    #full_dataset = YawDDDataset('train', num_frames=args.num_frames, train=True)
+    # Kombiniertes Dataset für KFold erstellen
     full_dataset = ConcatDataset([trainset, valset])
-    """full_dataset = ConcatDataset([
-        YawDDDataset('train', num_frames=args.num_frames, train=True),
-        YawDDDataset('val',   num_frames=args.num_frames, train=True)
-    ])"""
 
-
+    # Testset unabhängig anlegen
     testset = YawDDDataset('test', num_frames=args.num_frames, train = False)
 
     
-    #Klassischer Split
-    """
-    # dataloaders
-    # Shuffle mischt Daten durch, drop_last entfernt unvollständige Batches, num_workers = 0 Daten werden im Hauptprozess geladen,
-    # keine Parallelisierung. Sonst würde neben dem Training schon der nächste Batch vorbereitet werden, um GPU auszulasten
-    # Könnte hier etwa auf CPU-Kerne/2 hochgesetzt werden AUSPROBIEREN
-    trainloader = DataLoader(trainset, batch_size=args.batch_size, num_workers=10, shuffle=True, drop_last=False)   #=True)
-    valloader = DataLoader(valset, batch_size=args.batch_size, num_workers=10, shuffle=False)
-    testloader = DataLoader(testset, batch_size=args.batch_size, num_workers=10, shuffle=False)
-
-    # model
-    # Initialisiert Modell, schieb es auf Device
-    model = YawDDclassifier(args.dropout).to(device)
-    
-    # start training
-    # Übergibt Daten, Modell, Hyperparameter, gibt beste F1 und die entsprechende Epoche zurück
-    f1_val, epoch = trainer(trainloader=trainloader,
-            valloader=valloader,
-            model=model,
-            epochs=args.epochs,
-            lr=args.lr,
-            freeze_backbone = args.freeze_backbone,
-            device=device,
-            threshold=args.threshold
-            )
-    
-    # Decide if trial should be pruned
-    trial.report(f1_val, epoch) # Meldet Zwischenergebnis an Optuna
-    if trial.should_prune(): # schlechte Trials werden früh abgebrochen, um Zeit zu sparen
-        raise optuna.TrialPruned()
-    
-    
-    #Komplett Entfernen, Data Leakage
-    # test
-    # Bewertet Modell auf Testdaten
-    #test_metrics = evaluate(testloader, model, device)
-    #print(f"=================================================================\nTest Acc: {test_metrics['accuracy']:.3f}") 
-    return f1_val #Optuna optimiert diesen Wert
-    """
 
     #Training mit KFold:
     kfold = KFold(n_splits=5, shuffle=True, random_state=0)
@@ -113,17 +58,6 @@ def objective(trial):
     for fold, (train_idx, val_idx) in enumerate(kfold.split(full_dataset)):
 
         print(f"\n===== FOLD {fold} =====")
-
-        # Subsets erstellen
-        #train_subset = torch.utils.data.Subset(full_dataset, train_idx)
-        #val_subset   = torch.utils.data.Subset(full_dataset, val_idx)
-        #train_dataset = YawDDDataset('train', num_frames=args.num_frames, train=True)
-        #val_dataset   = YawDDDataset('train', num_frames=args.num_frames, train=False)
-        #train_dataset = full_dataset
-        #val_dataset   = ConcatDataset([
-        #    YawDDDataset('train', num_frames=args.num_frames, train=False),
-        #    YawDDDataset('val',   num_frames=args.num_frames, train=False)
-        #])
 
         train_dataset = ConcatDataset([
             YawDDDataset('train', num_frames=args.num_frames, train=True),
@@ -138,14 +72,12 @@ def objective(trial):
         train_subset = Subset(train_dataset, train_idx)
         val_subset   = Subset(val_dataset, val_idx)
 
-
-
         # Dataloader
         trainloader = DataLoader(train_subset, batch_size=args.batch_size, num_workers=0, shuffle=True)
         valloader   = DataLoader(val_subset, batch_size=args.batch_size, num_workers=0, shuffle=False)
 
 
-        # Modell NEU pro Fold!
+        # Modell pro Fold neu initialisieren
         model = YawDDclassifier(args.dropout).to(device)
 
         f1_val, _ = trainer(
@@ -172,27 +104,23 @@ def objective(trial):
 
 
 if __name__ == "__main__":
-    # get start time
     start_timestamp = time.time()
 
-    # set seed and precision
-    # setzt Seed für reproduzierbare Ergebnisse
     setup_env(seed=0)    
 
-    # get args 
+    # Parameter für Training festlegen
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
     parser.add_argument("--num_frames", type=int, default=32) # Anzahl Frames pro Sample
     parser.add_argument("--epochs", type=int, default=25) # Anzahl Trainingsdurchläufe
     parser.add_argument("--n_trials", type=int, default=5) # Anzahl Optuna-Versuche
-    args = parser.parse_args() # Liest Parameter aus CLI
+    args = parser.parse_args()
 
-    # Create & run study, maximizing validation F1
+    # Optuna Study erstellen und ausführen. Für jeden Trial neue Hyperparameter, komplettes Training
     study = optuna.create_study(direction="maximize") # Ziel: Maximiere den F1-Score
     study.optimize(objective, n_trials=args.n_trials, show_progress_bar=True) # Führt mehrere Trials durch
-    # Für jeden Trial neue Hyperparameter, komplettes Training
+    
 
-    # Print out best trial
     # Bestes F1 und Hyperparameter ausgeben
     print(f'=================================================================\nBest trial (val_f1): {study.best_value:.4f}')
     print(f'  Params:')
@@ -202,19 +130,18 @@ if __name__ == "__main__":
 
 
 
-        # ===== FINAL TRAINING AUF GANZEM DATASET =====
+    # ===== FINALES TRAINING AUF ALLEN TRAININGS- UND VALIDIERUNGSDATEN =====
 
     trainset = YawDDDataset('train', num_frames=args.num_frames, train = True)
     valset   = YawDDDataset('val', num_frames=args.num_frames, train = True)
 
     full_dataset = ConcatDataset([trainset, valset])
 
-
     batch_size = study.best_params['batch_size']
 
     trainloader = DataLoader(full_dataset, batch_size=batch_size, num_workers=0, shuffle=True)
 
-    # Modell neu mit besten Parametern
+    # Modell mit besten Parametern neu initialisieren
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     best_model = YawDDclassifier(study.best_params['dropout']).to(device)
 
@@ -223,7 +150,7 @@ if __name__ == "__main__":
         valloader=trainloader,  # egal, finales Training
         model=best_model,
         epochs=args.epochs,
-        lr=1e-4,
+        lr=1e-4,                # finales Training mit fixer Lernrate
         freeze_backbone=study.best_params['freeze_backbone'],
         device=device,
         threshold=study.best_params['threshold'],
@@ -232,12 +159,7 @@ if __name__ == "__main__":
 
 
 
-
-
-
-
-
-    # ===== BESTES MODELL LADEN =====
+    # ===== ABSCHLIEßENDER TEST AUF TESTDATEN =====
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Modell mit besten Parametern erstellen
@@ -252,14 +174,10 @@ if __name__ == "__main__":
 
     # Evaluation
     test_metrics = evaluate(testloader, best_model, device, study.best_params['threshold'])
-    #test_metrics = evaluate(testloader, best_model, device)
 
     print(f'\n================ FINAL TEST ================')
     print(f"Test Acc: {test_metrics['accuracy']:.3f}")
     print(f"Test F1:  {test_metrics['f1']:.3f}")
-
-
-
 
 
     # info on training time
@@ -267,31 +185,9 @@ if __name__ == "__main__":
     print(f'\nTraining finished in {time_passed//3600}h {(time_passed%3600)//60}min {time_passed%60:.0f}s\n')
 
 
-    #Signaltöne
+    #Signaltöne nach dem Test ausgeben
     for _ in range(3):
         winsound.Beep(1000, 500)
 
 
-    """
-    Ideen:
-    - Backbone teilweise unfreezen -> Aktuell Optuna Args und im Training Gradient = True gesetzt
-    -----------------------------------------------------------
-    Erledigt:
-    - Learning Rate Scheduler hinzufügen
-    - Backbone unfreeze
-    - Testset nur am Ende nutzen
-    - Bestes Modell speichern
-    - Signalton nach Trainingsende eingefügt
-    - Von Lern- zu Generalisierungs- zu overfitting- zu Dataleakage Problem
-    -KFold Cross Validation testweise implimentiert
-    -RandomFlip, Rotation, ColorJitter und getrennte Transforms integriert
-    ----------------------------------------------------------------
-    Erkenntnisse:
-    - Treshold ideal bei ~0,33
-    - Auf 16GB RAM Systemen mit GPU Trainingsgeschwindigkeit durch RAM beschränkt
-    - Windows hat Probleme mit Multi-Worker-Systemen
-    - Beste Parameter so far: Batch Size: 8, Freeze Backbone: 0, lr:  0.00013121430541763315, dropout: 0,4, threshold:0.30596314369198296 (32 FPS, 25 Epochen)
-        --> val_f1: 0.9074
-        --> Test Acc: 0.900
-        --> Test F1:  0.882
-    """
+    
