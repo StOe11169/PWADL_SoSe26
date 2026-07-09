@@ -10,11 +10,10 @@ def load_model(checkpoint_path, device):
     # Checkpoint laden
     checkpoint = torch.load(checkpoint_path, map_location=device)
     
-    """
+    
     # Parameter aus Checkpoint holen, nach neuem Training machbar
     dropout = checkpoint["dropout"]
     threshold = checkpoint["threshold"]
-    """
 
     # Modell korrekt rekonstruieren
     model = YawDDclassifier(dropout).to(device)
@@ -33,9 +32,7 @@ def main():
     # Parameter festlegen
     batch_size = 8
     num_frames = 32
-    #Nach nächstem Training überflüssig
-    dropout = 0.3          # <- MUSS zu deinem best_params passen
-    threshold = 0.3
+
 
     # ===== DATEN LADEN =====
     testset = YawDDDataset('test', num_frames=num_frames, train=False)
@@ -53,3 +50,7 @@ def main():
     print("\n===== TESTERGEBNISSE =====")
     print(f"Accuracy: {metrics['accuracy']:.3f}")
     print(f"F1 Score: {metrics['f1']:.3f}")
+
+
+if __name__ == "__main__":
+    main()
