@@ -64,7 +64,9 @@ def trainer(trainloader,
             device,
             save_dir="models",
             trial_params=None,
-            tb_writer=None):
+            tb_writer=None,
+            patience=5
+            ):
     
     os.makedirs(save_dir, exist_ok=True)
 
