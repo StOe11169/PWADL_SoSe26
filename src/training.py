@@ -201,6 +201,16 @@ def trainer(trainloader,
 
             # Modell speichern
             torch.save(model.state_dict(), "best_model.pt")
+            
+
+            """ =================Ab dem nächsten Training aktivieren!!!!!!!!!!!!!!! ===================
+            torch.save({
+               "model_state": best_model.state_dict(),
+               "dropout": study.best_params['dropout'],
+               "threshold": study.best_params['threshold']}, 
+               "best_model.pt"
+            )
+            """
         
         else:
             epochs_no_improve += 1 # für early stopping kfold
