@@ -8,6 +8,7 @@ import time
 from torch.utils.tensorboard import SummaryWriter
 
 
+
 def setup_env(seed):
 
     # set python, numpy, torch random seed
@@ -31,22 +32,21 @@ def get_writer(study_dir, trial_number):
     log_dir = os.path.join(study_dir, f"tensorboard_trial_{trial_number}")
     return SummaryWriter(log_dir=log_dir)
 
+# Start TensorBoard process and open in browser
 
-def start_tensorboard(log_dir="logs", port=6006):
-    """
-    Starts TensorBoard in the background and opens it in the browser.
-    """
-    # Start TensorBoard process
-    process = subprocess.Popen(
-        ["tensorboard", "--logdir=",log_dir, "--port", str(port)],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL, shell=True
-    )
+def start_tensorboard(study_dir, port=6006):
 
-    # Give it a moment to start
-    time.sleep(2)
+   log_dir = os.path.join(os.getcwd(), study_dir)
+   cmd = ["tensorboard", "--logdir", log_dir, "--port", str(port)]
+   print(f"Executing: {' '.join(cmd)}")
+
+   #Call tensorboard via cmd
+   process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+   # Give it a moment to start
+   time.sleep(5)
 
     # Open browser
-    webbrowser.open(f"http://localhost:{port}")
+   webbrowser.open(f"http://localhost:{port}")
 
-    return process
+   return process
+

@@ -156,7 +156,7 @@ def load_images_from_path(file_path, num_frames): #get fixed number of frames fr
     # Convert video into singular frames
     decoder = VideoDecoder(file_path) 
 
-    # Select frames from linearly spaced indices across the whole video/frame sequence
+    # Select frames from linearly spaced indices across the whole video/frame sequence, returns 1D tensor, long just for memory
     indices = torch.linspace(0, decoder.metadata.num_frames - 1, num_frames).long()
 
     #Return only selected raw images frames

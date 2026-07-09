@@ -36,8 +36,6 @@ def trainer(trainloader, valloader, model, epochs, lr, freeze_backbone, device, 
     optimizer = optim.AdamW(tp, lr=lr, weight_decay=1e-2) # AdamW uses weight decay with default 1e-2, currently hardcoded, change that
     scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma = 0.9) #add lr scheduler to hyperparams
     
-    
-
     # train loop
     for epoch in range(epochs): 
 
@@ -52,13 +50,14 @@ def trainer(trainloader, valloader, model, epochs, lr, freeze_backbone, device, 
             # forward + backward pass
             optimizer.zero_grad()
             logits = model(frames)          
-            loss    = criterion(logits, labels)
+            loss   = criterion(logits, labels)
             loss.backward()        
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) # gradient clipping                
             optimizer.step()
 
             # update running loss
             running_loss += loss.item()
+            writer.flush()
         scheduler.step()
         
         print(f'  Loss: {running_loss:0.4f}', f'    LR: {scheduler.get_last_lr()}')
@@ -77,6 +76,7 @@ def trainer(trainloader, valloader, model, epochs, lr, freeze_backbone, device, 
 
         print(f"Train Acc: {train_metrics['accuracy']:.3f}   --   Val Acc: {val_metrics['accuracy']:.3f}")
         print(f"Train F1: {train_metrics['f1']:.3f}   --   Val F1c: {val_metrics['f1']:.3f}")  
+        
 
         # Save best model weights
         if val_metrics['f1'] > best_f1:

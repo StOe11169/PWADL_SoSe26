@@ -112,9 +112,9 @@ if __name__ == "__main__":
     # get args (alternative to config file)
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
-    parser.add_argument("--num_frames", type=int, default=1)
-    parser.add_argument("--epochs", type=int, default=2)
-    parser.add_argument("--n_trials", type=int, default=2)
+    parser.add_argument("--num_frames", type=int, default=128)
+    parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--n_trials", type=int, default=3)
     args = parser.parse_args()
 
     # Create & run study, maximizing validation F1, lamba as extra study_dir arg isnt passed directly by optuna
@@ -129,6 +129,6 @@ if __name__ == "__main__":
     # info on training time
     time_passed = time.time()-start_timestamp
     print(f'\nTraining finished in {time_passed//3600}h {(time_passed%3600)//60}min {time_passed%60:.0f}s\n')
-    #Close Tensorboard
+    
     tb_process.terminate()
     
