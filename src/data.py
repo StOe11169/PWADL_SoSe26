@@ -120,7 +120,23 @@ def create_splits(df, test_size=0.2, val_size=0.1, seed=42):
 
     return train_df, val_df, test_df
 
-def create_group_splits(df, test_size = 0.15, val_size = 0.15, seed=42):
+def create_group_splits(df, output_dir, file_col = 'filepath', test_size = 0.15, val_size = 0.15, seed=42):
+    """
+    Splits dataset into train, validation, and test sets.
+
+    Parameters:
+    - df: DataFrame returned by get_all_data_paths()
+    - test_size: fraction of total data used for test set
+    - val_size: fraction of total data used for validation set
+    - seed: random seed for reproducibility
+
+    Returns:
+    - train_df, val_df, test_df (all disjoint)
+
+    Notes:
+    - Splitting is done via ID
+    - test set size is determined by 1-train_size - val_size
+    """
 
     #Split into train+val and into test set
     gss = GroupShuffleSplit(n_splits= 1, test_size= test_size, random_state= seed)
@@ -149,6 +165,20 @@ def create_group_splits(df, test_size = 0.15, val_size = 0.15, seed=42):
     print("Train samples:", len(train_df))
     print("Val samples:", len(val_df))
     print("Test samples:", len(test_df))
+
+    #Create metadata for all sets and save to csv
+    metadata = []
+    for set_name, df_set in [('train', train_df), ('val', val_df), ('test', test_df)]:
+        #Group by ID and collect into a list
+        grouped = df_set.groupby('id')[file_col].apply(list).reset_index()
+        grouped['set'] = set_name
+        metadata.append(grouped)
+
+    #Combine sets into df
+    metadata_df = pd.concat(metadata, ignore_index=True)
+
+    output = os.path.join(os.getcwd(), output_dir, f"sample_distribution")
+    metadata_df.to_csv(output)
 
     return train_df, val_df, test_df
 
