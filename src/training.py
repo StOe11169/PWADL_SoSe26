@@ -13,8 +13,9 @@ from src.utils import get_writer
 #check Logs folder is there
 os.makedirs("logs", exist_ok=True)
 
-def trainer(trainloader, valloader, model, epochs, device, freeze_backbone, trial_number, study_dir, hparams, writer = None):
+def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg, writer = None):
     
+    epochs = cfg["epochs"]
     best_f1 = -1 # -1 so best model is saved at least once, even if it does not improve F1 score
     best_epoch = 0
     best_model_path = os.path.join(study_dir, f"best_model_trial_{trial_number}.pth")
@@ -24,36 +25,41 @@ def trainer(trainloader, valloader, model, epochs, device, freeze_backbone, tria
     writer = get_writer(study_dir, trial_number)
 
     # objective function is binary cross entropy loss with logits 
-    criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(2.0)) #missclafiying yawns is twice as costly 
+    criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(2.0, device=device)) #missclafiying yawns is twice as costly 
     
+
+    #Removed as freezing backbone lead to terrible results early on, keeping comments as note
     # set non-trainable parameters
-    if freeze_backbone:
-        for p in model.feature_extractor.parameters():
-            p.requires_grad=False
+    #if freeze_backbone:
+       # for p in model.feature_extractor.parameters():
+           # p.requires_grad=False
 
     # Get trainable parameters and hand to optimizer
     tp = [p for p in model.parameters() if p.requires_grad]
 
     #Get optimizer from hparams
-    opt_name = hparams["optimizer"]
+    opt_name = cfg["optimizer"]
 
     if opt_name == "adamw":
-        optimizer = optim.Adamax(tp, lr=hparams["lr"], weight_decay=hparams["weight_decay"])
+        optimizer = optim.Adamax(tp, lr=cfg["lr"], weight_decay=cfg["weight_decay"])
 
     elif opt_name == "sgd":
-        optimizer = optim.SGD(tp, lr=hparams["lr"], momentum=hparams["momentum"], weight_decay=hparams["weight_decay"])
+        optimizer = optim.SGD(tp, lr=cfg["lr"], momentum=cfg["momentum"], weight_decay=cfg["weight_decay"])
 
     else:
         raise ValueError(f"Unkown optimizer: {opt_name}")
     
     #Get LR Scheduler from hparams
-    sched_name = hparams["scheduler"]
+    sched_name = cfg["scheduler"]
 
     if sched_name == "exponential":
-        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=hparams["gamma"])
+        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=cfg["gamma"])
 
     elif sched_name == "step":
-        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=hparams["step_size"], gamma=hparams["gamma"])
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=cfg["step_size"], gamma=cfg["gamma"])
+
+    elif sched_name == "none":
+        scheduler = None
     
     else:
         raise ValueError(f"Unkown scheduler: {sched_name}")
@@ -82,8 +88,8 @@ def trainer(trainloader, valloader, model, epochs, device, freeze_backbone, tria
             running_loss += loss.item()
             writer.flush()
 
-           
-        scheduler.step()
+        if scheduler is not None:   
+            scheduler.step()
         print(f'  Loss: {running_loss:0.4f}', f'    LR: {scheduler.get_last_lr()}')
 
         # evaluate train and validation data
@@ -95,6 +101,7 @@ def trainer(trainloader, valloader, model, epochs, device, freeze_backbone, tria
             writer.add_scalar("Loss/train", running_loss, epoch)
             writer.add_scalar("F1/train", train_metrics['f1'], epoch)
             writer.add_scalar("F1/val", val_metrics['f1'], epoch)
+            writer.add_text("hparams", str(cfg))
         for param_group in optimizer.param_groups:
             writer.add_scalar("LR", param_group['lr'], epoch)
 

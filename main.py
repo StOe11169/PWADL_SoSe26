@@ -10,6 +10,7 @@ from src.data import YawDDDataset, get_all_data_paths, create_group_splits
 from src.training import trainer
 from src.model import YawDDclassifier
 from src.evaluation import evaluate
+from src.config import build_config
 
 #Create unique folder for study
 study_name = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -22,69 +23,45 @@ df = get_all_data_paths("data")
 train_df, val_df, test_df = create_group_splits(df, output_dir= study_dir, test_size=0.15, val_size=0.15,seed=42, )
 
 
+
 def objective(trial, study_dir):
     try:
-        # training hyperparameters to tune (get stuff from argparse namespace)
-        args.batch_size = trial.suggest_categorical("batch_size", [4, 8])
-        args.freeze_backbone = trial.suggest_categorical("freeze_backbone", [0, 1]) #dont train pre-trained network base, only classifier layers
-        args.dropout = trial.suggest_float("dropout", 0.2, 0.6, step=0.1)
-        print(f'=================================================================')
-        print(f' batch_size: {args.batch_size}, freeze_backbone: {args.freeze_backbone}, dropout: {args.dropout:0.1f}')
 
-        #build hyperparameter dict
-        hparams = {}
+        #Load config & print to console
+        cfg = build_config(trial, args)
+        print(f"Trial {trial.number}")
+        for k, v in cfg.items():
+            print(f"{k}: {v}")
 
-        #shared hparams
-        hparams["lr"] = trial.suggest_float("lr", 1e-5, 1e-3, log=True)
-        hparams["weight_decay"] = trial.suggest_float("weigth_decay", 1e-6, 1e-2, log=True)
-
-        #optimizer
-        hparams["optimizer"] = trial.suggest_categorical("optimizer", ["adamw", "sgd"])
-
-        if hparams["optimizer"] == "sgd":
-            hparams["momentum"] = trial.suggest_float("momentum", 0.0, 0.95)
-
-        #scheduler
-        hparams["scheduler"] = trial.suggest_categorical("scheduler", ["exponential", "step"])
-
-        if hparams["scheduler"] == "exponential":
-            hparams["gamma"] = trial.suggest_float("gamma", 0.85, 0.99)
-
-        elif hparams["scheduler"] == "step":
-            hparams["step_size"] = trial.suggest_int("step_size", 2, 10)
-            hparams["gamma"] = trial.suggest_float("gamma", 0.1, 0.9)
-
+        
         # get device
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         # data preparation
-        trainset = YawDDDataset(train_df, num_frames=args.num_frames)
-        valset = YawDDDataset(val_df, num_frames=args.num_frames)
-        testset = YawDDDataset(test_df, num_frames=args.num_frames)
+        trainset = YawDDDataset(train_df, num_frames=cfg["num_frames"])
+        valset = YawDDDataset(val_df, num_frames=cfg["num_frames"])
+        testset = YawDDDataset(test_df, num_frames=cfg["num_frames"])
         
 
         # dataloaders
-        trainloader = DataLoader(trainset, batch_size=args.batch_size, num_workers=0, shuffle=True, drop_last=True)
-        valloader = DataLoader(valset, batch_size=args.batch_size, num_workers=0, shuffle=False)
-        testloader = DataLoader(testset, batch_size=args.batch_size, num_workers=0, shuffle=False)
+        trainloader = DataLoader(trainset, batch_size=cfg["batch_size"], num_workers=0, shuffle=True, drop_last=True)
+        valloader = DataLoader(valset, batch_size=cfg["batch_size"], num_workers=0, shuffle=False)
+        testloader = DataLoader(testset, batch_size=cfg["batch_size"], num_workers=0, shuffle=False)
 
         # model
-        model = YawDDclassifier(args.dropout).to(device)
-       
-        print(f'=================================================================')
-        print(f'batch_size: {args.batch_size}, freeze_backbone: {args.freeze_backbone}, dropout: {args.dropout}')
-        print(f'hparams: {hparams}')    
+        model = YawDDclassifier(cfg["dropout"]).to(device)
+  
 
         # start training
         f1_val, epoch = trainer(trainloader=trainloader,
                 valloader=valloader,
                 model=model,
-                epochs=args.epochs,
-                freeze_backbone = args.freeze_backbone,
+                #epochs=args.epochs,
+                #freeze_backbone = args.freeze_backbone,
                 device=device, 
                 trial_number= trial.number,
                 study_dir = study_dir,
-                hparams=hparams
+                cfg=cfg
                 )
         
        
@@ -131,7 +108,7 @@ if __name__ == "__main__":
     # set seed and precision
     setup_env(seed=0)    
 
-    # get args (alternative to config file)
+    # get client args
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
     parser.add_argument("--num_frames", type=int, default=5)
@@ -139,8 +116,7 @@ if __name__ == "__main__":
     parser.add_argument("--n_trials", type=int, default=2)
     args = parser.parse_args()
 
-    #make args accessible inside objective()
-    globals()["args"] = args
+    
     # Create & run study, maximizing validation F1, lamba as extra study_dir arg isnt passed directly by optuna
     study = optuna.create_study(direction="maximize")
     #Start Tensorboard
