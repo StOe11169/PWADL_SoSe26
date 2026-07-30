@@ -5,6 +5,8 @@ import argparse, time
 import torch
 from torch.utils.data import DataLoader
 import optuna
+import json
+import shutil
 from src.utils import setup_env, get_writer, start_tensorboard
 from src.data import YawDDDataset, get_all_data_paths, create_group_splits
 from src.training import trainer
@@ -24,7 +26,7 @@ train_df, val_df, test_df = create_group_splits(df, output_dir= study_dir, test_
 
 
 
-def objective(trial, study_dir):
+def objective(trial, study_dir, args):
     try:
 
         #Load config & print to console
@@ -53,23 +55,17 @@ def objective(trial, study_dir):
   
 
         # start training
-        f1_val, epoch = trainer(trainloader=trainloader,
-                valloader=valloader,
-                model=model,
-                #epochs=args.epochs,
-                #freeze_backbone = args.freeze_backbone,
-                device=device, 
-                trial_number= trial.number,
-                study_dir = study_dir,
-                cfg=cfg
-                )
+        f1_val, epoch = trainer(trainloader=trainloader, valloader=valloader, model=model, device=device, trial_number= trial.number, study_dir = study_dir, cfg=cfg)
         
-       
-
         # Decide if trial should be pruned
         trial.report(f1_val, epoch)
         if trial.should_prune():
             raise optuna.TrialPruned()
+        
+        #Save Trial summary
+        trial_summary = {"trial_number": trial.number, "f1_val": f1_val, "best_epoch": epoch, "params": cfg }
+        with open(os.path.join(study_dir, f"trial_{trial.number}_summary.json"), "w") as f:
+            json.dump(trial_summary, f, indent=4)
         
         # Load best model before testing
         best_model_path = os.path.join(study_dir, f"best_model_trial_{trial.number}.pth")
@@ -79,6 +75,9 @@ def objective(trial, study_dir):
             raise RuntimeError(f"No model saved for trial {trial.number}")
 
         checkpoint = torch.load(best_model_path, map_location=device)
+
+        best_cfg = checkpoint["cfg"]
+
         model.load_state_dict(checkpoint['model_state_dict'])
         model.eval()
         
@@ -86,6 +85,7 @@ def objective(trial, study_dir):
         test_metrics = evaluate(testloader, model, device)
         print(f"=================================================================\nTest Acc: {test_metrics['accuracy']:.3f}") 
         return f1_val
+    
     
     except Exception as e:
         #Remove incomplete files
@@ -121,12 +121,48 @@ if __name__ == "__main__":
     study = optuna.create_study(direction="maximize")
     #Start Tensorboard
     tb_process = start_tensorboard(study_dir)
-    study.optimize(lambda trial: objective(trial, study_dir), n_trials=args.n_trials, show_progress_bar=True)
+    study.optimize(lambda trial: objective(trial, study_dir, args), n_trials=args.n_trials, show_progress_bar=True)
+    
+  
+    print("=================================================================")
+    print(f"Best trial (val_f1): {study.best_value:.4f}")
+
+    best_trial = study.best_trial
+
+    # ✅ Load full cfg from saved model
+    best_model_path = os.path.join(study_dir, f"best_model_trial_{best_trial.number}.pth")
+
+    if not os.path.exists(best_model_path):
+        raise RuntimeError(f"Best model file not found for trial {best_trial.number}")
+
+    checkpoint = torch.load(best_model_path, map_location="cpu")
+    best_cfg = checkpoint["cfg"]
+
+    # ✅ Save full best trial summary
+    best_summary = {
+    "trial_number": best_trial.number,
+    "f1_val": best_trial.value,
+    "optuna_params": best_trial.params,
+    "cfg": best_cfg
+    }
+
+    with open(os.path.join(study_dir, "best_trial.json"), "w") as f:
+        json.dump(best_summary, f, indent=4)
+
+    # ✅ Copy best model to a fixed name (very useful later)
+    best_model_dst = os.path.join(study_dir, "best_model.pth")
+    shutil.copy(best_model_path, best_model_dst)
+
+    # ✅ Clean print
+    print("Best params (Optuna):")
+    for k, v in best_trial.params.items():
+     print(f"  {k}: {v}")
+    
 
     # Print out best trial
-    print(f'=================================================================\nBest trial (val_f1): {study.best_value:.4f}')
-    print(f'  Params:')
-    print(study.best_params.items())
+    #print(f'=================================================================\nBest trial (val_f1): {study.best_value:.4f}')
+    #print(f'  Params:')
+    #print(study.best_params.items())
 
     # info on training time
     time_passed = time.time()-start_timestamp
