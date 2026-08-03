@@ -129,7 +129,7 @@ if __name__ == "__main__":
 
     best_trial = study.best_trial
 
-    # ✅ Load full cfg from saved model
+    #Load cfg from saved model
     best_model_path = os.path.join(study_dir, f"best_model_trial_{best_trial.number}.pth")
 
     if not os.path.exists(best_model_path):
@@ -138,7 +138,7 @@ if __name__ == "__main__":
     checkpoint = torch.load(best_model_path, map_location="cpu")
     best_cfg = checkpoint["cfg"]
 
-    # ✅ Save full best trial summary
+    #Save  best trial summary
     best_summary = {
     "trial_number": best_trial.number,
     "f1_val": best_trial.value,
@@ -149,20 +149,14 @@ if __name__ == "__main__":
     with open(os.path.join(study_dir, "best_trial.json"), "w") as f:
         json.dump(best_summary, f, indent=4)
 
-    # ✅ Copy best model to a fixed name (very useful later)
+    #Copy best model to fixed name 
     best_model_dst = os.path.join(study_dir, "best_model.pth")
     shutil.copy(best_model_path, best_model_dst)
 
-    # ✅ Clean print
     print("Best params (Optuna):")
     for k, v in best_trial.params.items():
      print(f"  {k}: {v}")
     
-
-    # Print out best trial
-    #print(f'=================================================================\nBest trial (val_f1): {study.best_value:.4f}')
-    #print(f'  Params:')
-    #print(study.best_params.items())
 
     # info on training time
     time_passed = time.time()-start_timestamp
