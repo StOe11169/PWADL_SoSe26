@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import glob
 from datetime import datetime
 import argparse, time
@@ -7,6 +8,7 @@ from torch.utils.data import DataLoader
 import optuna
 import json
 import shutil
+from sklearn.model_selection import GroupShuffleSplit, StratifiedGroupKFold
 from src.utils import setup_env, get_writer, start_tensorboard
 from src.data import YawDDDataset, get_all_data_paths, create_group_splits
 from src.training import trainer
@@ -22,11 +24,12 @@ os.makedirs(study_dir, exist_ok=True)
 
 #Load dataset and create splits
 df = get_all_data_paths("data")
-train_df, val_df, test_df = create_group_splits(df, output_dir= study_dir, test_size=0.15, val_size=0.15,seed=42, )
+#removed for now for implementing nested cv
+# train_df, val_df, test_df = create_group_splits(df, output_dir= study_dir, test_size=0.15, val_size=0.15,seed=42, )
 
 
 
-def objective(trial, study_dir, args):
+def objective(trial,train_df_outer,args, study_dir):
     try:
 
         #Load config & print to console
@@ -39,34 +42,40 @@ def objective(trial, study_dir, args):
         # get device
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+        #Split for inner nested cv loop
+        gss = GroupShuffleSplit(n_splits=1, test_size=0.15, random_state=trial.number)
+        train_idx, val_idx = next(gss.split(train_df_outer, y=train_df_outer["yawning"], groups=train_df_outer["id"]))
+        train_df = train_df_outer.iloc[train_idx].reset_index(drop=True)
+        val_df   = train_df_outer.iloc[val_idx].reset_index(drop=True)
+
         # data preparation
         trainset = YawDDDataset(train_df, num_frames=cfg["num_frames"])
         valset = YawDDDataset(val_df, num_frames=cfg["num_frames"])
-        testset = YawDDDataset(test_df, num_frames=cfg["num_frames"])
-        
+        #testset = YawDDDataset(test_df, num_frames=cfg["num_frames"])
 
         # dataloaders
         trainloader = DataLoader(trainset, batch_size=cfg["batch_size"], num_workers=0, shuffle=True, drop_last=True)
         valloader = DataLoader(valset, batch_size=cfg["batch_size"], num_workers=0, shuffle=False)
-        testloader = DataLoader(testset, batch_size=cfg["batch_size"], num_workers=0, shuffle=False)
+        #testloader = DataLoader(testset, batch_size=cfg["batch_size"], num_workers=0, shuffle=False)
 
         # model
         model = YawDDclassifier(cfg["dropout"]).to(device)
   
 
         # start training
-        f1_val, epoch = trainer(trainloader=trainloader, valloader=valloader, model=model, device=device, trial_number= trial.number, study_dir = study_dir, cfg=cfg)
+        f1_val, epoch = trainer(trainloader=trainloader, valloader=valloader, model=model, device=device, trial_number= trial.number, study_dir = study_dir, cfg=cfg, trial = trial)
         
-        # Decide if trial should be pruned
-        trial.report(f1_val, epoch)
-        if trial.should_prune():
-            raise optuna.TrialPruned()
+        # Decide if trial should be pruned -> move decision into trainer()
+        #trial.report(f1_val, epoch)
+        #if trial.should_prune():
+        #    raise optuna.TrialPruned()
         
         #Save Trial summary
         trial_summary = {"trial_number": trial.number, "f1_val": f1_val, "best_epoch": epoch, "params": cfg }
         with open(os.path.join(study_dir, f"trial_{trial.number}_summary.json"), "w") as f:
             json.dump(trial_summary, f, indent=4)
-        
+
+        """
         # Load best model before testing
         best_model_path = os.path.join(study_dir, f"best_model_trial_{trial.number}.pth")
         #Check if a best model exists
@@ -84,6 +93,7 @@ def objective(trial, study_dir, args):
         # test
         test_metrics = evaluate(testloader, model, device)
         print(f"=================================================================\nTest Acc: {test_metrics['accuracy']:.3f}") 
+        """
         return f1_val
     
     
@@ -111,56 +121,78 @@ if __name__ == "__main__":
     # get client args
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
-    parser.add_argument("--num_frames", type=int, default=5)
-    parser.add_argument("--epochs", type=int, default=3)
-    parser.add_argument("--n_trials", type=int, default=2)
+    parser.add_argument("--num_frames", type=int, default=32)
+    parser.add_argument("--epochs", type=int, default=5)
+    parser.add_argument("--n_trials", type=int, default=5)
     args = parser.parse_args()
 
+    #Outer Loop
+    sgkf = StratifiedGroupKFold(n_splits=3, shuffle=True, random_state=42)
+    outer_results = []
     
     # Create & run study, maximizing validation F1, lamba as extra study_dir arg isnt passed directly by optuna
-    study = optuna.create_study(direction="maximize")
+    #study = optuna.create_study(direction="maximize")
     #Start Tensorboard
     tb_process = start_tensorboard(study_dir)
-    study.optimize(lambda trial: objective(trial, study_dir, args), n_trials=args.n_trials, show_progress_bar=True)
-    
-  
-    print("=================================================================")
-    print(f"Best trial (val_f1): {study.best_value:.4f}")
 
-    best_trial = study.best_trial
+    for fold, (train_idx, test_idx) in enumerate(sgkf.split(df, y=df["yawning"], groups=df["id"])):
+        print(f"\n================ OUTER FOLD {fold} ================")
 
-    #Load cfg from saved model
-    best_model_path = os.path.join(study_dir, f"best_model_trial_{best_trial.number}.pth")
+        train_df_outer = df.iloc[train_idx].reset_index(drop=True)
+        test_df_outer = df.iloc[test_idx].reset_index(drop=True)
 
-    if not os.path.exists(best_model_path):
-        raise RuntimeError(f"Best model file not found for trial {best_trial.number}")
+        #Fold specific directory for logging
+        fold_dir = os.path.join(study_dir, f"outer_fold_{fold}")
+        os.makedirs(fold_dir, exist_ok=True)
 
-    checkpoint = torch.load(best_model_path, map_location="cpu")
-    best_cfg = checkpoint["cfg"]
+        #Inner Loop
+        study = optuna.create_study(direction="maximize", 
+                                    pruner=optuna.pruners.MedianPruner(n_startup_trials=2, #dont prune immediatly
+                                                                        n_warmup_steps=2, #wait one epoch
+                                                                        interval_steps=1))
+        study.optimize(lambda trial: objective(trial, train_df_outer, args, fold_dir), n_trials=args.n_trials, show_progress_bar=True)
 
-    #Save  best trial summary
-    best_summary = {
-    "trial_number": best_trial.number,
-    "f1_val": best_trial.value,
-    "optuna_params": best_trial.params,
-    "cfg": best_cfg
-    }
+        #Skip if trial pruned to early
+        completed_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
+        if len(completed_trials) == 0:
+            print("No completed trials in this fold. Skipping...")
+            continue  # skip this outer fold entirely
 
-    with open(os.path.join(study_dir, "best_trial.json"), "w") as f:
-        json.dump(best_summary, f, indent=4)
+        print(f"Bestial F1 (inner): {study.best_value:4f}")
+        best_trial = study.best_trial
+        best_model_path = os.path.join(fold_dir, f"best_model_trial_{best_trial.number}.pth")
 
-    #Copy best model to fixed name 
-    best_model_dst = os.path.join(study_dir, "best_model.pth")
-    shutil.copy(best_model_path, best_model_dst)
+        checkpoint = torch.load(best_model_path, map_location="cpu")
+        best_cfg = checkpoint["cfg"]
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    print("Best params (Optuna):")
-    for k, v in best_trial.params.items():
-     print(f"  {k}: {v}")
-    
+        #Training on outer Train set
+        model = YawDDclassifier(best_cfg["droput"].to(device))
+        trainset = YawDDDataset(train_df_outer, num_frames=best_cfg["num_frames"])
+        testset  = YawDDDataset(test_df_outer,  num_frames=best_cfg["num_frames"])
 
-    # info on training time
-    time_passed = time.time()-start_timestamp
+        trainloader = DataLoader(trainset, batch_size=best_cfg["batch_size"], shuffle=True)
+        testloader  = DataLoader(testset,  batch_size=best_cfg["batch_size"], shuffle=False)
+
+        trainer(trainloader=trainloader, valloader=testloader, model=model, device=device, trial_number="final", study_dir=fold_dir, cfg=best_cfg)
+
+        #Evaluate outer
+        model.load_state_dict(checkpoint["model_state_dict"])
+        model.eval()
+
+        test_metrics = evaluate(testloader, model, device)
+
+        print(f"Fold {fold} F1: {test_metrics['f1']:.4f}")
+
+        outer_results.append(test_metrics["f1"])
+
+    #print final results
+    print("\n================ FINAL RESULTS ================")
+    print(f"Mean F1: {np.mean(outer_results):.4f}")
+    print(f"Std F1:  {np.std(outer_results):.4f}")
+
+    time_passed = time.time() - start_timestamp
     print(f'\nTraining finished in {time_passed//3600}h {(time_passed%3600)//60}min {time_passed%60:.0f}s\n')
-    
+
     tb_process.terminate()
     
