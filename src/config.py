@@ -6,12 +6,19 @@ def build_config(trial: Trial, args: Namespace):
     cfg = {} 
 
     #Static
+    cfg["data"] = args.data
     cfg["epochs"] = args.epochs
     cfg["num_frames"] = args.num_frames
 
-    #Tunable
-    cfg["batch_size"] = trial.suggest_categorical("batch_size", [4, 8])
+    #Dataloader
+    cfg["batch_size"] = trial.suggest_categorical("batch_size", [4,8])
+    cfg["num_workers"] = 0
+
+    #Model
     cfg["dropout"] = trial.suggest_float("dropout", 0.2, 0.6, step=0.1)
+
+    #Loss
+    cfg["pos_weight"] = 2
 
     #Optimizer
     cfg["optimizer"] = trial.suggest_categorical("optimizer", ["adamw", "sgd"])

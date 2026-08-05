@@ -12,6 +12,7 @@ from src.model import YawDDclassifier
 from src.training import trainer
 from src.evaluation import evaluate
 from src.config import build_config
+from src.utils import get_device
 
 
 def objective(trial,train_df_outer,args, study_dir):
@@ -24,7 +25,7 @@ def objective(trial,train_df_outer,args, study_dir):
             print(f"{k}: {v}")
         
         # get device
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        device = get_device()
 
         #Split for inner nested cv loop
         gss = GroupShuffleSplit(n_splits=1, test_size=0.15, random_state=trial.number)
@@ -38,8 +39,8 @@ def objective(trial,train_df_outer,args, study_dir):
         #testset = YawDDDataset(test_df, num_frames=cfg["num_frames"])
 
         # dataloaders
-        trainloader = DataLoader(trainset, batch_size=cfg["batch_size"], num_workers=0, shuffle=True, drop_last=True)
-        valloader = DataLoader(valset, batch_size=cfg["batch_size"], num_workers=0, shuffle=False)
+        trainloader = DataLoader(trainset, batch_size=cfg["batch_size"], num_workers=cfg["num_workers"], shuffle=True, drop_last=True)
+        valloader = DataLoader(valset, batch_size=cfg["batch_size"], num_workers=cfg["num_workers"], shuffle=False)
         #testloader = DataLoader(testset, batch_size=cfg["batch_size"], num_workers=0, shuffle=False)
 
         # model
@@ -103,7 +104,7 @@ def run_experiment(df, args, study_dir):
     
             checkpoint = torch.load(best_model_path, map_location="cpu")
             best_cfg = checkpoint["cfg"]
-            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            device = get_device()
     
             #Training on outer Train set
             model = YawDDclassifier(best_cfg["dropout"]).to(device)

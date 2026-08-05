@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import random
 import subprocess
+import torch.optim as optim
 import webbrowser
 import time
 import seaborn as sns
@@ -59,3 +60,38 @@ def  plot_confusion_matrix(y_true, y_pred, title="Confusion Matrix"):
     plt.ylabel("True")
     plt.title(title)
     return fig
+
+def get_device():
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+def build_optimizer(model, cfg):
+    # Get trainable parameters and hand to optimizer
+    tp = [p for p in model.parameters() if p.requires_grad]
+    
+    #Get optimizer from cfg
+    opt_name = cfg["optimizer"]
+    
+    if opt_name == "adamw":
+        return optim.AdamW(tp, lr=cfg["lr"], weight_decay=cfg["weight_decay"])
+    
+    elif opt_name == "sgd":
+        return optim.SGD(tp, lr=cfg["lr"], momentum=cfg["momentum"], weight_decay=cfg["weight_decay"])
+    
+    else:
+        raise ValueError(f"Unkown optimizer: {opt_name}")
+
+def build_scheduler(optimizer, cfg):
+    #Get LR Scheduler from cfg
+    sched_name = cfg["scheduler"]
+
+    if sched_name == "exponential":
+        return optim.lr_scheduler.ExponentialLR(optimizer, gamma=cfg["gamma"])
+
+    elif sched_name == "step":
+        return optim.lr_scheduler.StepLR(optimizer, step_size=cfg["step_size"], gamma=cfg["gamma"])
+
+    elif sched_name == "none":
+        return None
+    
+    else:
+        raise ValueError(f"Unkown scheduler: {sched_name}")

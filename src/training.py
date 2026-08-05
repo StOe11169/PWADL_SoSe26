@@ -9,7 +9,7 @@ from torchinfo import summary
 from tqdm import tqdm  
 from torch.utils.tensorboard import SummaryWriter
 from src.evaluation import evaluate
-from src.utils import get_writer, plot_confusion_matrix
+from src.utils import get_writer, plot_confusion_matrix, build_optimizer, build_scheduler
 
 #check Logs folder is there
 os.makedirs("logs", exist_ok=True)
@@ -26,7 +26,7 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
     writer = get_writer(study_dir, trial_number)
 
     # objective function is binary cross entropy loss with logits 
-    criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(2.0, device=device)) #missclafiying yawns is twice as costly 
+    criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(cfg["pos_weight"], device=device)) #missclafiying yawns is twice as costly 
     
 
     #Removed as freezing backbone lead to terrible results early on, keeping comments as note
@@ -35,37 +35,8 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
        # for p in model.feature_extractor.parameters():
            # p.requires_grad=False
 
-    # Get trainable parameters and hand to optimizer
-    tp = [p for p in model.parameters() if p.requires_grad]
-
-    #Get optimizer from cfg
-    opt_name = cfg["optimizer"]
-
-    if opt_name == "adamw":
-        optimizer = optim.AdamW(tp, lr=cfg["lr"], weight_decay=cfg["weight_decay"])
-
-    elif opt_name == "sgd":
-        optimizer = optim.SGD(tp, lr=cfg["lr"], momentum=cfg["momentum"], weight_decay=cfg["weight_decay"])
-
-    else:
-        raise ValueError(f"Unkown optimizer: {opt_name}")
-    
-    #Get LR Scheduler from cfg
-    sched_name = cfg["scheduler"]
-
-    if sched_name == "exponential":
-        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=cfg["gamma"])
-
-    elif sched_name == "step":
-        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=cfg["step_size"], gamma=cfg["gamma"])
-
-    elif sched_name == "none":
-        scheduler = None
-    
-    else:
-        raise ValueError(f"Unkown scheduler: {sched_name}")
-    
-    
+    optimizer = build_optimizer(model, cfg)
+    scheduler = build_scheduler(optimizer, cfg)
     # train loop
     for epoch in range(epochs): 
 
@@ -143,7 +114,6 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
             
     #Close Tensorboard writer
     if writer:
-        writer.flush()
         writer.close()
 
     return best_f1, best_epoch
