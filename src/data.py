@@ -231,6 +231,6 @@ class YawDDDataset(Dataset):
         images = [self.transform(frame) for frame in image_sequence] 
 
         # get corresponding label
-        label = self.labels[idx]
+        labels = self.labels[idx]
 
-        return torch.stack(images), torch.tensor(label) #torch.stack converts list of tensors into one, torch.tensor turns scalar labels into a tensorw
+        return {"frames": torch.stack(images), "labels": torch.tensor(labels)} #torch.stack converts list of tensors into one, torch.tensor turns scalar labels into a tensor

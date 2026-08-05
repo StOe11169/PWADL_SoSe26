@@ -95,7 +95,7 @@ if __name__ == "__main__":
 
     #Create unique folder for study
     study_name = datetime.now().strftime("%Y%m%d_%H%M%S")
-    study_dir = os.path.join("logs", f"study_{study_name}")
+    study_dir = os.path.join("logs","vision", f"study_{study_name}") #replace vision with audio or multimodal later
     os.makedirs(study_dir, exist_ok=True)
 
     tb_process = start_tensorboard(study_dir)

@@ -12,8 +12,10 @@ def evaluate(loader, model, device, criterion=None):
         all_preds = []
         total_loss = 0
 
-        for frames, labels in tqdm(loader):
-            frames, labels = frames.to(device), labels.to(device) # shift data to device
+        for batch in tqdm(loader):
+            #shift data to device
+            frames = batch["frames"].to(device)
+            labels = batch["labels"].to(device)
 
             # forward pass
             logits = model(frames)
