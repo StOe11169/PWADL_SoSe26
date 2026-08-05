@@ -3,12 +3,14 @@ from tqdm import tqdm
 from sklearn.metrics import accuracy_score , precision_score, recall_score, f1_score
 
 
-def evaluate(loader, model, device):
+def evaluate(loader, model, device, criterion=None):
     
+    #Set model to evaluation mode. I.e no dropout, dont compute gradients etc.
     model.eval()
     with torch.no_grad():
         all_labels = []
         all_preds = []
+        total_loss = 0
 
         for frames, labels in tqdm(loader):
             frames, labels = frames.to(device), labels.to(device) # shift data to device
@@ -17,6 +19,11 @@ def evaluate(loader, model, device):
             logits = model(frames)
             probs = torch.sigmoid(logits)
             preds = (probs > 0.5).float()
+
+            #compute loss
+            if criterion is not None:
+                loss = criterion(logits, labels)
+                total_loss += loss.item()
             
             # save labels and predictions
             all_labels.append(labels.cpu())
@@ -27,9 +34,18 @@ def evaluate(loader, model, device):
         y_pred = torch.cat(all_preds).numpy()   
             
         # return metrics
-        return {
+        results = {
             'accuracy':  accuracy_score(y_true, y_pred),
             'precision': precision_score(y_true, y_pred, zero_division=0),
             'recall':    recall_score(y_true, y_pred, zero_division=0),
             'f1':        f1_score(y_true, y_pred, zero_division=0),
         }
+        #add loss if available
+        if criterion is not None:
+            results["loss"] = total_loss
+
+        #raw data for confusion matrix
+        results["y_true"] = y_true
+        results["y_pred"] = y_pred
+
+        return results

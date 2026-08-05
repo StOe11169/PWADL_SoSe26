@@ -5,9 +5,10 @@ import random
 import subprocess
 import webbrowser
 import time
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
 from torch.utils.tensorboard import SummaryWriter
-
-
 
 def setup_env(seed):
 
@@ -50,3 +51,11 @@ def start_tensorboard(study_dir, port=6006):
 
    return process
 
+def  plot_confusion_matrix(y_true, y_pred, title="Confusion Matrix"):
+    cm = confusion_matrix(y_true, y_pred)
+    fig = plt.figure()
+    sns.heatmap(cm, fmt="d", cmap="Blues")
+    plt.xlabel("Predicted")
+    plt.ylabel("True")
+    plt.title(title)
+    return fig

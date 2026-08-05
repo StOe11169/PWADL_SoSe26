@@ -22,12 +22,8 @@ study_dir = os.path.join("logs", f"study_{study_name}")
 
 os.makedirs(study_dir, exist_ok=True)
 
-#Load dataset and create splits
+#Load dataset
 df = get_all_data_paths("data")
-#removed for now for implementing nested cv
-# train_df, val_df, test_df = create_group_splits(df, output_dir= study_dir, test_size=0.15, val_size=0.15,seed=42, )
-
-
 
 def objective(trial,train_df_outer,args, study_dir):
     try:
@@ -37,7 +33,6 @@ def objective(trial,train_df_outer,args, study_dir):
         print(f"Trial {trial.number}")
         for k, v in cfg.items():
             print(f"{k}: {v}")
-
         
         # get device
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -61,39 +56,15 @@ def objective(trial,train_df_outer,args, study_dir):
         # model
         model = YawDDclassifier(cfg["dropout"]).to(device)
   
-
         # start training
         f1_val, epoch = trainer(trainloader=trainloader, valloader=valloader, model=model, device=device, trial_number= trial.number, study_dir = study_dir, cfg=cfg, trial = trial)
         
-        # Decide if trial should be pruned -> move decision into trainer()
-        #trial.report(f1_val, epoch)
-        #if trial.should_prune():
-        #    raise optuna.TrialPruned()
         
         #Save Trial summary
         trial_summary = {"trial_number": trial.number, "f1_val": f1_val, "best_epoch": epoch, "params": cfg }
         with open(os.path.join(study_dir, f"trial_{trial.number}_summary.json"), "w") as f:
             json.dump(trial_summary, f, indent=4)
 
-        """
-        # Load best model before testing
-        best_model_path = os.path.join(study_dir, f"best_model_trial_{trial.number}.pth")
-        #Check if a best model exists
-        if not os.path.exists(best_model_path):
-            print(f"[Trial {trial.number}] No model saved (likely pruned or failed)")
-            raise RuntimeError(f"No model saved for trial {trial.number}")
-
-        checkpoint = torch.load(best_model_path, map_location=device)
-
-        best_cfg = checkpoint["cfg"]
-
-        model.load_state_dict(checkpoint['model_state_dict'])
-        model.eval()
-        
-        # test
-        test_metrics = evaluate(testloader, model, device)
-        print(f"=================================================================\nTest Acc: {test_metrics['accuracy']:.3f}") 
-        """
         return f1_val
     
     
@@ -109,7 +80,6 @@ def objective(trial,train_df_outer,args, study_dir):
         print(f"[Trial {trial.number}] Failed: {e}")
         raise e
 
-        
 
 if __name__ == "__main__":
     # get start time
@@ -122,12 +92,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
     parser.add_argument("--num_frames", type=int, default=32)
-    parser.add_argument("--epochs", type=int, default=5)
-    parser.add_argument("--n_trials", type=int, default=5)
+    parser.add_argument("--epochs", type=int, default=1)
+    parser.add_argument("--n_trials", type=int, default=1)
     args = parser.parse_args()
 
     #Outer Loop
-    sgkf = StratifiedGroupKFold(n_splits=3, shuffle=True, random_state=42)
+    sgkf = StratifiedGroupKFold(n_splits=2, shuffle=True, random_state=42)
     outer_results = []
     
     # Create & run study, maximizing validation F1, lamba as extra study_dir arg isnt passed directly by optuna
@@ -167,11 +137,11 @@ if __name__ == "__main__":
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         #Training on outer Train set
-        model = YawDDclassifier(best_cfg["droput"].to(device))
+        model = YawDDclassifier(best_cfg["dropout"]).to(device)
         trainset = YawDDDataset(train_df_outer, num_frames=best_cfg["num_frames"])
         testset  = YawDDDataset(test_df_outer,  num_frames=best_cfg["num_frames"])
 
-        trainloader = DataLoader(trainset, batch_size=best_cfg["batch_size"], shuffle=True)
+        trainloader = DataLoader(trainset, batch_size=best_cfg["batch_size"], shuffle=True, drop_last=True)
         testloader  = DataLoader(testset,  batch_size=best_cfg["batch_size"], shuffle=False)
 
         trainer(trainloader=trainloader, valloader=testloader, model=model, device=device, trial_number="final", study_dir=fold_dir, cfg=best_cfg)

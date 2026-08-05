@@ -3,13 +3,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import optuna
+import matplotlib.pyplot as plt
 from torchvision.models import resnet18, ResNet18_Weights
 from torchinfo import summary
 from tqdm import tqdm  
 from torch.utils.tensorboard import SummaryWriter
-
 from src.evaluation import evaluate
-from src.utils import get_writer
+from src.utils import get_writer, plot_confusion_matrix
 
 #check Logs folder is there
 os.makedirs("logs", exist_ok=True)
@@ -95,8 +95,8 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
         print(f"  Loss: {running_loss:0.4f}", f"    LR: {current_lr}")
 
         # evaluate train and validation data
-        train_metrics = evaluate(trainloader, model, device)
-        val_metrics = evaluate(valloader, model, device)
+        train_metrics = evaluate(trainloader, model, device, criterion)
+        val_metrics = evaluate(valloader, model, device, criterion)
 
         #optuna pruning per epoch
         if trial is not None:
@@ -111,8 +111,12 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
         #Log to Tensorboard
         if writer:
             writer.add_scalar("Loss/train", running_loss, epoch)
+            writer.add_scalar("Loss/val", val_metrics["loss"], epoch)
             writer.add_scalar("F1/train", train_metrics['f1'], epoch)
             writer.add_scalar("F1/val", val_metrics['f1'], epoch)
+            writer.add_scalar("Precision/val", val_metrics["precision"], epoch) # high precision -> fewer false positive
+            writer.add_scalar("Recall/val", val_metrics["recall"], epoch) # high recal -> more true positives
+
             writer.add_text("hparams", str(cfg))
             writer.add_scalar("LR", optimizer.param_groups[0]['lr'], epoch)
             writer.add_text("status", f"Completed (best_f1={best_f1:.4f}, epoch={best_epoch})", global_step=0)
@@ -126,6 +130,13 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
             best_f1 = val_metrics['f1']
             best_epoch = epoch
             torch.save({'model_state_dict': model.state_dict(), 'f1': best_f1, 'epoch': epoch, 'cfg': cfg, 'trial_number': trial_number}, best_model_path)
+
+            #Save Confusion Matrix only for best model
+            fig = plot_confusion_matrix(val_metrics["y_true"], val_metrics["y_pred"], title=f"Confusion Matrix (Epoch {epoch})")
+            if writer:
+                writer.add_figure("Confusion_Matrix/val", fig, epoch)
+            plt.close(fig)
+            
         #Save best Checkpoint
         torch.save({'epoch': epoch, 'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict(), 'loss': running_loss,
                      'cfg': cfg, 'trial_number': trial_number}, checkpoint_path)
