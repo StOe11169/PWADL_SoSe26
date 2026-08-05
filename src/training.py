@@ -42,7 +42,7 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
     opt_name = cfg["optimizer"]
 
     if opt_name == "adamw":
-        optimizer = optim.Adamax(tp, lr=cfg["lr"], weight_decay=cfg["weight_decay"])
+        optimizer = optim.AdamW(tp, lr=cfg["lr"], weight_decay=cfg["weight_decay"])
 
     elif opt_name == "sgd":
         optimizer = optim.SGD(tp, lr=cfg["lr"], momentum=cfg["momentum"], weight_decay=cfg["weight_decay"])

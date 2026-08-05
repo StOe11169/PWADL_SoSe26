@@ -9,22 +9,16 @@ import optuna
 import json
 import shutil
 from sklearn.model_selection import GroupShuffleSplit, StratifiedGroupKFold
-from src.utils import setup_env, get_writer, start_tensorboard
-from src.data import YawDDDataset, get_all_data_paths, create_group_splits
+from src.utils import setup_env, start_tensorboard
+from src.data import YawDDDataset, get_all_data_paths
 from src.training import trainer
 from src.model import YawDDclassifier
 from src.evaluation import evaluate
 from src.config import build_config
+from src.experiment import run_experiment
 
-#Create unique folder for study
-study_name = datetime.now().strftime("%Y%m%d_%H%M%S")
-study_dir = os.path.join("logs", f"study_{study_name}")
 
-os.makedirs(study_dir, exist_ok=True)
-
-#Load dataset
-df = get_all_data_paths("data")
-
+"""
 def objective(trial,train_df_outer,args, study_dir):
     try:
 
@@ -79,7 +73,7 @@ def objective(trial,train_df_outer,args, study_dir):
 
         print(f"[Trial {trial.number}] Failed: {e}")
         raise e
-
+"""
 
 if __name__ == "__main__":
     # get start time
@@ -96,71 +90,18 @@ if __name__ == "__main__":
     parser.add_argument("--n_trials", type=int, default=1)
     args = parser.parse_args()
 
-    #Outer Loop
-    sgkf = StratifiedGroupKFold(n_splits=2, shuffle=True, random_state=42)
-    outer_results = []
-    
-    # Create & run study, maximizing validation F1, lamba as extra study_dir arg isnt passed directly by optuna
-    #study = optuna.create_study(direction="maximize")
-    #Start Tensorboard
+    #Load dataset
+    df = get_all_data_paths("data")
+
+    #Create unique folder for study
+    study_name = datetime.now().strftime("%Y%m%d_%H%M%S")
+    study_dir = os.path.join("logs", f"study_{study_name}")
+    os.makedirs(study_dir, exist_ok=True)
+
     tb_process = start_tensorboard(study_dir)
 
-    for fold, (train_idx, test_idx) in enumerate(sgkf.split(df, y=df["yawning"], groups=df["id"])):
-        print(f"\n================ OUTER FOLD {fold} ================")
-
-        train_df_outer = df.iloc[train_idx].reset_index(drop=True)
-        test_df_outer = df.iloc[test_idx].reset_index(drop=True)
-
-        #Fold specific directory for logging
-        fold_dir = os.path.join(study_dir, f"outer_fold_{fold}")
-        os.makedirs(fold_dir, exist_ok=True)
-
-        #Inner Loop
-        study = optuna.create_study(direction="maximize", 
-                                    pruner=optuna.pruners.MedianPruner(n_startup_trials=2, #dont prune immediatly
-                                                                        n_warmup_steps=2, #wait one epoch
-                                                                        interval_steps=1))
-        study.optimize(lambda trial: objective(trial, train_df_outer, args, fold_dir), n_trials=args.n_trials, show_progress_bar=True)
-
-        #Skip if trial pruned to early
-        completed_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
-        if len(completed_trials) == 0:
-            print("No completed trials in this fold. Skipping...")
-            continue  # skip this outer fold entirely
-
-        print(f"Bestial F1 (inner): {study.best_value:4f}")
-        best_trial = study.best_trial
-        best_model_path = os.path.join(fold_dir, f"best_model_trial_{best_trial.number}.pth")
-
-        checkpoint = torch.load(best_model_path, map_location="cpu")
-        best_cfg = checkpoint["cfg"]
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-        #Training on outer Train set
-        model = YawDDclassifier(best_cfg["dropout"]).to(device)
-        trainset = YawDDDataset(train_df_outer, num_frames=best_cfg["num_frames"])
-        testset  = YawDDDataset(test_df_outer,  num_frames=best_cfg["num_frames"])
-
-        trainloader = DataLoader(trainset, batch_size=best_cfg["batch_size"], shuffle=True, drop_last=True)
-        testloader  = DataLoader(testset,  batch_size=best_cfg["batch_size"], shuffle=False)
-
-        trainer(trainloader=trainloader, valloader=testloader, model=model, device=device, trial_number="final", study_dir=fold_dir, cfg=best_cfg)
-
-        #Evaluate outer
-        model.load_state_dict(checkpoint["model_state_dict"])
-        model.eval()
-
-        test_metrics = evaluate(testloader, model, device)
-
-        print(f"Fold {fold} F1: {test_metrics['f1']:.4f}")
-
-        outer_results.append(test_metrics["f1"])
-
-    #print final results
-    print("\n================ FINAL RESULTS ================")
-    print(f"Mean F1: {np.mean(outer_results):.4f}")
-    print(f"Std F1:  {np.std(outer_results):.4f}")
-
+    run_experiment(df, args, study_dir)
+    
     time_passed = time.time() - start_timestamp
     print(f'\nTraining finished in {time_passed//3600}h {(time_passed%3600)//60}min {time_passed%60:.0f}s\n')
 
