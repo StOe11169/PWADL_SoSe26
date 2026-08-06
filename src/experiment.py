@@ -3,10 +3,8 @@ import json
 import numpy as np
 import torch
 import optuna
-
 from torch.utils.data import DataLoader
 from sklearn.model_selection import StratifiedGroupKFold, GroupShuffleSplit
-
 from src.data import YawDDDataset
 from src.model import YawDDclassifier
 from src.training import trainer
@@ -14,17 +12,14 @@ from src.evaluation import evaluate
 from src.config import build_config
 from src.utils import get_device
 
-
 def objective(trial,train_df_outer,args, study_dir):
     try:
-
         #Load config & print to console
         cfg = build_config(trial, args)
         print(f"Trial {trial.number}")
         for k, v in cfg.items():
             print(f"{k}: {v}")
         
-        # get device
         device = get_device()
 
         #Split for inner nested cv loop
@@ -36,19 +31,15 @@ def objective(trial,train_df_outer,args, study_dir):
         # data preparation
         trainset = YawDDDataset(train_df, num_frames=cfg["num_frames"])
         valset = YawDDDataset(val_df, num_frames=cfg["num_frames"])
-        #testset = YawDDDataset(test_df, num_frames=cfg["num_frames"])
 
         # dataloaders
         trainloader = DataLoader(trainset, batch_size=cfg["batch_size"], num_workers=cfg["num_workers"], shuffle=True, drop_last=True)
         valloader = DataLoader(valset, batch_size=cfg["batch_size"], num_workers=cfg["num_workers"], shuffle=False)
-        #testloader = DataLoader(testset, batch_size=cfg["batch_size"], num_workers=0, shuffle=False)
 
-        # model
         model = YawDDclassifier(cfg["dropout"]).to(device)
   
         # start training
         f1_val, epoch = trainer(trainloader=trainloader, valloader=valloader, model=model, device=device, trial_number= trial.number, study_dir = study_dir, cfg=cfg, trial = trial)
-        
         
         #Save Trial summary
         trial_summary = {"trial_number": trial.number, "f1_val": f1_val, "best_epoch": epoch, "params": cfg }
@@ -119,11 +110,9 @@ def run_experiment(df, args, study_dir):
             #Evaluate outer
             model.load_state_dict(checkpoint["model_state_dict"])
             model.eval()
-    
             test_metrics = evaluate(testloader, model, device)
     
             print(f"Fold {fold} F1: {test_metrics['f1']:.4f}")
-    
             outer_results.append(test_metrics["f1"])
     
         #print final results
