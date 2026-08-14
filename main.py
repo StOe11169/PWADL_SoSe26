@@ -158,6 +158,22 @@ if __name__ == "__main__":
     )
 
 
+    #===== MODELL SPEICHERN MIT HYPERPARAMETERN =====
+    best_model = YawDDclassifier(study.best_params['dropout']).to(device)
+    best_model.load_state_dict(torch.load("best_model.pt"))  # Beste Gewichte laden
+
+    # Speichere Modell + Hyperparameter in EINER Datei
+    torch.save({
+        "model_state": best_model.state_dict(),
+        "dropout": study.best_params['dropout'],
+        "threshold": study.best_params['threshold'],
+        "freeze_backbone": study.best_params['freeze_backbone']
+    }, "best_model.pt")
+
+    print("\nBeste Hyperparameter wurden mit dem Modell gespeichert!")
+
+
+
 
     # ===== ABSCHLIEßENDER TEST AUF TESTDATEN =====
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
