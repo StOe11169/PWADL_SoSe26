@@ -133,9 +133,9 @@ if __name__ == "__main__":
     # Parameter für Training festlegen
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
-    parser.add_argument("--num_frames", type=int, default=32) # Anzahl Frames pro Sample
-    parser.add_argument("--epochs", type=int, default=25) # Anzahl Trainingsdurchläufe
-    parser.add_argument("--n_trials", type=int, default=5) # Anzahl Optuna-Versuche
+    parser.add_argument("--num_frames", type=int, default=4) # Anzahl Frames pro Sample
+    parser.add_argument("--epochs", type=int, default=3) # Anzahl Trainingsdurchläufe
+    parser.add_argument("--n_trials", type=int, default=1) # Anzahl Optuna-Versuche
     args = parser.parse_args()
 
     # Optuna Study erstellen und ausführen. Für jeden Trial neue Hyperparameter, komplettes Training
@@ -184,16 +184,21 @@ if __name__ == "__main__":
     
 
     #===== MODELL SPEICHERN MIT HYPERPARAMETERN =====
+    # Erstelle neues Modell mit den besten Parametern
     best_model = YawDDclassifier(study.best_params['dropout']).to(device)
-    best_model.load_state_dict(torch.load("best_model.pt"))  # Beste Gewichte laden
+
+    # Speichere NUR die Gewichte (kein Dictionary)
+    torch.save(best_model.state_dict(), "best_model.pt")
+
+
 
     # Speichere Modell + Hyperparameter in EINER Datei
-    torch.save({
-        "model_state": best_model.state_dict(),
+    '''torch.save({
+        "model_state": best_model.state_dict(),  #Nur die Gewichte speichern
         "dropout": study.best_params['dropout'],
         "threshold": study.best_params['threshold'],
         "freeze_backbone": study.best_params['freeze_backbone']
-    }, "best_model.pt")
+    }, "best_model.pt")'''
 
     print("\nBeste Hyperparameter wurden mit dem Modell gespeichert!")
 
