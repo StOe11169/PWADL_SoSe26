@@ -4,8 +4,8 @@ import torch.optim as optim
 from torchvision.models import resnet18, ResNet18_Weights
 from torchinfo import summary
 from tqdm import tqdm  
-
 from src.evaluation import evaluate
+from torch.utils.tensorboard import SummaryWriter
 
 
 
@@ -66,16 +66,16 @@ def trainer(trainloader,
             freeze_backbone, 
             device,
             threshold,
-            patience=10): #für early stopping kfold
+            patience=10, #für early stopping kfold
+            log_dir="runs"):  #Parameter für TensorBoard-Logs
+
+    # Initialisiere TensorBoard Writer
+    writer = SummaryWriter(log_dir=log_dir)
     
     #speichert bestes Ergebnis
     best_f1 = 0
     best_epoch = 0
     epochs_no_improve = 0 #für early stopping kfold
-
-
-
-
 
 
 
@@ -126,13 +126,18 @@ def trainer(trainloader,
 
 
 
-   
-    
+   #Tensorboard:
+    frames, _ = next(iter(trainloader))  # Nimmt das erste Batch aus dem trainloader
+    dummy_input = frames.to(device)[:1] # Nur das erste Sample (Batch=1) für schnelleres Logging
+    writer.add_graph(model, dummy_input)
+
+
     # summary(model)
 
     # train loop
     # Wiederholt Training für mehrere Epochen
     for epoch in range(epochs): 
+
 
         # init running loss
         # Loss: Differenz zwischen den Vorhersagewerten und den wahren Werten (Labels)
@@ -140,6 +145,9 @@ def trainer(trainloader,
         # Running Loss: running loss is the cumulative average loss over a certain number of batches during the training proces
         # --> Stabilere und flüssigere Schätzung der Modell-Performance
         running_loss = 0
+
+
+        
 
         # go through all data
         model.train() #setzt Modell in den Trainingsmodus
@@ -167,9 +175,22 @@ def trainer(trainloader,
 
         # evaluate train and validation data
         # Berechne Performance-Metrics
-        train_metrics = evaluate(trainloader, model, device, threshold)
-        val_metrics = evaluate(valloader, model, device, threshold)
+        #train_metrics = evaluate(trainloader, model, device, threshold)
+        #val_metrics = evaluate(valloader, model, device, threshold)
+        train_metrics = evaluate(trainloader, model, device, threshold, writer=writer, epoch=epoch)
+        val_metrics = evaluate(valloader, model, device, threshold, writer=writer, epoch=epoch)
 
+
+        # ===== TENSORBOARD-LOGGING (einmal pro Epoche) =====
+        writer.add_scalar('Loss/train', running_loss / len(trainloader), epoch)  # Durchschnittlicher Loss
+        #writer.add_scalar('Accuracy/train', train_metrics['accuracy'], epoch)
+        writer.add_scalar('Accuracy/val', val_metrics['accuracy'], epoch)
+        writer.add_scalar('F1/train', train_metrics['f1'], epoch)
+        #writer.add_scalar('F1/val', val_metrics['f1'], epoch)
+
+        # Logge Lernrate
+        for param_group in optimizer.param_groups:
+            writer.add_scalar('LearningRate', param_group['lr'], epoch)
 
         # Accuracy: Verhältnis zwischen richtigen und falschen Vorhersagen
         # F1:F-score or F-measure is a measure of predictive performance. 
@@ -180,6 +201,7 @@ def trainer(trainloader,
         # F1c: ???
         print(f"Train Acc: {train_metrics['accuracy']:.3f}   --   Val Acc: {val_metrics['accuracy']:.3f}")
         print(f"Train F1: {train_metrics['f1']:.3f}   --   Val F1c: {val_metrics['f1']:.3f}")
+
 
         
 
@@ -203,14 +225,7 @@ def trainer(trainloader,
             torch.save(model.state_dict(), "best_model.pt")
             
 
-            """ =================Ab dem nächsten Training aktivieren!!!!!!!!!!!!!!! ===================
-            torch.save({
-               "model_state": best_model.state_dict(),
-               "dropout": study.best_params['dropout'],
-               "threshold": study.best_params['threshold']}, 
-               "best_model.pt"
-            )
-            """
+           
         
         else:
             epochs_no_improve += 1 # für early stopping kfold
@@ -219,4 +234,6 @@ def trainer(trainloader,
             print(f"\nEarly stopping triggered after {epoch+1} epochs")
             break
 
+
+    writer.close()
     return best_f1, best_epoch

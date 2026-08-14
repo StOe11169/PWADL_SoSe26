@@ -1,12 +1,14 @@
 import torch
 from tqdm import tqdm  
 from sklearn.metrics import accuracy_score , precision_score, recall_score, f1_score
-
+from torch.utils.tensorboard import SummaryWriter
 
 def evaluate(loader,
             model,
             device,
-            threshold):
+            threshold,
+            writer = None,
+            epoch = None):
     
     model.eval()
     with torch.no_grad():
@@ -43,10 +45,19 @@ def evaluate(loader,
         #preds = (torch.sigmoid(logits) > 0.5).float()
         #print("Vorhergesagte Klassen:",preds.unique())
             
-        # return metrics
-        return {
+        # berechne Metriken
+        metrics = {
             'accuracy':  accuracy_score(y_true, y_pred),
             'precision': precision_score(y_true, y_pred, zero_division=0),
             'recall':    recall_score(y_true, y_pred, zero_division=0),
             'f1':        f1_score(y_true, y_pred, zero_division=0),
         }
+
+        # Logge Metriken in TensorBoard, falls writer übergeben wurde
+        if writer is not None and epoch is not None:
+            writer.add_scalar('Metrics/Accuracy', metrics['accuracy'], epoch)
+            writer.add_scalar('Metrics/Precision', metrics['precision'], epoch)
+            writer.add_scalar('Metrics/Recall', metrics['recall'], epoch)
+            writer.add_scalar('Metrics/F1', metrics['f1'], epoch)
+
+        return metrics

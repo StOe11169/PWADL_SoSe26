@@ -11,6 +11,7 @@ import winsound #hier für Signalton
 
 from torch.utils.data import ConcatDataset, Subset # um Datensätze zusammenzufügen
 from sklearn.model_selection import KFold #für KFold Cross Validation benötigt
+from torch.utils.tensorboard import SummaryWriter
 
 
 
@@ -55,6 +56,9 @@ def objective(trial):
 
     fold_f1s = []
 
+    # TensorBoard-Logging für diesen Optuna-Trial
+    writer = SummaryWriter(f"runs/optuna_trial_{trial.number}")
+
     for fold, (train_idx, val_idx) in enumerate(kfold.split(full_dataset)):
 
         print(f"\n===== FOLD {fold} =====")
@@ -89,7 +93,8 @@ def objective(trial):
             freeze_backbone=args.freeze_backbone,
             device=device,
             threshold=args.threshold,
-            patience=10
+            patience=10,
+            log_dir=f"runs/optuna_trial_{trial.number}"
         )
 
         fold_f1s.append(f1_val)
@@ -98,6 +103,23 @@ def objective(trial):
 
     print(f"\nMean F1 over folds: {mean_f1:.3f}")
 
+    #Hyperparameter-Logging für TensorBoard
+    writer.add_hparams(
+        hparam_dict={
+            "batch_size": args.batch_size,
+            "freeze_backbone": args.freeze_backbone,
+            "lr": args.lr,
+            "dropout": args.dropout,
+            "threshold": args.threshold,
+        },
+        metric_dict={
+            "val_f1": mean_f1,  # **Jetzt korrekt definiert!**
+        },
+        run_name=f"trial_{trial.number}"
+    )
+
+
+    writer.close()
     return mean_f1
 
 
@@ -145,7 +167,8 @@ if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     best_model = YawDDclassifier(study.best_params['dropout']).to(device)
 
-    trainer(
+    log_dir = f"runs/final_train_{time.strftime('%Y%m%d_%H%M%S')}"
+    best_f1, best_epoch = trainer(
         trainloader=trainloader,
         valloader=trainloader,  # egal, finales Training
         model=best_model,
@@ -154,9 +177,11 @@ if __name__ == "__main__":
         freeze_backbone=study.best_params['freeze_backbone'],
         device=device,
         threshold=study.best_params['threshold'],
-        patience=10
+        patience=10,
+        log_dir=log_dir
     )
 
+    
 
     #===== MODELL SPEICHERN MIT HYPERPARAMETERN =====
     best_model = YawDDclassifier(study.best_params['dropout']).to(device)
@@ -196,6 +221,24 @@ if __name__ == "__main__":
     print(f"Test F1:  {test_metrics['f1']:.3f}")
 
 
+    #TensorBoard-Logging für finales Training
+    writer = SummaryWriter(log_dir)
+    writer.add_hparams(
+        hparam_dict={
+            "batch_size": study.best_params['batch_size'],
+            "freeze_backbone": study.best_params['freeze_backbone'],
+            "lr": 1e-4,
+            "dropout": study.best_params['dropout'],
+            "threshold": study.best_params['threshold'],
+        },
+        metric_dict={
+            "val_f1": best_f1,
+        },
+        run_name="best_model"
+    )
+    writer.close()
+
+
     # info on training time
     time_passed = time.time()-start_timestamp
     print(f'\nTraining finished in {time_passed//3600}h {(time_passed%3600)//60}min {time_passed%60:.0f}s\n')
@@ -205,5 +248,3 @@ if __name__ == "__main__":
     for _ in range(3):
         winsound.Beep(1000, 500)
 
-
-    
