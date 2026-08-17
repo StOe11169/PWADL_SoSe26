@@ -133,9 +133,9 @@ if __name__ == "__main__":
     # Parameter für Training festlegen
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
-    parser.add_argument("--num_frames", type=int, default=4) # Anzahl Frames pro Sample
-    parser.add_argument("--epochs", type=int, default=3) # Anzahl Trainingsdurchläufe
-    parser.add_argument("--n_trials", type=int, default=1) # Anzahl Optuna-Versuche
+    parser.add_argument("--num_frames", type=int, default=32) # Anzahl Frames pro Sample
+    parser.add_argument("--epochs", type=int, default=20) # Anzahl Trainingsdurchläufe
+    parser.add_argument("--n_trials", type=int, default=2) # Anzahl Optuna-Versuche
     args = parser.parse_args()
 
     # Optuna Study erstellen und ausführen. Für jeden Trial neue Hyperparameter, komplettes Training

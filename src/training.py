@@ -1,63 +1,102 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision.models import resnet18, ResNet18_Weights
-from torchinfo import summary
-from tqdm import tqdm  
-from src.evaluation import evaluate
-from torch.utils.tensorboard import SummaryWriter
+from torchvision.models import resnet18, ResNet18_Weights # ResNet18-Modell mit pretrained ImageNet-Gewichten
+from torchinfo import summary # Für die Modellzusammenfassung (optional)
+from tqdm import tqdm  # Fortschrittsbalken für das Training
+from src.evaluation import evaluate # Eigene Evaluierungsfunktion
+from torch.utils.tensorboard import SummaryWriter # TensorBoard-Logging für Metriken und Modellgraph
 
 
 
-class YawDDclassifier(nn.Module): #Klasse für Neuronales Netz
+class YawDDclassifier(nn.Module): # Neuronales Netz für die Müdigkeitserkennung (Gähnen vs. Kein Gähnen)
+    """
+    Hybrides Deep-Learning-Modell bestehend aus:
+    - ResNet18-Backbone (Feature-Extraktion)
+    - Temporaler Attention (Frame-Selektion)
+    - Klassifikations-Head (Binäre Entscheidung)
+    """
     def __init__(self, dropout):
+        """
+        Initialisiert das Modell mit den gegebenen Hyperparametern.
+
+        Args:
+            dropout (float): Dropout-Rate für Regularisierung (0.2-0.6)
+        """
         super().__init__()
 
-        # pretrained resnet model
+        # ===== 1. Feature-Extraction: ResNet18-Backbone =====
+        # Pretrained ResNet18 lädt ImageNet-Gewichte für robuste Feature-Extraktion
         backbone = resnet18(weights=ResNet18_Weights.DEFAULT)
-        self.feature_extractor = nn.Sequential(*list(backbone.children())[:-1]) # keep only the model backbone and remove the final head
+
+        # Backbone ohne die finale Fully-Connected-Layer verwenden (nur konvolutionelle Features)
+        # children() gibt alle Schichten zurück,[:-1] entfernt die letzte Schicht (fc)
+        self.feature_extractor = nn.Sequential(*list(backbone.children())[:-1]) 
         
-        # temporal attention pooling
-        # Fokus auf die Frames legen, in denen tatsächlich gegähnt wird. Frames, in denen nichts relevantes passiert, werden weniger beachtet.
+        # ===== 2. Temporale Attention (Frame-Selektion) =====
+        # Attention-Mechanismus, um relevante Frames (z.B. Gähnen-Phasen) zu gewichten
+        # backbone.fc.in_features gibt die Feature-Dimension nach ResNet (512)
         self.attn = nn.Sequential(
-            nn.Linear(backbone.fc.in_features, 128),
-            nn.Tanh(),
-            nn.Linear(128, 1),
+            nn.Linear(backbone.fc.in_features, 128), # Projektion auf 128-dim Hidden-Layer
+            nn.Tanh(), # Tanh-Aktivierung für nicht-lineare Transformation
+            nn.Linear(128, 1), # Projektion auf Score pro Frame
         )
 
-        # classification head
+        # ===== 3. Klassifikations-Head (Binäre Entscheidung) =====
+        # Fully-Connected-Netzwerk für die finale Klassifikation
         self.cls_head = nn.Sequential(
+            # Erste FC-Layer mit BatchNorm und ReLU
             nn.Linear(backbone.fc.in_features, 256),
-            nn.BatchNorm1d(256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(dropout),
+            nn.BatchNorm1d(256), # Normalisierung für stabileres Training
+            nn.ReLU(inplace=True), # ReLU-Aktivierung
+            nn.Dropout(dropout), # Dropout für Regularisierung
+            # Zweite FC-Layer
             nn.Linear(256, 128),
             nn.BatchNorm1d(128),
             nn.ReLU(inplace=True),
             nn.Dropout(dropout),
+            # Finale FC-Layer für binäre Klassifikation (1 Output)
             nn.Linear(128, 1),
         )
 
     def forward(self, x):
-        B, T, C, H, W = x.shape
+        """
+        Vorwärtsdurchlauf des Modells.
+
+        Args:
+            x (torch.Tensor): Eingabetensor mit Form (Batch, Zeit, Kanäle, Höhe, Breite)
+
+        Returns:
+            torch.Tensor: Logits für binäre Klassifikation (Batch-Größe)
+        """
+        B, T, C, H, W = x.shape # Batch-Größe, Anzahl Frames, Kanäle, Höhe, Breite
         
-        # frame-wise feature extraction with 2D backbone
+        # ===== 1. Feature-Extraktion mit ResNet18 =====
+        # Reshape für 2D-CNN: (B,T,C,H,W) → (B*T,C,H,W)
         x = x.view(B * T, C, H, W)    # (B*T, C, H, W)
-        x = self.feature_extractor(x)           # (B*T, F, 1, 1)
-        x = x.view(B, T, -1)                    # (B, T, F)
+        # Features mit ResNet extrahieren
+        x = self.feature_extractor(x)           # Output: (B*T, 512, 1, 1)
+        # Reshape zurück zu (B,T,512) für temporale Analyse
+        x = x.view(B, T, -1)
 
-        # attention pooling over time
-        scores = self.attn(x)               # (B, T, 1)
-        weights = torch.softmax(scores, dim=1) #Rechnet Scores in Wahrscheinlichkeit um, Summe über Zeit =1
-        # Wichtige Frames bekommen hohe Gewichte, unwichtige quasi nahe 0
-        pooled = (x * weights).sum(dim=1)   # (B, F)
+        # ===== 2. Temporale Attention =====
+        # Attention-Scores berechnen: (B,T,512) → (B,T,1)
+        scores = self.attn(x)
 
-        # final logits
-        logits = self.cls_head(pooled).squeeze(-1)  # (B,)
-        return logits
+        # Softmax über Zeitachse für Normalisierung der Scores
+        # weights gibt an, wie wichtig jeder Frame für die Klassifikation ist
+        weights = torch.softmax(scores, dim=1) 
+        # Gewichtete Summierung der Features: (B,T,512) ⊙ (B,T,1) → (B,512)
+        # ⊙ = Elementweise Multiplikation
+        pooled = (x * weights).sum(dim=1)
+
+        # ===== 3. Klassifikations-Head =====
+        # Finale Logits berechnen: (B,512) → (B,1)
+        logits = self.cls_head(pooled).squeeze(-1) # squeeze(-1) entfernt letzte Dimension
+        return logits # Roh-Scores für binäre Klassifikation
     
 
-#Traniert das Modell
+# Funktion zum Trainieren des Modells
 def trainer(trainloader,
             valloader,
             model,
@@ -66,174 +105,167 @@ def trainer(trainloader,
             freeze_backbone, 
             device,
             threshold,
-            patience=10, #für early stopping kfold
-            log_dir="runs"):  #Parameter für TensorBoard-Logs
+            patience=10, # Anzahl der Epochen ohne Verbesserung, bevor Early Stopping ausgelöst wird
+            log_dir="runs"):  # Verzeichnis für TensorBoard-Logs
+    """
+    Trainiert das Modell mit gegebenen Hyperparametern und evaluiert auf Validierungsdaten.
 
-    # Initialisiere TensorBoard Writer
-    writer = SummaryWriter(log_dir=log_dir)
-    
-    #speichert bestes Ergebnis
-    best_f1 = 0
-    best_epoch = 0
-    epochs_no_improve = 0 #für early stopping kfold
+    Args:
+        trainloader (DataLoader): Dataloader für Trainingsdaten
+        valloader (DataLoader): Dataloader für Validierungsdaten
+        model (YawDDclassifier): Zu trainierendes Modell
+        epochs (int): Anzahl der Trainingsepochen
+        lr (float): Lernrate für den Optimizer
+        freeze_backbone (int): 0=Backbone trainieren, 1=Backbone einfrieren
+        device (torch.device): Gerät (CPU/GPU)
+        threshold (float): Entscheidungsgrenze für binäre Klassifikation
+        patience (int): Patience für Early Stopping
+        log_dir (str): Verzeichnis für TensorBoard-Logs
 
-
-
-    #Aus Trainingsdaten:
-    num_pos = 46 
-    num_neg = 132 -46
-    pos_weight = num_neg / num_pos
-    # objective function is binary cross entropy loss with logits
-    criterion = nn.BCEWithLogitsLoss(
-    pos_weight=torch.tensor(pos_weight).to(device) #pos_weigt ergibt sich aus manuell gezählten Labels
-    )
-    #criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(2.0)) #positive Klasse wird stärker gewichtet (bei Klassenungleichgewicht)
-    
-    # set non-trainable parameters
-    # ResNet wird nicht trainiert
-    # Backbone wird eingefroren, evt, zu restiktiv, könnte überarbeitet werden.
-    """if freeze_backbone:
-        for p in model.feature_extractor.parameters():
-            p.requires_grad=True #=False #keine Gradienten, keine Updates
-            # Modell lernt nur: Attention und Klassifikations-Head
+    Returns:
+        tuple: (best_f1, best_epoch) - Beste F1-Score und Epoche
     """
 
-    #Nur letzte Schicht des Backbone unfreezen
+    # ===== Initialisierung =====
+    # TensorBoard-Logger initialisieren für Metriken-Visualisierung
+    writer = SummaryWriter(log_dir=log_dir)
+    
+    # Beste Metriken initialisieren
+    best_f1 = 0 # Beste F1-Score
+    best_epoch = 0 # Epoche, in der bester F1-Score erreicht wurde
+    epochs_no_improve = 0 # Zähler für Epochen ohne Verbesserung (für Early Stopping)
+
+
+    # ===== Loss-Funktion und Optimizer =====
+    # Klassenungleichgewicht berechnen: 86 Videos ohne Gähnen / 46 mit Gähnen = 1.87 NOCH ÄNDERN!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    num_pos = 46 
+    num_neg = 132 -46
+    pos_weight = num_neg / num_pos # Strafe für False Negatives (übersehene Gähnen)
+
+    # Binary Cross Entropy Loss mit Positiv-Gewichtung für bessere Klassifikation seltener Klasse
+    criterion = nn.BCEWithLogitsLoss(
+    pos_weight=torch.tensor(pos_weight).to(device) # Gewichtung für seltene Klasse (Gähnen)
+    )
+
+    # ===== Backbone einfrieren (falls freeze_backbone=1) =====
     if freeze_backbone:
+        # Alle Parameter des Backbones auf nicht-trainierbar setzen
         for p in model.feature_extractor.parameters():
             p.requires_grad = False
 
-        # letzte Schicht wieder freigeben
+        # Letzte Schicht des Backbones wieder freigeben für Training
+        # [-1] greift auf den letzten ResNet-Block zu
         for p in model.feature_extractor[-1].parameters():
             p.requires_grad = True
     
 
-    # Get trainable parameters and hand to optimizer
-    # Nur trainierbare Parameter auswählen
+    # ===== Trainierbare Parameter auswählen =====
+    # Nur Parameter, die trainierbar sind (requires_grad=True), werden an den Optimizer übergeben
     tp = [p for p in model.parameters() if p.requires_grad]
-    #L2-Regularisierung: Fügt der Loss-Funktion eine Strafe proportional zum Quadrat der Gewichte des Modells hinzu
-    # --> kleinere, besser verteilte Gewichte, reduziert Overfitting
+    # AdamW-Optimizer mit L2-Regularisierung (weight_decay=1e-2)
     optimizer = optim.AdamW(tp, lr=lr, weight_decay=1e-2) # AdamW uses weight decay with default 1e-2
 
-    #LR-Schedluer eingefüht:
+    # ===== Lernraten-Scheduling =====
+    # Reduziert Lernrate, wenn F1-Score über mehrere Epochen stagniert
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
     optimizer,
-    mode='max',        # F1 maximieren
-    factor=0.7,        # LR bei Plateau halbieren (0.5)
-    patience=5,        # Änderung nach 2 Epochen (2)
+    mode='max',        # Maximiere F1-Score
+    factor=0.7,        # Lernrate wird um 30% reduziert
+    patience=5,        # 5 Epochen ohne Verbesserung → Trigger
     )
 
 
+    # ===== Modellgraph für TensorBoard =====
+    # Erstelle einen Dummy-Input für das Logging des Modellgraphen
+    # Nimmt das erste Batch aus dem trainloader für realistische Daten
+    frames, _ = next(iter(trainloader))  
+    dummy_input = frames.to(device)[:1] # Nur erstes Sample für schnelleres Logging
+    writer.add_graph(model, dummy_input) # Modellgraph in TensorBoard speichern
 
 
-   #Tensorboard:
-    frames, _ = next(iter(trainloader))  # Nimmt das erste Batch aus dem trainloader
-    dummy_input = frames.to(device)[:1] # Nur das erste Sample (Batch=1) für schnelleres Logging
-    writer.add_graph(model, dummy_input)
-
-
-    # summary(model)
-
-    # train loop
-    # Wiederholt Training für mehrere Epochen
+    # ===== Trainingsloop =====
     for epoch in range(epochs): 
-
-
-        # init running loss
-        # Loss: Differenz zwischen den Vorhersagewerten und den wahren Werten (Labels)
-        # --> Verschiedene Loss-Funktionen möglich
-        # Running Loss: running loss is the cumulative average loss over a certain number of batches during the training proces
-        # --> Stabilere und flüssigere Schätzung der Modell-Performance
+        # Initialisiere laufenden Loss für diese Epoche
         running_loss = 0
 
+        # Modell in Trainingsmodus setzen (aktiviert Dropout, BatchNorm in Trainingsmodus)
+        model.train()
+        # Iteriere über alle Batches im Trainings-Dataloader
+        for frames, labels in tqdm(trainloader, desc=f'Epoch {epoch}'):
+            # Daten auf richtiges Gerät verschieben (CPU/GPU)
+            frames, labels = frames.to(device), labels.to(device)
 
-        
-
-        # go through all data
-        model.train() #setzt Modell in den Trainingsmodus
-        for frames, labels in tqdm(trainloader, desc=f'Epoch {epoch}'): #iteriert über Trainingsdaten
-            frames, labels = frames.to(device), labels.to(device) # shift data to device
-
-            # forward + backward pass
-            # Vorwärtsdurchlauf, Loss berechnen, Gradienten berechnen
+            # ===== Vorwärtsdurchlauf =====
+            # Gradienten zurücksetzen
             optimizer.zero_grad()
-            logits = model(frames)          
+            # Logits berechnen (Rohwerte ohne Aktivierung)
+            logits = model(frames)
+            # Loss berechnen       
             loss    = criterion(logits, labels)
-            loss.backward() 
-            # Verhindert exploding Gradient Problem: Gradient könnte unendlich groß werden
-            # Exploding gradients occur when gradients grow too large during backpropagation, 
-            # leading to unstable weight updates and divergence in loss. 
-            # When derivatives or weights are greater than 1, their repeated multiplication 
-            # across layers leads to exponential growth       
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) # gradient clipping                
-            optimizer.step() #Gewichte updaten
 
-            # update running loss
-            running_loss += loss.item() #Loss aufsummieren
+            # ===== Rückwärtsdurchlauf =====
+            loss.backward() 
+
+            # ===== Gradient Clipping =====
+            # Verhindert explodierende Gradienten      
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            # Parameter aktualisieren               
+            optimizer.step()
+
+            # Laufenden Loss aktualisieren
+            running_loss += loss.item()
         
         print(f'  Loss: {running_loss:0.4f}') #Ausgabe
 
-        # evaluate train and validation data
-        # Berechne Performance-Metrics
-        #train_metrics = evaluate(trainloader, model, device, threshold)
-        #val_metrics = evaluate(valloader, model, device, threshold)
+        # Evaluierung auf Trainings- und Validierungsdaten
         train_metrics = evaluate(trainloader, model, device, threshold, writer=writer, epoch=epoch)
         val_metrics = evaluate(valloader, model, device, threshold, writer=writer, epoch=epoch)
 
 
         # ===== TENSORBOARD-LOGGING (einmal pro Epoche) =====
         writer.add_scalar('Loss/train', running_loss / len(trainloader), epoch)  # Durchschnittlicher Loss
-        #writer.add_scalar('Accuracy/train', train_metrics['accuracy'], epoch)
         writer.add_scalar('Accuracy/val', val_metrics['accuracy'], epoch)
         writer.add_scalar('F1/train', train_metrics['f1'], epoch)
-        #writer.add_scalar('F1/val', val_metrics['f1'], epoch)
 
-        # Logge Lernrate
+        # ===== Lernrate loggen =====
         for param_group in optimizer.param_groups:
             writer.add_scalar('LearningRate', param_group['lr'], epoch)
 
-        # Accuracy: Verhältnis zwischen richtigen und falschen Vorhersagen
-        # F1:F-score or F-measure is a measure of predictive performance. 
-        # It is calculated from the precision and recall of the test, where the precision is the number of true positive 
-        # results divided by the number of all samples predicted to be positive, 
-        # including those not identified correctly, and the recall is the number of true positive results 
-        # divided by the number of all samples that should have been identified as positive.
-        # F1c: ???
+        # ===== Ausgabe der Metriken =====
         print(f"Train Acc: {train_metrics['accuracy']:.3f}   --   Val Acc: {val_metrics['accuracy']:.3f}")
         print(f"Train F1: {train_metrics['f1']:.3f}   --   Val F1c: {val_metrics['f1']:.3f}")
 
 
         
 
-         #Für LR-Scheduler:
+        # ===== Lernraten-Scheduling =====
+        # Reduziert Lernrate, wenn F1-Score über mehrere Epochen stagniert
         scheduler.step(val_metrics['f1']) 
+
+
+
         #Aktuelle Lernrate ausgeben:
         for param_group in optimizer.param_groups:
             print("Current LR:", param_group['lr'])
             
 
-        # Save best model checkpoint
-        # Speichert bestes Ergebnis und gibt dieses aus
-        # Speichert NICHT das beste Modell --> optimierbar?
+        # ===== Early Stopping =====
         if val_metrics['f1'] > best_f1:
-            best_f1 = val_metrics['f1']
-            best_epoch = epoch
+            best_f1 = val_metrics['f1'] # Beste F1-Score aktualisieren
+            best_epoch = epoch # Beste Epoche speichern
+            epochs_no_improve = 0  # Zähler zurücksetzen
 
-            epochs_no_improve = 0  # für early stopping kfold
-
-            # Modell speichern
+            # Beste Modell-Gewichte speichern
             torch.save(model.state_dict(), "best_model.pt")
-            
-
-           
         
         else:
-            epochs_no_improve += 1 # für early stopping kfold
-        
-        if epochs_no_improve >= patience: # für early stopping kfold
+            epochs_no_improve += 1 # Zähler erhöhen
+
+        # Early Stopping auslösen, wenn keine Verbesserung über 'patience' Epochen
+        if epochs_no_improve >= patience: 
             print(f"\nEarly stopping triggered after {epoch+1} epochs")
             break
 
-
-    writer.close()
-    return best_f1, best_epoch
+    # TensorBoard-Logger schließen
+    writer.close() 
+    return best_f1, best_epoch # Beste F1-Score und Epoche zurückgeben
