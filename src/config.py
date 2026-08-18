@@ -12,7 +12,7 @@ def build_config(trial: Trial, args: Namespace):
     #Audio
     cfg["audio_sample_rate"] = 16000
     cfg["audio_clip_seconds"] = 5.0
-    cfg["num_samples"] = int( cfg["audio_clip_seconds"] * cfg["audio_sample_rate"] )
+    cfg["audio_num_samples"] = int( cfg["audio_clip_seconds"] * cfg["audio_sample_rate"] )
     cfg["audio_mono"] = True
     cfg["audio_normalize"] = True
     cfg["audio_missing_policy"] = "skip"

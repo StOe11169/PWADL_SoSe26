@@ -10,30 +10,6 @@ from sklearn.model_selection import train_test_split, GroupShuffleSplit
 
 
 #Data Handling Functions
-"""
-def get_image_paths(split): #image paths are pre order according to their "split" i.e training, test or validation data
-    file_paths = []
-    file_names = []
-    folder_path = os.path.join("data", split) #create pahth for sub-folder in data accoridng to split
-    for dirpath, _, filenames in os.walk(folder_path): #Go through every directory and file and ad it to file_names and file_path
-            for fname in filenames:
-                file_paths.append(dirpath+'/'+fname)
-                file_names.append(fname[:-4])
-
-    #Create a dataframe from filenames
-    #Changes 001-driver-yawning.mp4 into
-    #id     info_labels     activity
-    #001    driver          yawning
-    df = pd.DataFrame(
-         [fn.split('-') for fn in file_names], 
-         columns=['id', 'info_labels', 'activity']
-         )
-
-    df['filepath'] = file_paths
-    df['yawning'] = [1.0 if 'yawning' in g.lower() else 0.0 for g in df['activity']] #convert activity into binary classification label
-
-    return df
-"""
 def get_all_data_paths(root="data"):
     """
     Scan dataset directory and returns a DataFrame with
