@@ -42,6 +42,8 @@ def create_splits(random_state=42):
         Test:  15%
 
     Groups are based on subject IDs.
+    Only Works with a lot of unique ID´s, otherwise one part of the split will be empty.
+    (5 Unique IDs are not enough)
     """
 
     df = get_dataframe()
