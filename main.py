@@ -62,7 +62,8 @@ def objective(trial):
             lr=args.lr,
             freeze_backbone = args.freeze_backbone,
             device=device,
-            writer=writer
+            writer=writer,
+            trial_number=trial.number
             )
     
     # Decide if trial should be pruned

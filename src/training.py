@@ -64,7 +64,8 @@ def trainer(trainloader,
             lr,
             freeze_backbone, 
             device,
-            writer=None):
+            writer=None,
+            trial_number=None):
 
     os.makedirs("checkpoints", exist_ok=True)
     
@@ -152,7 +153,7 @@ def trainer(trainloader,
 
             torch.save(
                 model.state_dict(),
-                f"checkpoints/trial_{trial.number}_best.pt"
+                f"checkpoints/trial_{trial_number}_best.pt"
             )
 
             if writer:
