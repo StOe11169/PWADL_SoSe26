@@ -16,3 +16,4 @@ checkpoints/*
 data/*
 best_model_final.pt
 src/utils copy.py
+requirements_old.txt
