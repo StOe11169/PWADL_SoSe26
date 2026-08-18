@@ -14,7 +14,7 @@ from src.utils import get_writer, plot_confusion_matrix, build_optimizer, build_
 #check Logs folder is there
 os.makedirs("logs", exist_ok=True)
 
-def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg, trial= None, writer = None):
+def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg, trial= None, writer = None, input_key="frames"):
     
     epochs = cfg["epochs"]
     best_f1 = -1 # -1 so best model is saved at least once, even if it does not improve F1 score
@@ -47,12 +47,13 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
         model.train()
         for batch in tqdm(trainloader, desc=f"Epoch {epoch}"):
             #shift data to device
-            frames = batch["frames"].to(device) 
+            inputs = batch[input_key].to(device)
             labels = batch["labels"].to(device)
+
 
             # forward + backward pass
             optimizer.zero_grad()
-            logits = model(frames)          
+            logits = model(inputs)          
             loss   = criterion(logits, labels)
             loss.backward()        
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) # gradient clipping                
@@ -68,8 +69,8 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
         print(f"  Loss: {running_loss:0.4f}", f"    LR: {current_lr}")
 
         # evaluate train and validation data
-        train_metrics = evaluate(trainloader, model, device, criterion)
-        val_metrics = evaluate(valloader, model, device, criterion)
+        train_metrics = evaluate(trainloader, model, device, criterion, input_key= input_key)
+        val_metrics = evaluate(valloader, model, device, criterion, input_key=input_key)
 
         #optuna pruning per epoch
         if trial is not None:

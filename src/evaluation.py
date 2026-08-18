@@ -3,7 +3,7 @@ from tqdm import tqdm
 from sklearn.metrics import accuracy_score , precision_score, recall_score, f1_score
 
 
-def evaluate(loader, model, device, criterion=None):
+def evaluate(loader, model, device, criterion=None, input_key="frames"):
     
     #Set model to evaluation mode. I.e no dropout, dont compute gradients etc.
     model.eval()
@@ -14,11 +14,11 @@ def evaluate(loader, model, device, criterion=None):
 
         for batch in tqdm(loader):
             #shift data to device
-            frames = batch["frames"].to(device)
+            inputs = batch[input_key].to(device)
             labels = batch["labels"].to(device)
 
             # forward pass
-            logits = model(frames)
+            logits = model(inputs)
             probs = torch.sigmoid(logits)
             preds = (probs > 0.5).float()
 
