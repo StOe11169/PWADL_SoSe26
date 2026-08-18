@@ -9,6 +9,15 @@ def build_config(trial: Trial, args: Namespace):
     cfg["epochs"] = args.epochs
     cfg["num_frames"] = args.num_frames
 
+    #Audio
+    cfg["audio_sample_rate"] = 16000
+    cfg["audio_clip_seconds"] = 5.0
+    cfg["num_samples"] = int( cfg["audio_clip_seconds"] * cfg["audio_sample_rate"] )
+    cfg["audio_mono"] = True
+    cfg["audio_normalize"] = True
+    cfg["audio_missing_policy"] = "skip"
+    cfg["audio_exclude_path_parts"] = ["Mirror"] #filepath without audio
+
     #Dataloader
     cfg["batch_size"] = trial.suggest_categorical("batch_size", [4,8])
     cfg["num_workers"] = 0
