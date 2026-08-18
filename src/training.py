@@ -45,8 +45,10 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
 
         # go through all data
         model.train()
-        for frames, labels in tqdm(trainloader, desc=f'Epoch {epoch}'):
-            frames, labels = frames.to(device), labels.to(device) # shift data to device
+        for batch in tqdm(trainloader, desc=f"Epoch {epoch}"):
+            #shift data to device
+            frames = batch["frames"].to(device) 
+            labels = batch["labels"].to(device)
 
             # forward + backward pass
             optimizer.zero_grad()
@@ -62,7 +64,7 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
 
         if scheduler is not None:   
             scheduler.step()
-        current_lr = optimizer.param_groups[0]['lr']
+        current_lr = optimizer.param_groups[0]["lr"]
         print(f"  Loss: {running_loss:0.4f}", f"    LR: {current_lr}")
 
         # evaluate train and validation data

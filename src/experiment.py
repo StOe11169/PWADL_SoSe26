@@ -7,7 +7,7 @@ import glob
 from torch.utils.data import DataLoader
 from sklearn.model_selection import StratifiedGroupKFold, GroupShuffleSplit
 from src.data import YawDDDataset
-from src.model import YawDDclassifier
+from src.models.visual.model import YawDDclassifier
 from src.training import trainer
 from src.evaluation import evaluate
 from src.config import build_config
@@ -24,7 +24,7 @@ def objective(trial,train_df_outer,args, study_dir):
         device = get_device()
 
         #Split for inner nested cv loop
-        gss = GroupShuffleSplit(n_splits=1, test_size=0.15, random_state=trial.number)
+        gss = GroupShuffleSplit(n_splits=3, test_size=0.15, random_state=trial.number)
         train_idx, val_idx = next(gss.split(train_df_outer, y=train_df_outer["yawning"], groups=train_df_outer["id"]))
         train_df = train_df_outer.iloc[train_idx].reset_index(drop=True)
         val_df   = train_df_outer.iloc[val_idx].reset_index(drop=True)
@@ -64,7 +64,7 @@ def objective(trial,train_df_outer,args, study_dir):
 
 def run_experiment(df, args, study_dir):
     #Outer Loop
-        sgkf = StratifiedGroupKFold(n_splits=2, shuffle=True, random_state=42)
+        sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
         outer_results = []
     
         for fold, (train_idx, test_idx) in enumerate(sgkf.split(df, y=df["yawning"], groups=df["id"])):

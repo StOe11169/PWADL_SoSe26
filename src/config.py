@@ -1,4 +1,3 @@
-
 from optuna.trial import Trial
 from argparse import Namespace
 
@@ -39,3 +38,4 @@ def build_config(trial: Trial, args: Namespace):
         cfg["gamma"] = trial.suggest_float("gamma", 0.1, 0.9)
 
     return cfg
+
