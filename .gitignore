@@ -7,3 +7,12 @@ src/__pycache__/utils.cpython-313.pyc
 best_model.pt
 Zwischenstand.md
 runs/*
+main_backup.py
+Tester_backup.py
+src/data_backup.py
+src/evaluation_backup.py
+src/training_backup.py
+checkpoints/*
+data/*
+best_model_final.pt
+src/utils copy.py
