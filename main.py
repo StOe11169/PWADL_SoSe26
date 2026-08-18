@@ -1,3 +1,4 @@
+from csv import writer
 import argparse, time
 import torch
 from torch.utils.data import DataLoader
@@ -7,6 +8,8 @@ from src.utils import setup_env
 from src.data import YawDDDataset
 from src.training import trainer, YawDDclassifier
 from src.evaluation import evaluate
+
+from torch.utils.tensorboard import SummaryWriter
 
 
 # Optional TODOs: 
@@ -28,6 +31,12 @@ def objective(trial):
     args.dropout = trial.suggest_float("dropout", 0.2, 0.6, step=0.1)
     print(f'=================================================================')
     print(f' batch_size: {args.batch_size}, freeze_backbone: {args.freeze_backbone}, lr: {args.lr:0.5f}, dropout: {args.dropout:0.1f}')
+
+    writer = SummaryWriter(
+        log_dir=f"runs/trial_{trial.number}"
+    )
+
+    
 
     # get device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -52,7 +61,8 @@ def objective(trial):
             epochs=args.epochs,
             lr=args.lr,
             freeze_backbone = args.freeze_backbone,
-            device=device
+            device=device,
+            writer=writer
             )
     
     # Decide if trial should be pruned
@@ -62,7 +72,29 @@ def objective(trial):
     
     # test
     test_metrics = evaluate(testloader, model, device)
+    for metric, value in test_metrics.items():
+        writer.add_scalar(
+            f"{metric}/Test",
+            value,
+            0
+        )
     print(f"=================================================================\nTest Acc: {test_metrics['accuracy']:.3f}") 
+
+    writer.add_hparams(
+        {
+        "batch_size": args.batch_size,
+        "freeze_backbone": args.freeze_backbone,
+        "lr": args.lr,
+        "dropout": args.dropout,
+        },
+        {
+        "f1_val": f1_val,
+        "test_acc": test_metrics["accuracy"],
+        }
+    )
+
+    writer.close()
+
     return f1_val
 
 

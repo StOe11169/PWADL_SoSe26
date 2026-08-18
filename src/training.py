@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 from src.evaluation import evaluate
 
+from torch.utils.tensorboard import SummaryWriter
 
 class YawDDclassifier(nn.Module):
     def __init__(self, dropout):
@@ -60,7 +61,8 @@ def trainer(trainloader,
             epochs,
             lr,
             freeze_backbone, 
-            device):
+            device,
+            writer=None):
     
     best_f1 = 0
     best_epoch = 0
@@ -76,7 +78,11 @@ def trainer(trainloader,
     # Get trainable parameters and hand to optimizer
     tp = [p for p in model.parameters() if p.requires_grad]
     optimizer = optim.AdamW(tp, lr=lr, weight_decay=1e-2) # AdamW uses weight decay with default 1e-2
-    
+    writer.add_scalar(
+        "LearningRate",
+        optimizer.param_groups[0]["lr"],
+        0
+    )
     # summary(model)
 
     # train loop
@@ -100,12 +106,37 @@ def trainer(trainloader,
 
             # update running loss
             running_loss += loss.item()
+
+        epoch_loss = running_loss / len(trainloader)
         
-        print(f'  Loss: {running_loss:0.4f}')
+        print(f'  Loss: {epoch_loss:0.4f}')
+
+        if writer:
+            writer.add_scalar(
+                "Loss/Train",
+                epoch_loss,
+                epoch
+            )
+
 
         # evaluate train and validation data
         train_metrics = evaluate(trainloader, model, device)
         val_metrics = evaluate(valloader, model, device)
+
+        if writer:
+            for metric in train_metrics:
+                writer.add_scalar(
+                    f"{metric}/Train",
+                    train_metrics[metric],
+                    epoch
+                )
+            for metric in val_metrics:
+                writer.add_scalar(
+                    f"{metric}/Validation",
+                    val_metrics[metric],
+                    epoch
+                )
+
 
         print(f"Train Acc: {train_metrics['accuracy']:.3f}   --   Val Acc: {val_metrics['accuracy']:.3f}")
         print(f"Train F1: {train_metrics['f1']:.3f}   --   Val F1c: {val_metrics['f1']:.3f}")  
@@ -114,5 +145,17 @@ def trainer(trainloader,
         if val_metrics['f1'] > best_f1:
             best_f1 = val_metrics['f1']
             best_epoch = epoch
+
+            torch.save(
+                model.state_dict(),
+                f"checkpoints/best_model.pt"
+            )
+
+            if writer:
+                writer.add_scalar(
+                    "BetsF1",
+                    best_f1,
+                    epoch
+                )
 
     return best_f1, best_epoch
