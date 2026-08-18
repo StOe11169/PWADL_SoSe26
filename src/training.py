@@ -9,6 +9,8 @@ from src.evaluation import evaluate
 
 from torch.utils.tensorboard import SummaryWriter
 
+import os
+
 class YawDDclassifier(nn.Module):
     def __init__(self, dropout):
         super().__init__()
@@ -63,6 +65,8 @@ def trainer(trainloader,
             freeze_backbone, 
             device,
             writer=None):
+
+    os.makedirs("checkpoints", exist_ok=True)
     
     best_f1 = 0
     best_epoch = 0
@@ -148,7 +152,7 @@ def trainer(trainloader,
 
             torch.save(
                 model.state_dict(),
-                f"checkpoints/best_model.pt"
+                f"checkpoints/trial_{trial.number}_best.pt"
             )
 
             if writer:

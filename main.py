@@ -109,8 +109,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
     parser.add_argument("--num_frames", type=int, default=64)
-    parser.add_argument("--epochs", type=int, default=8)
-    parser.add_argument("--n_trials", type=int, default=32)
+    parser.add_argument("--epochs", type=int, default=2)
+    parser.add_argument("--n_trials", type=int, default=2)
     args = parser.parse_args()
     
     # Create & run study, maximizing validation F1
