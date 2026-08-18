@@ -11,6 +11,14 @@ from src.evaluation import evaluate
 
 from torch.utils.tensorboard import SummaryWriter
 
+import psutil
+import os
+
+process = psutil.Process(os.getpid())
+print(
+    f"Initial RAM usage: {process.memory_info().rss / (1024 ** 3):.2f} GB"
+)
+
 
 # Optional TODOs: 
 # * Hand more hyperparameters as arguments / add to optuna search space
@@ -95,6 +103,10 @@ def objective(trial):
     )
 
     writer.close()
+
+    print(
+        f"RAM usage after trial {trial.number}: {process.memory_info().rss / (1024 ** 3):.2f} GB"
+    )
 
     return f1_val
 

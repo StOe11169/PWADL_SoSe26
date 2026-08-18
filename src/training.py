@@ -11,6 +11,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 import os
 
+import psutil
+
 class YawDDclassifier(nn.Module):
     def __init__(self, dropout):
         super().__init__()
@@ -56,6 +58,11 @@ class YawDDclassifier(nn.Module):
         logits = self.cls_head(pooled).squeeze(-1)  # (B,)
         return logits
     
+def print_ram(tag=""):
+    process = psutil.Process(os.getpid())
+    ram_usage = process.memory_info().rss / (1024 ** 3)  # Convert bytes to GB
+    print(f"{tag} RAM usage: {ram_usage:.2f} GB")
+
 
 def trainer(trainloader,
             valloader,
@@ -66,6 +73,8 @@ def trainer(trainloader,
             device,
             writer=None,
             trial_number=None):
+
+    print_ram("Start trainer")
 
     os.makedirs("checkpoints", exist_ok=True)
     
@@ -93,6 +102,8 @@ def trainer(trainloader,
     # train loop
     for epoch in range(epochs): 
 
+        print_ram(f"Epoch {epoch} start")
+
         # init running loss
         running_loss = 0
 
@@ -112,6 +123,8 @@ def trainer(trainloader,
             # update running loss
             running_loss += loss.item()
 
+            print_ram(f"Epoch {epoch} after train")
+
         epoch_loss = running_loss / len(trainloader)
         
         print(f'  Loss: {epoch_loss:0.4f}')
@@ -126,7 +139,12 @@ def trainer(trainloader,
 
         # evaluate train and validation data
         train_metrics = evaluate(trainloader, model, device)
+
+        print_ram(f"Epoch {epoch} after train eval")
+
         val_metrics = evaluate(valloader, model, device)
+
+        print_ram(f"Epoch {epoch} after val eval")
 
         if writer:
             for metric in train_metrics:
