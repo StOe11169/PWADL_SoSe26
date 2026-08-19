@@ -33,7 +33,7 @@ def objective(trial):
     #args.freeze_backbone = 0
     #args.lr = 0.000102997397467
     #args.dropout = 0.2
-    args.batch_size = trial.suggest_categorical("batch_size", [4, 8, 12, 16])
+    args.batch_size = trial.suggest_categorical("batch_size", [4, 8])
     args.freeze_backbone = trial.suggest_categorical("freeze_backbone", [0, 1])
     args.lr = trial.suggest_float("lr", 1e-5, 1e-3, log=True)
     args.dropout = trial.suggest_float("dropout", 0.2, 0.6, step=0.1)
@@ -122,8 +122,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
     parser.add_argument("--num_frames", type=int, default=64)
-    parser.add_argument("--epochs", type=int, default=2)
-    parser.add_argument("--n_trials", type=int, default=2)
+    parser.add_argument("--epochs", type=int, default=8)
+    parser.add_argument("--n_trials", type=int, default=32)
     args = parser.parse_args()
     
     # Create & run study, maximizing validation F1
