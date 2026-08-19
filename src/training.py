@@ -359,7 +359,7 @@ def trainer(
             )
 
             # Trainings-F1 zur Kontrolle ausgeben
-            print(f"Train F1: {train_metrics['f1']:.3f}")
+            print(f"\nTrain F1: {train_metrics['f1']:.3f}")
 
         # Platzhalter für Validierungsmetriken initialisieren
         val_metrics = None
