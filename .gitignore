@@ -22,3 +22,5 @@ checkpoints/trial_0_best.pt
 runs/trial_0/events.out.tfevents.1787058629.Laptop-Ju.43802.0
 runs/trial_0/1787068118.7843363/events.out.tfevents.1787068118.Laptop-Ju.43802.1
 runs/trial_1/events.out.tfevents.1787068118.Laptop-Ju.43802.2
+checkpoints/*
+runs/*
