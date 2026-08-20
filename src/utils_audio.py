@@ -47,18 +47,13 @@ def has_decodable_audio(filepath, sample_rate=16000, mono=True):
 def filter_decodable_audio_dataframe(df, cfg):
     """
     Removes:
-    1. Known no-audio folders, e.g. Mirror
-    2. Files where TorchCodec cannot decode audio
+    -Known no-audio folders, e.g. Mirror
+    -Files where TorchCodec cannot decode audio
 
-    Notes:
-    - This is slower because it tests decoding.
-    - Use this for the first audio pipeline validation.
+    only for first audio pipeline validation.
     """
 
-    df = filter_audio_dataframe(
-        df,
-        exclude_path_parts=cfg["audio_exclude_path_parts"],
-    )
+    df = filter_audio_dataframe(df, exclude_path_parts=cfg["audio_exclude_path_parts"],)
 
     keep_rows = []
 

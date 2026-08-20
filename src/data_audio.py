@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import Dataset
 from torchcodec.decoders import AudioDecoder
-from utils_audio import pad_or_truncate_audio, normalize_audio
+from src.utils_audio import pad_or_truncate_audio, normalize_audio
 
 
 def load_audio_from_video(filepath, sample_rate=16000, mono=True):
@@ -16,19 +16,10 @@ def load_audio_from_video(filepath, sample_rate=16000, mono=True):
     num_channels = 1 if mono else None
 
     try:
-        decoder = AudioDecoder(
-            filepath,
-            sample_rate=sample_rate,
-            num_channels=num_channels,
-        )
+        decoder = AudioDecoder(filepath, sample_rate=sample_rate, num_channels=num_channels,)
     except Exception:
-        # Fallback for containers where TorchCodec cannot infer the best audio stream
-        decoder = AudioDecoder(
-            filepath,
-            stream_index=0,
-            sample_rate=sample_rate,
-            num_channels=num_channels,
-        )
+        # Fallback if TorchCodec cannot infer the best audio stream
+        decoder = AudioDecoder(filepath, stream_index=0, sample_rate=sample_rate, num_channels=num_channels,)
 
     samples = decoder.get_all_samples()
     waveform = samples.data.float()
@@ -49,7 +40,6 @@ class AudioYawDDDataset(Dataset):
     def __init__(self, df, cfg):
         self.filepaths = df["filepath"].tolist()
         self.labels = df["yawning"].tolist()
-
         self.sample_rate = cfg["audio_sample_rate"]
         self.num_samples = cfg["audio_num_samples"]
         self.mono = cfg["audio_mono"]
