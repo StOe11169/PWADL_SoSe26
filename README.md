@@ -410,10 +410,10 @@ Epoche	Train Loss	Train F1
 19	0.2444	0.960
 20	0.2840	0.932
 
- 
+![Verlauf des Train Loss](/pictures/TrainLoss.png) 
 Abbildung 2: Verlauf des Train Loss während des finalen Trainings
 
- 
+![Verlauf des Train F1](/pictures/TrainF1.png)
 Abbildung 3: Verlauf des Train-F1 während des finalen Trainings
 
 
@@ -440,7 +440,7 @@ Die Confusion Matrix lautete:
 Tatsächlich non-yawning	35	6
 Tatsächlich yawning	0	24
 
- 
+![Confusion Matrix](/pictures/ConfusionMatrix.png) 
 Abbildung 4: Confusion Matrix des finalen Modells auf dem unabhängigen Testsplit.
 Die Confusion Matrix zeigt, dass keine positive Testsequenz übersehen wurde. Dies ist für die gewählte Anwendung günstig, da ein nicht erkanntes Müdigkeitsmerkmal potenziell kritischer ist als eine Fehlwarnung. Gleichzeitig zeigen die sechs False Positives, dass das Modell teilweise auch andere Mundbewegungen oder gesichtsbezogene Veränderungen als Gähnen interpretiert.
 Das Modell erkannte alle tatsächlichen yawning-Videos im Testsplit korrekt. Dadurch ergibt sich ein Recall von 1.000. Gleichzeitig wurden 6 von 41 non-yawning-Videos fälschlich als yawning klassifiziert, wodurch die Precision bei 0.800 liegt und zu sehen ist, dass das Modell auch andere Mundbewegungen oder gesichtsbezogene Veränderungen als Gähnen interpretiert.
