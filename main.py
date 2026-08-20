@@ -121,8 +121,8 @@ if __name__ == "__main__":
     # get args 
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
-    parser.add_argument("--num_frames", type=int, default=32)
-    parser.add_argument("--epochs", type=int, default=16)
+    parser.add_argument("--num_frames", type=int, default=64)
+    parser.add_argument("--epochs", type=int, default=32)
     parser.add_argument("--n_trials", type=int, default=1)
     args = parser.parse_args()
     
