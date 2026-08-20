@@ -1,0 +1,15 @@
+===== TESTERGEBNISSE =====
+Accuracy : 0.908
+Precision: 0.800
+Recall   : 1.000
+F1 Score : 0.889
+ROC-AUC  : 0.994
+PR-AUC   : 0.991
+Threshold: 0.316
+Dropout  : 0.6
+NumFrames: 32
+BatchSize: 8
+
+Confusion Matrix:
+[[35  6]
+ [ 0 24]]
