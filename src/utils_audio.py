@@ -1,6 +1,31 @@
 import os
 import torch.nn.functional as F
+from torchcodec.decoders import AudioDecoder
 
+def load_audio_from_video(filepath, sample_rate=16000, mono=True):
+    """
+    Loads audio from a video file using TorchCodec.
+
+    Uses two attempts:
+    1. Let TorchCodec select the best audio stream.
+    2. Fallback to stream_index=0 if best stream selection fails.
+    """
+
+    num_channels = 1 if mono else None
+
+    try:
+        decoder = AudioDecoder(filepath, sample_rate=sample_rate, num_channels=num_channels,)
+    except Exception:
+        # Fallback if TorchCodec cannot infer the best audio stream
+        decoder = AudioDecoder(filepath, stream_index=0, sample_rate=sample_rate, num_channels=num_channels,)
+
+    samples = decoder.get_all_samples()
+    waveform = samples.data.float()
+
+    if mono and waveform.dim() == 2:
+        waveform = waveform.squeeze(0)
+
+    return waveform
 
 def is_excluded_audio_path(filepath, exlude_path_parts):
     #helper to ignore non audio videos, current hard code -> adjust later
