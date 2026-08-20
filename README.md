@@ -1,24 +1,24 @@
-"# PWADL_SoSe26"
+# PWADL_SoSe26
 In dieser Projektarbeit wird ein Deep-Learning-Modell zur automatischen Erkennung von Gähnen in Fahrervideos entwickelt. Gähnen wird dabei als mögliches visuelles Merkmal für Müdigkeit am Steuer betrachtet. Als Datengrundlage wird der YawDD-Datensatz verwendet, der durch eigene Videos im gleichen Format ergänzt wurde. Das Modell klassifiziert Videosequenzen binär in die Klassen yawning und non-yawning.
 Die entwickelte Pipeline umfasst das Einlesen von Videodaten aus einem Sammelordner, die reproduzierbare Aufteilung aller Daten in Trainings-, Validierungs- und Testdaten, eine framebasierte Vorverarbeitung, ein neuronales Netz mit ResNet18-Backbone und temporaler Attention sowie Training, Hyperparameteroptimierung, Logging und Evaluation. Die finale Bewertung erfolgt auf einem unabhängigen Testsplit.
 
-1. Problembeschreibung
-1.1 Motivation
+## 1.Problembeschreibung
+### 1.1 Motivation
 Müdigkeit am Steuer stellt ein sicherheitsrelevantes Risiko dar, da sie die Reaktionsfähigkeit und Aufmerksamkeit der fahrenden Person beeinträchtigen kann. Viele Automobilhersteller entwickeln daher seit Jahren eigene Systeme, um Müdigkeit und Erschöpfung zu erkennen. Ein mögliches visuelles Anzeichen für Müdigkeit ist Gähnen. Ziel dieses Projekts ist es daher, ein Modell zu entwickeln, das anhand kurzer Videosequenzen erkennt, ob eine Person gähnt oder nicht. Dazu wird die Aufgabe als binäres Klassifikationsproblem umgesetzt. Für jede Videosequenz wird vorhergesagt, ob sie zur Klasse yawning oder zur Klasse non-yawning gehört.
 
-1.2 Zielsetzung
+### 1.2 Zielsetzung
 Ziel der Arbeit ist die Entwicklung und Evaluation einer Deep-Learning-Pipeline zur Gähn-Erkennung in Fahrervideos. Die Pipeline soll folgende Anforderungen erfüllen:
-1.	Einlesen aller Videodaten aus einem gemeinsamen Datenordner.
-2.	Automatische Erzeugung und Nutzung einer reproduzierbaren Split-Datei.
-3.	Gruppierte Aufteilung nach Personen- / Video-ID, um Datenleckage zu reduzieren.
-4.	Extraktion einer festen Anzahl gleichmäßig verteilter Frames pro Video.
-5.	Training eines geeigneten Modells für Videodaten.
-6.	Hyperparameteroptimierung mittels Optuna.
-7.	Evaluation auf einem unabhängigen Testsplit.
-8.	Logging von Trainings- und Evaluationsmetriken mit TensorBoard.
-9.	Speichern und erneutes Laden des finalen Modells.
+    1.	Einlesen aller Videodaten aus einem gemeinsamen Datenordner.
+    2.	Automatische Erzeugung und Nutzung einer reproduzierbaren Split-Datei.
+    3.	Gruppierte Aufteilung nach Personen- / Video-ID, um Datenleckage zu reduzieren.
+    4.	Extraktion einer festen Anzahl gleichmäßig verteilter Frames pro Video.
+    5.	Training eines geeigneten Modells für Videodaten.
+    6.	Hyperparameteroptimierung mittels Optuna.
+    7.	Evaluation auf einem unabhängigen Testsplit.
+    8.	Logging von Trainings- und Evaluationsmetriken mit TensorBoard.
+    9.	Speichern und erneutes Laden des finalen Modells.
 
-1.3 Formale Problemdefinition
+## 1.3 Formale Problemdefinition
 Ein aus einem Video extrahierter Clip wird als Sequenz von Frames beschrieben:
 X = {x₁, x₂, ..., x_T}
 Dabei bezeichnet T die Anzahl der verwendeten Frames pro Videosequenz.
@@ -34,12 +34,12 @@ Die finale Klassifikation erfolgt über einen Schwellwert τ:
 ŷ = 0, falls p ≤ τ
 Der Schwellwert τ wird im Rahmen der Hyperparameteroptimierung bestimmt.
 
-2. Modellarchitektur
-2.1 Überblick
+## 2. Modellarchitektur
+### 2.1 Überblick
 Das verwendete Modell besteht aus drei Hauptkomponenten:
-1.	ResNet18-Backbone zur Feature-Extraktion pro Frame.
-2.	Temporaler Attention-Mechanismus zur Gewichtung relevanter Frames.
-3.	Fully-Connected-Klassifikationskopf zur binären Klassifikation.
+    1.	ResNet18-Backbone zur Feature-Extraktion pro Frame.
+    2.	Temporaler Attention-Mechanismus zur Gewichtung relevanter Frames.
+    3.	Fully-Connected-Klassifikationskopf zur binären Klassifikation.
 Die Eingabe des Modells besitzt die Form:
 (B, T, C, H, W)
 Dabei gilt:
