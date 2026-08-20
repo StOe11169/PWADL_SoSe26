@@ -18,6 +18,11 @@ if __name__ == "__main__":
     parser.add_argument("--num_frames", type=int, default=32)
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--n_trials", type=int, default=8)
+
+    #testing audio pipeline
+    parser.add_argument("--mode", type=str, default="visual", choices=["visual", "audio"])
+    parser.add_argument("--audio_exclude_path_parts", nargs="*", default=["Mirror"])
+
     args = parser.parse_args()
 
     #Load dataset
@@ -30,10 +35,12 @@ if __name__ == "__main__":
 
     tb_process = start_tensorboard(study_dir)
 
-    run_experiment(df, args, study_dir)
-    
-    time_passed = time.time() - start_timestamp
-    print(f'\nTraining finished in {time_passed//3600}h {(time_passed%3600)//60}min {time_passed%60:.0f}s\n')
+    try:
+        run_experiment(df, args, study_dir)
+
+    finally:
+        time_passed = time.time() - start_timestamp
+        print(f'\nTraining finished in {time_passed//3600}h {(time_passed%3600)//60}min {time_passed%60:.0f}s\n')
 
     tb_process.terminate()
     

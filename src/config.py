@@ -16,7 +16,7 @@ def build_config(trial: Trial, args: Namespace):
     cfg["audio_mono"] = True
     cfg["audio_normalize"] = True
     cfg["audio_missing_policy"] = "skip"
-    cfg["audio_exclude_path_parts"] = ["Mirror"] #filepath without audio
+    cfg["audio_exclude_path_parts"] = getattr(args, "audio_exclude_path_parts", ["Mirror"]) #filepath without audio
 
     #Dataloader
     cfg["batch_size"] = trial.suggest_categorical("batch_size", [4,8])
