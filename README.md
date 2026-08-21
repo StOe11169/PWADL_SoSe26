@@ -23,36 +23,15 @@
 		zu erkennen. Als Datensatz dient der YawDD-Datensatz, welcher mit eigenen Aufnahmen erweitert wurde.
 
 
-#### Modell-Architektur:
+#### Modell-Architektur + Mathematische Beschreibung:
 		
-		Das Projekt ist modular aufgebaut und besteht aus den folgenden Modulen:
-		
-		Data.py:
-                Dieses Modul importiert die im Data-Ordner zur Verfügung gestellt Daten, erkennt die Label und fasst Sie in einem
-                Dataframe zusammen.Dann werden die Daten über einen Group-Shuffle-Split in Trainings-, Validierungs- und Testdaten
-                unterteilt. Abschließend folgt die Datenbearbeitung.
-	
-		Evaluation.py:
-                Bei der Evaluation findet die Bewertung des Modells durch Vergleich seiner Antworten mit den gespeicherten Labels statt.
-                Dargestellt wird diese während des Trainings durch die Ausgabe von Accuracy und F1Score von Trainingsdaten und Validierungsdaten.
+	Feature-Extraktion:
 
-		Training.py:
-                Beinhaltet die Struktur des neuronalen Netzes, die Spezifikationen des Trainers und den Trainingsloop. 
+        Als Backbone wird ein vortrainiertes ResNet18-Modell verwendet. Die finale Klassifikationschicht wird entfernt, sodass ausschließlich die Merkmalsextraktion genutzt wird.
 
-		Utils.py:
-                Utils beinhaltet die für den Setup wichtigen Daten wie zum Beispiel den benutzen Seed.
-
-		Config.py:
-                TODO
-
-		Main.py:
-                Kern des neuronalen Netzes. Hier werden die anderen Module abgerufen und das neuronale Netz zum Leben erwacht.
-
-
-#### Mathematische Beschreibung und Herleitungen:
-
-
-		WTF
+        Input:
+                    $x \mathbb{R}^{B \times T \times C \times H \times W}$
+                    
 
 
 ### Kapitel 2 - Datensatz:
@@ -107,3 +86,30 @@ Darstellung der Metriken: FOLGT
 Vergleich: IN ZITARO NACHSCHAUEN
 
 Besonderheiten und Schwächen: VIELE
+
+
+
+----------------------------------------------------------------------------
+
+Das Projekt ist modular aufgebaut und besteht aus den folgenden Modulen:
+		
+		Data.py:
+                Dieses Modul importiert die im Data-Ordner zur Verfügung gestellt Daten, erkennt die Label und fasst Sie in einem
+                Dataframe zusammen.Dann werden die Daten über einen Group-Shuffle-Split in Trainings-, Validierungs- und Testdaten
+                unterteilt. Abschließend folgt die Datenbearbeitung.
+	
+		Evaluation.py:
+                Bei der Evaluation findet die Bewertung des Modells durch Vergleich seiner Antworten mit den gespeicherten Labels statt.
+                Dargestellt wird diese während des Trainings durch die Ausgabe von Accuracy und F1Score von Trainingsdaten und Validierungsdaten.
+
+		Training.py:
+                Beinhaltet die Struktur des neuronalen Netzes, die Spezifikationen des Trainers und den Trainingsloop. 
+
+		Utils.py:
+                Utils beinhaltet die für den Setup wichtigen Daten wie zum Beispiel den benutzen Seed.
+
+		Config.py:
+                TODO
+
+		Main.py:
+                Kern des neuronalen Netzes. Hier werden die anderen Module abgerufen und das neuronale Netz zum Leben erwacht.
