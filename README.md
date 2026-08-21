@@ -32,7 +32,9 @@ ausschließlich die Merkmalsextraktion genutzt wird.
 
 Input:
 
-\[***X*** \in $\mathbb{R}^{B \times T \times C \times H \times W}$\]
+\[
+X \in \mathbb{R}^{B \times T \times C \times H \times W}
+\]
 
 mit
 
