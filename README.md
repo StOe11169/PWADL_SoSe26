@@ -55,11 +55,9 @@ als Feature-Dimension.
 
 Da nicht alle Frames einer Videosequenz gleich relevant sind, wird ein Attetion-Mechanismus zu Gewichtung der Frames verwendet.
 
-Für jedes Frame \(t\):
+Für jedes Frame t:
  
-\[
-s_t = W_2(tanh(W_1f_t))
-\]
+s~t~ ​= W~2~​(tanh(W~1~ ​f~t~​))
  
 Anschließend werden die Attention-Gewichte berechnet:
  
