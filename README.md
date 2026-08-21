@@ -416,7 +416,9 @@ Die Laufzeit hängt insbesondere von folgenden Faktoren ab: \
     3.	Anzahl der Optuna-Trials. \
     4.	Anzahl der Cross-Validation-Folds. \
     5.	Batchgröße. \
-    6.	Verwendete Hardware. \
+    6.	Verwendete Hardware. 
+
+Der finale Lauf lief über 10 Trials mit je 30 Epochen und 5 Folds, während der Vergleichslauf nur 5 Trials mit je 20 Epochen und 3 Folds verwendete.
 
 Der zweite Trainingslauf erzielte sowohl in der Cross-Validation als auch auf dem finalen Testsplit bessere Ergebnisse. Besonders auffällig ist, dass das finale Modell im zweiten Lauf alle Testvideos korrekt klassifizierte.
 
