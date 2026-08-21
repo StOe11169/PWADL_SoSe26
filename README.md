@@ -100,6 +100,25 @@ mit einer Klassengewichtung:
 
 um die positive Klasse stärker zu gewichten.
 
+### Optimizer
+
+Für die Optimierung des neuronalen Netzes wird der AdamW-Optimizer verwendet. AdamW kombiniert die Vorteile des adaptiven Adam-Optimierers mit einer verbesserten Regularisierung durch sogenanntes Weight Decay. Während klassische Optimierungsverfahren für alle Parameter dieselbe Lernrate verwenden, passt AdamW die Lernraten für einzelne Parameter anhand der während des Trainings beobachteten Gradienten dynamisch an. Dadurch kann das Modell in der Regel schneller und stabiler konvergieren.
+
+Im Rahmen dieses Projekts wird eine Lernrate von 1.03*10^(-4) sowie ein Weight Decay von 0.01 verwendet. Das Weight Decay wirkt einer Überanpassung (Overfitting) entgegen, indem große Parameterwerte während des Trainings bestraft werden. Aufgrund seiner Robustheit und guten Leistung hat sich AdamW als Standardverfahren für viele moderne Deep-Learning-Anwendungen etabliert.
+
+### Gradient Clipping
+
+Zur Verbesserung der Trainingsstabilität wird Gradient Clipping eingesetzt. Während des Backpropagation-Schrittes können insbesondere bei tiefen neuronalen Netzen sehr große Gradienten entstehen. Dieses sogenannte Exploding-Gradient-Problem kann zu instabilen Parameterupdates und einem fehlerhaften Trainingsverlauf führen.
+
+Um dies zu verhindern, werden die Gradienten aller Modellparameter nach jeder Rückwärtspropagation auf einen maximalen Betrag von 1.0 begrenzt. Überschreitet die Norm der Gradienten diesen Wert, werden sie entsprechend skaliert. In der Implementierung erfolgt dies mithilfe der Funktion:
+
+        torch.nn.utils.clip_grad_norm_(
+                model.parameters(),
+                max_norm=1.0
+        )
+
+Durch diese Maßnahme wird ein stabilerer Trainingsprozess erreicht, da einzelne Ausreißer bei den Gradienten nun keinen übermäßig großen Einfluss auf die Aktualisierung der Modellparameter mehr haben.
+
 ## Kapitel 2 - Datensatz:
 
 ### Beschreibung des Datensatzes:
