@@ -104,11 +104,19 @@ um die positive Klasse stärker zu gewichten.
 
 ### Beschreibung des Datensatzes:
 
-Für die Durchführung des Projekts wurde hauptsächlich der **YawDD Mirror Videos Datensatz** verwendet. Die Quelle des Datensatzes ist in Kapitel 1 angegeben. Zusätzlich wurden eigene Videoaufnahmen erstellt und in den Datensatz integriert, um die Anzahl der Trainingsbeispiele zu erhöhen und zusätzliche Variationen hinsichtlich Personen, Beleuchtung und Aufnahmebedingungen abzudecken.
+Für die Durchführung des Projekts wurde hauptsächlich der **YawDD Mirror Videos Datensatz** verwendet.
+Die Quelle des Datensatzes ist in Kapitel 1 angegeben. Zusätzlich wurden eigene Videoaufnahmen erstellt und
+in den Datensatz integriert, um die Anzahl der Trainingsbeispiele zu erhöhen und zusätzliche Variationen
+hinsichtlich Personen, Beleuchtung und Aufnahmebedingungen abzudecken.
 
-Der Datensatz enthält Videos von Personen sowohl **mit Gähnen** als auch **ohne Gähnen**. Darüber hinaus wurden verschiedene Erscheinungsformen berücksichtigt, sodass sowohl Aufnahmen von Personen **ohne Brille**, **mit Brille** sowie **mit Sonnenbrille** enthalten sind. Dies erhöht die Robustheit des Modells gegenüber unterschiedlichen realen Einsatzbedingungen.
+Der Datensatz enthält Videos von Personen sowohl **mit Gähnen** als auch **ohne Gähnen**. Darüber hinaus
+wurden verschiedene Erscheinungsformen berücksichtigt, sodass sowohl Aufnahmen von Personen
+**ohne Brille**, **mit Brille** sowie **mit Sonnenbrille** enthalten sind. Dies erhöht die Robustheit des Modells
+gegenüber unterschiedlichen realen Einsatzbedingungen.
 
-Alle Videos besitzen eine Länge von ungefähr **30 Sekunden** und liegen in einer Auflösung von **360p** vor. Die Videos wurden mit einer festen Kameraposition aufgenommen und zeigen das Gesicht der Person während verschiedener Aktivitäten.
+Alle Videos besitzen eine Länge von ungefähr **30 Sekunden** und liegen in einer Auflösung von **360p** vor.
+Die Videos wurden mit einer festen Kameraposition aufgenommen und zeigen das Gesicht der Person
+während verschiedener Aktivitäten.
 
 Die Benennung der Videodateien folgt einem einheitlichen Schema:
 
@@ -116,9 +124,13 @@ Die Benennung der Videodateien folgt einem einheitlichen Schema:
 
 ### Daten-Split:
 
-Eine zentrale Herausforderung bei biometrischen Datensätzen besteht darin, sogenannte Data Leaks zu verhindern. Werden Videos derselben Person gleichzeitig für Training und Test verwendet, kann das Modell personenbezogene Merkmale lernen und dadurch unrealistisch gute Ergebnisse erzielen.
+Eine zentrale Herausforderung bei biometrischen Datensätzen besteht darin, sogenannte Data Leaks zu
+verhindern. Werden Videos derselben Person gleichzeitig für Training und Test verwendet, kann das Modell
+personenbezogene Merkmale lernen und dadurch unrealistisch gute Ergebnisse erzielen.
 
-Um dieses Problem zu vermeiden, wurde eine gruppenbasierte Aufteilung des Datensatzes implementiert. Die Gruppen werden durch die im Dateinamen enthaltenen Personen-IDs definiert. Für die Aufteilung wird die Klasse GroupShuffleSplit aus Scikit-Learn eingesetzt.
+Um dieses Problem zu vermeiden, wurde eine gruppenbasierte Aufteilung des Datensatzes implementiert.
+Die Gruppen werden durch die im Dateinamen enthaltenen Personen-IDs definiert. Für die Aufteilung wird
+die Klasse GroupShuffleSplit aus Scikit-Learn eingesetzt.
 
 Die Daten werden in folgende Teilmengen aufgeteilt:
 
@@ -126,7 +138,11 @@ Die Daten werden in folgende Teilmengen aufgeteilt:
 - Validierungsdaten: 15 %
 - Testdaten: 15 %
 
-Als Group dient die in der Videobeschriftung enthaltene ID. Dadurch wird sichergestellt, dass eine Person ausschließlich in einem einzigen Datensatzsplit vorkommt. Zu beachten ist, dass die Nummerierung durch die ID bei Damen und Herren seperat beginnt, sodass die ID´s nicht einzigartig im Datensatz sind. Hier ist dies jedoch keine Einschränkung, sondern eine Möglichkeit die Gleichverteilung bezüglich des Geschlechtes beim Training zu garantieren.
+Als Group dient die in der Videobeschriftung enthaltene ID. Dadurch wird sichergestellt, dass eine Person
+ausschließlich in einem einzigen Datensatzsplit vorkommt. Zu beachten ist, dass die Nummerierung durch
+die ID bei Damen und Herren seperat beginnt, sodass die ID´s nicht einzigartig im Datensatz sind. Hier ist
+dies jedoch keine Einschränkung, sondern eine Möglichkeit die Gleichverteilung bezüglich des Geschlechtes
+beim Training zu garantieren.
 
 ### Vorverarbeitung:
 
