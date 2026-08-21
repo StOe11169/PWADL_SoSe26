@@ -1,10 +1,10 @@
 # PWADL_SoSe26
 
-## Dokumentation:
+# Dokumentation:
 
-### Kapitel 1 - Problembeschreibung:
+## Kapitel 1 - Problembeschreibung:
 
-#### Ausgangslage:	
+### Ausgangslage:	
 
 Laut statistischem Bundesamt gab es 2020 1448 Unfälle in Deutschland, die durch Müdigkeit am Steuer entstanden sind.
 Die Dunkelziffer wird deutlich höher geschätzt, da unter anderem 26% der befragten Fahrer im Rahmen einer Befragung
@@ -23,18 +23,17 @@ Dieses Projekt befasst sich mit der Müdigkeitserkennung durch ein ResNet, um vi
 zu erkennen. Als Datensatz dient der YawDD-Datensatz, welcher mit eigenen Aufnahmen erweitert wurde.
 
 
-#### Modell-Architektur + Mathematische Beschreibung:
+### Modell-Architektur + Mathematische Beschreibung:
 		
-##### Feature-Extraktion:
+#### Feature-Extraktion:
 
 Als Backbone wird ein vortrainiertes ResNet18-Modell verwendet. Die finale Klassifikationschicht wird entfernt, sodass
 ausschließlich die Merkmalsextraktion genutzt wird.
 
 Input:
 
-\[
-X \in \mathbb{R}^{B \times T \times C \times H \times W}
-\]
+**X** \in \mathbb{R}^{B \times T \times C \times H \times W}
+
 
 mit
 
@@ -49,7 +48,7 @@ Output:
 
 
 
-### Kapitel 2 - Datensatz:
+## Kapitel 2 - Datensatz:
 
 Beschreibung des Datensatzes:
 YawDD Mirror Videos, Quelle siehe oben, eigene Videos, Videos mit Gähnen und ohne Gähnen, Videos mit Brille, Sonnenbrille und ohne Brille, Videobeschriftung besteht aus ID/Spezifikation/Label, 30Sek Länge, 360p
@@ -58,7 +57,7 @@ Daten-Split: 70/15/15 über GroupShuffleSplit mit Group:=ID
 
 Vorverarbeitung: Nicht Dashcamanteil von YawDD da Datenmenge sonst für Hardware zu groß, kann aber nach richtiger Videobeschriftung damit erweitert werden, Eigene Videos wurden von 1080p auf 360p heruntergebrochen
 
-#### Vorbereitung der Daten:
+### Vorbereitung der Daten:
 
         1. Data-Ordner in Projekt-Ordner erstellen
         2. YawDD-Dataset herunterladen
@@ -67,14 +66,14 @@ Vorverarbeitung: Nicht Dashcamanteil von YawDD da Datenmenge sonst für Hardware
         5. ggf. DashCam Videos aus YawDD hinzufügen
         (bei 4. und 5. Vorverarbeitung beachten)
 
-#### Visualisierung:
+### Visualisierung:
         
         ???
 
 
-### Kapitel 3 - Code und Anweisungen zum Ausführen des Repositorys:
+## Kapitel 3 - Code und Anweisungen zum Ausführen des Repositorys:
 
-#### Abhängigkeiten:
+### Abhängigkeiten:
 
         1. Python und VSC installieren
         2. Projekt aus Repository in Ordner lokal speichern und mit VSC aufrufen
@@ -85,12 +84,12 @@ Vorverarbeitung: Nicht Dashcamanteil von YawDD da Datenmenge sonst für Hardware
         7. Debugger einrichten
         8. Testrun
 
-#### Trainingscode und Hyperparameter:
+### Trainingscode und Hyperparameter:
 
-#### Evaluationscode:
+### Evaluationscode:
 
 
-### Kapitel 4 - Ergebnisse und Diskussion:
+## Kapitel 4 - Ergebnisse und Diskussion:
 
 Laufzeit und Ressourcen: FOLGT
 
