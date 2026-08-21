@@ -16,39 +16,41 @@ Ziel der Arbeit ist die Entwicklung und Evaluation einer Deep-Learning-Pipeline 
     6. Hyperparameteroptimierung mittels Optuna. \
     7. Evaluation auf einem unabhängigen Testsplit. \
     8. Logging von Trainings- und Evaluationsmetriken mit TensorBoard. \
-    9. Speichern und erneutes Laden des finalen Modells. \
+    9. Speichern und erneutes Laden des finalen Modells.
 
 ### 1.3 Formale Problemdefinition
-Ein aus einem Video extrahierter Clip wird als Sequenz von Frames beschrieben:
-X = {x₁, x₂, ..., x_T}
-Dabei bezeichnet T die Anzahl der verwendeten Frames pro Videosequenz.
-Die Zielvariable y ist binär definiert:
-y ∈ {0, 1}
-Dabei gilt:
-y = 1 für die Klasse yawning
-y = 0 für die Klasse non-yawning
-Das Modell berechnet aus der Eingabesequenz einen Logit z. Dieser Logit wird anschließend mit der Sigmoid-Funktion in eine Wahrscheinlichkeit p überführt:
-p = σ(z) = 1 / (1 + e^(-z))
-Die finale Klassifikation erfolgt über einen Schwellwert τ:
-ŷ = 1, falls p > τ
-ŷ = 0, falls p ≤ τ
-Der Schwellwert τ wird im Rahmen der Hyperparameteroptimierung bestimmt.
+Ein aus einem Video extrahierter Clip wird als Sequenz von Frames beschrieben: \
+X = {x₁, x₂, ..., x_T} \
+Dabei bezeichnet T die Anzahl der verwendeten Frames pro Videosequenz. \
+Die Zielvariable y ist binär definiert: \
+y ∈ {0, 1} \
+Dabei gilt: \
+y = 1 für die Klasse yawning \
+y = 0 für die Klasse non-yawning \
+Das Modell berechnet aus der Eingabesequenz einen Logit z. Dieser Logit wird anschließend mit der Sigmoid-Funktion in eine Wahrscheinlichkeit p überführt: \
+p = σ(z) = 1 / (1 + e^(-z)) \
+Die finale Klassifikation erfolgt über einen Schwellwert τ: \
+ŷ = 1, falls p > τ \
+ŷ = 0, falls p ≤ τ \
+Der Schwellwert τ wird im Rahmen der Hyperparameteroptimierung bestimmt. 
 
 ## 2. Modellarchitektur
 ### 2.1 Überblick
-Das verwendete Modell besteht aus drei Hauptkomponenten:
-    1.	ResNet18-Backbone zur Feature-Extraktion pro Frame.
-    2.	Temporaler Attention-Mechanismus zur Gewichtung relevanter Frames.
-    3.	Fully-Connected-Klassifikationskopf zur binären Klassifikation.
-Die Eingabe des Modells besitzt die Form:
-(B, T, C, H, W)
-Dabei gilt:
-Symbol	    Bedeutung
-B	        Batchgröße
-T	        Anzahl der Frames pro Videoclip
-C	        Anzahl der Farbkanäle, hier C = 3
-H	        Bildhöhe, hier H = 224
-W	        Bildbreite, hier W = 224
+Das verwendete Modell besteht aus drei Hauptkomponenten: \
+    1.	ResNet18-Backbone zur Feature-Extraktion pro Frame.\
+    2.	Temporaler Attention-Mechanismus zur Gewichtung relevanter Frames. \
+    3.	Fully-Connected-Klassifikationskopf zur binären Klassifikation. \
+Die Eingabe des Modells besitzt die Form: \
+(B, T, C, H, W) \
+Dabei gilt: \
+"""
+    Symbol	    Bedeutung
+    B	        Batchgröße
+    T	        Anzahl der Frames pro Videoclip
+    C	        Anzahl der Farbkanäle, hier C = 3
+    H	        Bildhöhe, hier H = 224
+    W	        Bildbreite, hier W = 224
+"""
 
 ### 2.2 ResNet18-Backbone
 Für jeden Frame wird ein Featurevektor mit einem auf ImageNet vortrainierten ResNet18 extrahiert. Die finale Fully-Connected-Schicht des ResNet18 wird entfernt. Dadurch erzeugt der Backbone pro Frame einen Featurevektor der Dimension 512.
