@@ -32,10 +32,7 @@ ausschließlich die Merkmalsextraktion genutzt wird.
 
 Input:
 
-**X**\in \mathbb{R}^{B \times T \times C \times H \times W}
-\[
-A\in B
-\]
+***X*** ∈ \mathbb{R}^{B \times T \times C \times H \times W}
 
 mit
 
@@ -48,6 +45,7 @@ Jedes Frame wird unabhängig durch ResNet18 verarbeitet.
 
 Output:
 
+***F*** ∈ \mathbb{R}^{B \timesT \timesD}
 
 
 ## Kapitel 2 - Datensatz:
