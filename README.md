@@ -111,7 +111,7 @@ Der Datensatz enthält Videos von Personen sowohl **mit Gähnen** als auch **ohn
 Alle Videos besitzen eine Länge von ungefähr **30 Sekunden** und liegen in einer Auflösung von **360p** vor. Die Videos wurden mit einer festen Kameraposition aufgenommen und zeigen das Gesicht der Person während verschiedener Aktivitäten.
  
 Die Benennung der Videodateien folgt einem einheitlichen Schema:
- 
+
         ID-Spezifikation-Label
 
 ### Daten-Split:
