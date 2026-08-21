@@ -27,11 +27,23 @@ zu erkennen. Als Datensatz dient der YawDD-Datensatz, welcher mit eigenen Aufnah
 		
 ##### Feature-Extraktion:
 
-Als Backbone wird ein vortrainiertes ResNet18-Modell verwendet. Die finale Klassifikationschicht wird entfernt, sodass ausschließlich die Merkmalsextraktion genutzt wird.
+Als Backbone wird ein vortrainiertes ResNet18-Modell verwendet. Die finale Klassifikationschicht wird entfernt, sodass
+ausschließlich die Merkmalsextraktion genutzt wird.
 
 Input:
 
-$x \mathbb{R}^{B \times T \times C \times H \times W}$
+\[***X*** \in $\mathbb{R}^{B \times T \times C \times H \times W}$\]
+
+mit
+
+- B = Batchgröße
+- T = Anzahl Frames
+- C = Farbkanäle
+- H & W = Bildgröße
+
+Jedes Frame wird unabhängig durch ResNet18 verarbeitet.
+
+Output:
 
 
 
