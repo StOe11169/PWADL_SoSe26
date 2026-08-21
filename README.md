@@ -43,13 +43,14 @@ Das verwendete Modell besteht aus drei Hauptkomponenten: \
 Die Eingabe des Modells besitzt die Form: \
 (B, T, C, H, W) \
 Dabei gilt: \
-    | Symbol | Bedeutung |
-    |--------|-----------|
-    | B	| Batchgröße |
-    | T	| Anzahl der Frames pro Videoclip |
-    | C	| Anzahl der Farbkanäle, hier C = 3 |
-    | H	| Bildhöhe, hier H = 224 |
-    | W	| Bildbreite, hier W = 224 |
+
+    | Symbol | Bedeutung                            |
+    |--------|--------------------------------------|
+    | B	     | Batchgröße                           |
+    | T	     | Anzahl der Frames pro Videoclip      |
+    | C	     | Anzahl der Farbkanäle, hier C = 3    |
+    | H	     | Bildhöhe, hier H = 224               |
+    | W	     | Bildbreite, hier W = 224             |
 
 ### 2.2 ResNet18-Backbone
 Für jeden Frame wird ein Featurevektor mit einem auf ImageNet vortrainierten ResNet18 extrahiert. Die finale Fully-Connected-Schicht des ResNet18 wird entfernt. Dadurch erzeugt der Backbone pro Frame einen Featurevektor der Dimension 512.
