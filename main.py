@@ -36,7 +36,7 @@ def objective(trial):
     #args.batch_size = trial.suggest_categorical("batch_size", [4, 8])
     #args.freeze_backbone = trial.suggest_categorical("freeze_backbone", [0, 1])
     #args.lr = trial.suggest_float("lr", 1e-5, 1e-3, log=True)
-   # args.dropout = trial.suggest_float("dropout", 0.2, 0.6, step=0.1)
+    #args.dropout = trial.suggest_float("dropout", 0.2, 0.6, step=0.1)
     print(f'=================================================================')
     print(f' batch_size: {args.batch_size}, freeze_backbone: {args.freeze_backbone}, lr: {args.lr:0.5f}, dropout: {args.dropout:0.1f}')
 
