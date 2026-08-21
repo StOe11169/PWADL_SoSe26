@@ -7,18 +7,16 @@ Die entwickelte Pipeline umfasst das Einlesen von Videodaten aus einem Sammelord
 Müdigkeit am Steuer stellt ein sicherheitsrelevantes Risiko dar, da sie die Reaktionsfähigkeit und Aufmerksamkeit der fahrenden Person beeinträchtigen kann. Viele Automobilhersteller entwickeln daher seit Jahren eigene Systeme, um Müdigkeit und Erschöpfung zu erkennen. Ein mögliches visuelles Anzeichen für Müdigkeit ist Gähnen. Ziel dieses Projekts ist es daher, ein Modell zu entwickeln, das anhand kurzer Videosequenzen erkennt, ob eine Person gähnt oder nicht. Dazu wird die Aufgabe als binäres Klassifikationsproblem umgesetzt. Für jede Videosequenz wird vorhergesagt, ob sie zur Klasse yawning oder zur Klasse non-yawning gehört.
 
 ### 1.2 Zielsetzung
-Ziel der Arbeit ist die Entwicklung und Evaluation einer Deep-Learning-Pipeline zur Gähn-Erkennung in Fahrervideos. Die Pipeline soll folgende Anforderungen erfüllen:
-'''
-    1.Einlesen aller Videodaten aus einem gemeinsamen Datenordner.
-    2.Automatische Erzeugung und Nutzung einer reproduzierbaren Split-Datei.
-    - Gruppierte Aufteilung nach Personen- / Video-ID, um Datenleckage zu reduzieren.
-    - Extraktion einer festen Anzahl gleichmäßig verteilter Frames pro Video.
-    - Training eines geeigneten Modells für Videodaten.
-    - Hyperparameteroptimierung mittels Optuna.
-    - Evaluation auf einem unabhängigen Testsplit.
-    - Logging von Trainings- und Evaluationsmetriken mit TensorBoard.
-    - Speichern und erneutes Laden des finalen Modells.
-'''
+Ziel der Arbeit ist die Entwicklung und Evaluation einer Deep-Learning-Pipeline zur Gähn-Erkennung in Fahrervideos. Die Pipeline soll folgende Anforderungen erfüllen:\
+    1. Einlesen aller Videodaten aus einem gemeinsamen Datenordner. \
+    2. Automatische Erzeugung und Nutzung einer reproduzierbaren Split-Datei. \
+    3. Gruppierte Aufteilung nach Personen- / Video-ID, um Datenleckage zu reduzieren. \
+    4. Extraktion einer festen Anzahl gleichmäßig verteilter Frames pro Video. \
+    5. Training eines geeigneten Modells für Videodaten. \
+    6. Hyperparameteroptimierung mittels Optuna. \
+    7. Evaluation auf einem unabhängigen Testsplit. \
+    8. Logging von Trainings- und Evaluationsmetriken mit TensorBoard. \
+    9. Speichern und erneutes Laden des finalen Modells. \
 
 ### 1.3 Formale Problemdefinition
 Ein aus einem Video extrahierter Clip wird als Sequenz von Frames beschrieben:
