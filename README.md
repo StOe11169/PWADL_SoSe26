@@ -25,8 +25,8 @@ zu erkennen. Als Datensatz dient der YawDD-Datensatz, welcher mit eigenen Aufnah
 		
 #### Feature-Extraktion:
 
-Als Backbone wird ein vortrainiertes ResNet18-Modell verwendet. Die finale Klassifikationschicht wird entfernt, sodass
-ausschließlich die Merkmalsextraktion genutzt wird.
+Als Backbone wird ein vortrainiertes ResNet18-Modell verwendet. Die finale Klassifikationschicht wird entfernt,
+sodass ausschließlich die Merkmalsextraktion genutzt wird.
 
 Input:
 
@@ -53,7 +53,8 @@ als Feature-Dimension.
 
 #### Temporal Attention Pooling:
 
-Da nicht alle Frames einer Videosequenz gleich relevant sind, wird ein Attetion-Mechanismus zu Gewichtung der Frames verwendet.
+Da nicht alle Frames einer Videosequenz gleich relevant sind, wird ein Attetion-Mechanismus zu Gewichtung
+der Frames verwendet.
 
 Für jedes Frame t:
 
@@ -101,12 +102,35 @@ um die positive Klasse stärker zu gewichten.
 
 ## Kapitel 2 - Datensatz:
 
-Beschreibung des Datensatzes:
-YawDD Mirror Videos, Quelle siehe oben, eigene Videos, Videos mit Gähnen und ohne Gähnen, Videos mit Brille, Sonnenbrille und ohne Brille, Videobeschriftung besteht aus ID/Spezifikation/Label, 30Sek Länge, 360p
+### Beschreibung des Datensatzes:
 
-Daten-Split: 70/15/15 über GroupShuffleSplit mit Group:=ID
+Für die Durchführung des Projekts wurde hauptsächlich der **YawDD Mirror Videos Datensatz** verwendet. Die Quelle des Datensatzes ist in Kapitel 1 angegeben. Zusätzlich wurden eigene Videoaufnahmen erstellt und in den Datensatz integriert, um die Anzahl der Trainingsbeispiele zu erhöhen und zusätzliche Variationen hinsichtlich Personen, Beleuchtung und Aufnahmebedingungen abzudecken.
+ 
+Der Datensatz enthält Videos von Personen sowohl **mit Gähnen** als auch **ohne Gähnen**. Darüber hinaus wurden verschiedene Erscheinungsformen berücksichtigt, sodass sowohl Aufnahmen von Personen **ohne Brille**, **mit Brille** sowie **mit Sonnenbrille** enthalten sind. Dies erhöht die Robustheit des Modells gegenüber unterschiedlichen realen Einsatzbedingungen.
+ 
+Alle Videos besitzen eine Länge von ungefähr **30 Sekunden** und liegen in einer Auflösung von **360p** vor. Die Videos wurden mit einer festen Kameraposition aufgenommen und zeigen das Gesicht der Person während verschiedener Aktivitäten.
+ 
+Die Benennung der Videodateien folgt einem einheitlichen Schema:
+ 
+        ID-Spezifikation-Label
 
-Vorverarbeitung: Nicht Dashcamanteil von YawDD da Datenmenge sonst für Hardware zu groß, kann aber nach richtiger Videobeschriftung damit erweitert werden, Eigene Videos wurden von 1080p auf 360p heruntergebrochen
+### Daten-Split:
+
+Eine zentrale Herausforderung bei biometrischen Datensätzen besteht darin, sogenannte Data Leaks zu verhindern. Werden Videos derselben Person gleichzeitig für Training und Test verwendet, kann das Modell personenbezogene Merkmale lernen und dadurch unrealistisch gute Ergebnisse erzielen.
+
+Um dieses Problem zu vermeiden, wurde eine gruppenbasierte Aufteilung des Datensatzes implementiert. Die Gruppen werden durch die im Dateinamen enthaltenen Personen-IDs definiert. Für die Aufteilung wird die Klasse GroupShuffleSplit aus Scikit-Learn eingesetzt.
+
+Die Daten werden in folgende Teilmengen aufgeteilt:
+
+- Trainingsdaten: 70 %
+- Validierungsdaten: 15 %
+- Testdaten: 15 %
+
+Als Group dient die in der Videobeschriftung enthaltene ID. Dadurch wird sichergestellt, dass eine Person ausschließlich in einem einzigen Datensatzsplit vorkommt. Zu beachten ist, dass die Nummerierung durch die ID bei Damen und Herren seperat beginnt, sodass die ID´s nicht einzigartig im Datensatz sind. Hier ist dies jedoch keine Einschränkung, sondern eine Möglichkeit die Gleichverteilung bezüglich des Geschlechtes beim Training zu garantieren.
+
+### Vorverarbeitung:
+
+Nicht Dashcamanteil von YawDD da Datenmenge sonst für Hardware zu groß, kann aber nach richtiger Videobeschriftung damit erweitert werden, Eigene Videos wurden von 1080p auf 360p heruntergebrochen
 
 ### Vorbereitung der Daten:
 
@@ -178,3 +202,8 @@ Das Projekt ist modular aufgebaut und besteht aus den folgenden Modulen:
 
 		Main.py:
                 Kern des neuronalen Netzes. Hier werden die anderen Module abgerufen und das neuronale Netz zum Leben erwacht.
+
+
+
+                YawDD Mirror Videos, Quelle siehe oben, eigene Videos, Videos mit Gähnen und ohne Gähnen, Videos mit Brille, Sonnenbrille und ohne Brille, Videobeschriftung besteht aus ID/Spezifikation/Label, 30Sek Länge, 360p
+
