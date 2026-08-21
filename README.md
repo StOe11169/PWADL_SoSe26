@@ -30,7 +30,7 @@ ausschließlich die Merkmalsextraktion genutzt wird.
 
 Input:
 
-***X*** ∈ R^{B * T * C * H * W}
+        X ∈ R^{B * T * C * H * W}
 
 mit
 
@@ -43,7 +43,7 @@ Jedes Frame wird unabhängig durch ResNet18 verarbeitet.
 
 Output:
 
-***F*** ∈ R^{B * T * D}
+        F ∈ R^{B * T * D}
 
 mit
 
@@ -57,19 +57,47 @@ Da nicht alle Frames einer Videosequenz gleich relevant sind, wird ein Attetion-
 
 Für jedes Frame t:
  
-s~t~ ​= W~2~​(tanh(W~1~ ​f~t~​))
+        s_t ​= W_2(tanh(W_1 *​f*_t​))
  
 Anschließend werden die Attention-Gewichte berechnet:
  
-\[
-\alpha_t = \frac{e^{s_t}}{\sum_j e^{s_j}}
-\]
+        α_t​ = e^(s_t) / sum_j{e^(s_j)}
  
 Die Videorepräsentation ergibt sich durch:
  
-\[
-z = \sum_{t=1}^{T}\alpha_t f_t
-\]
+        z = sum_(t=1){​α_t ​f_t}
+
+#### Klassifikationskopf
+
+Die aggregierten Features werden durch mehrere Fully-Connected-​Layers verarbeitet:
+
+        512 -> 256 -> 128 -> 1
+
+mit:
+
+- Batch Normalization
+- ReLU
+- Dropout
+
+Der Finale Logit lautet:
+
+        y = f(z)
+
+Die Wahrscheinlichkeit eines Gähnens wird über die Sigmoid-Funktion berechnet:
+
+        p(y=1) = σ(y)
+
+#### Lossfunction
+
+Verwendet wird:
+
+        L = BCEWithLogitsLoss()
+
+mit einer Klassengewichtung:
+
+        pos_weight = 2.0
+
+um die positive Klasse stärker zu gewichten.
 
 ## Kapitel 2 - Datensatz:
 
