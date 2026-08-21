@@ -1,6 +1,4 @@
-# PWADL_SoSe26
-
-# Dokumentation:
+# PWADL_SoSe26 - Dokumentation:
 
 ## Kapitel 1 - Problembeschreibung:
 
@@ -32,7 +30,7 @@ ausschließlich die Merkmalsextraktion genutzt wird.
 
 Input:
 
-***X*** ∈ \mathbb{R}^{B \times T \times C \times H \times W}
+***X*** ∈ R^{B * T * C * H * W}
 
 mit
 
