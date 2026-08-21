@@ -8,6 +8,7 @@ Müdigkeit am Steuer stellt ein sicherheitsrelevantes Risiko dar, da sie die Rea
 
 ### 1.2 Zielsetzung
 Ziel der Arbeit ist die Entwicklung und Evaluation einer Deep-Learning-Pipeline zur Gähn-Erkennung in Fahrervideos. Die Pipeline soll folgende Anforderungen erfüllen:
+'''
     1.Einlesen aller Videodaten aus einem gemeinsamen Datenordner.
     2.Automatische Erzeugung und Nutzung einer reproduzierbaren Split-Datei.
     - Gruppierte Aufteilung nach Personen- / Video-ID, um Datenleckage zu reduzieren.
@@ -17,6 +18,7 @@ Ziel der Arbeit ist die Entwicklung und Evaluation einer Deep-Learning-Pipeline 
     - Evaluation auf einem unabhängigen Testsplit.
     - Logging von Trainings- und Evaluationsmetriken mit TensorBoard.
     - Speichern und erneutes Laden des finalen Modells.
+'''
 
 ### 1.3 Formale Problemdefinition
 Ein aus einem Video extrahierter Clip wird als Sequenz von Frames beschrieben:
