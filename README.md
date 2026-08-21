@@ -43,8 +43,35 @@ Jedes Frame wird unabhängig durch ResNet18 verarbeitet.
 
 Output:
 
-***F*** ∈ \mathbb{R}^{B \timesT \timesD}
+***F*** ∈ R^{B * T * D}
 
+mit
+
+- D = 512
+
+als Feature-Dimension.
+
+#### Temporal Attention Pooling:
+
+Da nicht alle Frames einer Videosequenz gleich relevant sind, wird ein Attetion-Mechanismus zu Gewichtung der Frames verwendet.
+
+Für jedes Frame \(t\):
+ 
+\[
+s_t = W_2(tanh(W_1f_t))
+\]
+ 
+Anschließend werden die Attention-Gewichte berechnet:
+ 
+\[
+\alpha_t = \frac{e^{s_t}}{\sum_j e^{s_j}}
+\]
+ 
+Die Videorepräsentation ergibt sich durch:
+ 
+\[
+z = \sum_{t=1}^{T}\alpha_t f_t
+\]
 
 ## Kapitel 2 - Datensatz:
 
