@@ -389,123 +389,175 @@ Anschließend kann die Oberfläche im Browser geöffnet werden: \
 http://localhost:6006
 
 ## 10. Ergebnisse
-### 10.1 Finale Hyperparameter
-Die Hyperparameter wurden zunächst mithilfe von Optuna und gruppierter Cross-Validation auf dem kombinierten Split trainval bestimmt. Anschließend wurde mit dem besten gefundenen Parametersatz ein finales Modell auf dem gesamten trainval-Split trainiert. Da der ursprüngliche Trainingslauf vor dem finalen Speichern des Modells unterbrochen wurde, wurden die Hilfsskripte summarize_trials.py und final_train_only.py entwickelt und verwendet.
+Insgesamt wurden zwei größere Trainingsläufe durchgeführt. Der erste Lauf erfolgte auf einem CPU-basierten System und diente als erster vollständiger Trainings- und Evaluationsdurchlauf. Anschließend wurde ein zweiter, umfangreicherer Trainingslauf auf einem leistungsfähigeren Rechner mit NVIDIA RTX 4070 Laptop GPU durchgeführt.
+
+Der zweite Lauf erzielte die besten Ergebnisse und wird daher als finales Modell betrachtet. Der erste Lauf wird im Folgenden als Vergleichslauf aufgeführt.
+
+
+### 10.1 Vergleich der Trainingsläufe
+| Merkmal                   | Vergleichslauf                                    | Finaler Lauf                  |
+|---------------------------|--------------------------------------------------:|------------------------------:|
+| Prozessor                 | Intel Core Ultra 9 285H                           | Intel Core i7-13650HX         |
+| GPU                       | keine GPU verwendet                               | NVIDIA RTX 4070 Laptop, 8 GB  |
+| RAM                       | 32 GB, 5600 MT/s                                  | 32 GB, 4800 MT/s              |
+| Betriebssystem            | Windows 11                                        | Windows 11                    |
+| Bester CV-F1              | 0.9349                                            | 0.9482                        |
+| Finaler Test-F1           | 0.889                                             | 1.000                         |
+| Finaler Test-Accuracy     | 0.908                                             | 1.000                         |
+| Finaler Test-Recall       | 1.000                                             | 1.000                         |
+| Finaler Test-Precision    | 0.800                                             | 1.000                         |
+| Laufzeit                  | ca. 8 h 54 min für Hyperparameteroptimierung/CV   | 38 h 42 min 29 s gesamt       |
+
+Obwohl der finale Lauf auf einer deutlich leistungsfähigeren GPU durchgeführt wurde, war die Gesamtlaufzeit höher. Dies liegt daran, dass der Lauf umfangreicher war und das finale Modell mit `freeze_backbone = 0` trainiert wurde. Dadurch wurden nicht nur der Klassifikationskopf und der letzte ResNet-Block, sondern der gesamte ResNet18-Backbone trainiert. Dies erhöht den Rechenaufwand deutlich. Des Weiteren wurde der Sourcecode für das Training auf CPU-basierten Systemen optimiert (num_workes=0), daher wurde nicht parallelisiert und die GPU nicht voll ausgelastet. Die GPU ermöglichte dennoch das Training eines umfangreicheren Modells mit vollständig trainierbarem Backbone und führte zu besseren Ergebnissen auf dem Testsplit.
+
+Die Laufzeit hängt insbesondere von folgenden Faktoren ab: \
+    1.	Anzahl der Frames pro Video. \
+    2.	Anzahl der Epochen. \
+    3.	Anzahl der Optuna-Trials. \
+    4.	Anzahl der Cross-Validation-Folds. \
+    5.	Batchgröße. \
+    6.	Verwendete Hardware. \
+
+Der zweite Trainingslauf erzielte sowohl in der Cross-Validation als auch auf dem finalen Testsplit bessere Ergebnisse. Besonders auffällig ist, dass das finale Modell im zweiten Lauf alle Testvideos korrekt klassifizierte.
+
+### 10.2 Finale Hyperparameter
+Die Hyperparameter wurden zunächst mithilfe von Optuna und gruppierter Cross-Validation auf dem kombinierten Split trainval bestimmt. Anschließend wurde mit dem besten gefundenen Parametersatz ein finales Modell auf dem gesamten trainval-Split trainiert. Der beste Cross-Validation-F1 des finalen Laufs betrug: \
+Best trial CV-F1: 0.9482 \
+Die besten Hyperparameter waren:
+| Hyperparamter     | Wert                      |
+|-------------------|---------------------------|
+| batch_size        | 8                         |
+| freeze_backbone   | 0                         |
+| lr                | 0.00007868184508738092    |
+| dropout           | 0.2                       |
+| threshold         | 0.32797862391552335       |
+| num_frames        | 32                        |
+
+
+Da der Vergleichslauf vor dem finalen Speichern des Modells unterbrochen wurde, wurden die Hilfsskripte summarize_trials.py und final_train_only.py entwickelt und verwendet.
 Der beste rekonstruierte Cross-Validation-F1 betrug: 0.9349
 
-Hyperparameter	Wert
-batch_size	8
-freeze_backbone	1
-lr	0.00012836
-dropout	0.6
-threshold	0.31585
-num_frames	32
+| Hyperparameter      | Wert          |
+|---------------------|---------------|
+| batch_size          | 8             |
+| freeze_backbone     | 1             |
+| lr                  | 0.00012836    |
+| dropout             | 0.6           |
+| threshold           | 0.31585       |
+| num_frames          | 32            |
+
+Im Gegensatz zum vorherigen Vergleichslauf wurde beim finalen Modell der Backbone nicht eingefroren. Dadurch konnten alle Parameter des ResNet18-Backbones während des Trainings angepasst werden.
 
 ### 10.2 Finales Training
-Die Klassenverteilung im finalen Trainingssplit trainval war:
-Klasse	Anzahl
-yawning	103
-non-yawning	176
-Gesamt	279
-Daraus ergab sich für die Loss-Funktion folgende Positiv-Gewichtung:
+Die Klassenverteilung im finalen Trainingssplit trainval war in beiden Läufen:
+| Klasse        | Anzahl    |
+|---------------|-----------|
+| yawning	    | 103       |
+| non-yawning   | 176       |
+| Gesamt        | 279       |
+Daraus ergab sich für die Loss-Funktion folgende Positiv-Gewichtung: \
 pos_weight = 1.709
 
 Diese Gewichtung wurde in BCEWithLogitsLoss verwendet, um die im Vergleich seltenere positive Klasse yawning stärker zu berücksichtigen.
-Während des finalen Trainings wurde kein Early Stopping verwendet, da das Modell auf dem gesamten trainval-Split trainiert wurde und somit kein separater Validierungssplit für die Modellauswahl mehr zur Verfügung stand.
-Der Trainingsloss und der Trainings-F1 entwickelten sich über die 20 Epochen wie folgt:
-Epoche	Train Loss	Train F1
-1	0.9623	0.539
-2	0.9581	0.539
-3	0.9081	0.539
-4	0.9156	0.539
-5	0.8545	0.539
-6	0.9375	0.539
-7	0.8280	0.545
-8	0.6299	0.767
-9	0.4926	0.864
-10	0.4522	0.914
-11	0.3919	0.927
-12	0.3754	0.817
-13	0.3256	0.919
-14	0.2578	0.927
-15	0.3500	0.919
-16	0.3316	0.934
-17	0.3091	0.953
-18	0.2325	0.967
-19	0.2444	0.960
-20	0.2840	0.932
-
-![Verlauf des Train Loss](/pictures/TrainLoss.png) 
+Während des finalen Trainings wurde kein Early Stopping verwendet, da das Modell auf dem gesamten trainval-Split trainiert wurde und somit kein separater Validierungssplit für die Modellauswahl mehr zur Verfügung stand. Der Trainingsloss und der Trainings-F1 entwickelten sich im finalen Training wie folgt:
+![Verlauf des Train Loss](/pictures/Loss_Final_Train.png) 
 Abbildung 2: Verlauf des Train Loss während des finalen Trainings
 
-![Verlauf des Train F1](/pictures/TrainF1.png)
-Abbildung 3: Verlauf des Train-F1 während des finalen Trainings
+![Verlauf des Train F1](/pictures/F1_Final_Train.png) 
+Abbildung 3: Verlauf des F1-Scores während des finalen Trainings
 
 
-Das finale Modell wurde erfolgreich gespeichert unter:
+Das finale Modell wurde erfolgreich gespeichert unter: \
 best_model_final.pt
 
 ### 10.3 Finale Testergebnisse
 Nach dem finalen Training wurde das Modell auf dem unabhängigen Testsplit evaluiert. Der Testsplit wurde weder während der Hyperparameteroptimierung noch während des finalen Trainings zur Modellauswahl verwendet.
 Die Klassenverteilung im Testsplit war:
-Klasse	Anzahl
-non-yawning	41
-yawning	24
-Gesamt	65
+| Klasse        | Anzahl    |
+|---------------|-----------|
+| non-yawning	| 41        |
+| yawning       | 24        |
+| Gesamt	    | 65        |
+
 Die finale Evaluation ergab folgende Metriken:
-Metrik	Wert
-Accuracy	0.908
-Precision	0.800
-Recall	1.000
-F1-Score	0.889
-ROC-AUC	0.994
-PR-AUC	0.991
-Die Confusion Matrix lautete:
-	Vorhersage non-yawning	Vorhersage yawning
-Tatsächlich non-yawning	35	6
-Tatsächlich yawning	0	24
+| Metrik	    | Vergleichslauf    | Finaler Lauf  |
+| Accuracy	    | 0.908             | 1.000         |          
+| Precision	    | 0.800             | 1.000         |
+| Recall	    | 1.000             | 1.000         |
+| F1-Score	    | 0.889             | 1.000         |
+| ROC-AUC	    | 0.994             | 1.000         |
+| PR-AUC	    | 0.991             | 1.000         |
 
-![Confusion Matrix](/pictures/ConfusionMatrix.png) 
-Abbildung 4: Confusion Matrix des finalen Modells auf dem unabhängigen Testsplit.
-Die Confusion Matrix zeigt, dass keine positive Testsequenz übersehen wurde. Dies ist für die gewählte Anwendung günstig, da ein nicht erkanntes Müdigkeitsmerkmal potenziell kritischer ist als eine Fehlwarnung. Gleichzeitig zeigen die sechs False Positives, dass das Modell teilweise auch andere Mundbewegungen oder gesichtsbezogene Veränderungen als Gähnen interpretiert.
-Das Modell erkannte alle tatsächlichen yawning-Videos im Testsplit korrekt. Dadurch ergibt sich ein Recall von 1.000. Gleichzeitig wurden 6 von 41 non-yawning-Videos fälschlich als yawning klassifiziert, wodurch die Precision bei 0.800 liegt und zu sehen ist, dass das Modell auch andere Mundbewegungen oder gesichtsbezogene Veränderungen als Gähnen interpretiert.
-Der F1-Score von 0.889 zeigt insgesamt eine gute Balance zwischen Precision und Recall. Die sehr hohen Werte für ROC-AUC und PR-AUC deuten darauf hin, dass das Modell die beiden Klassen über die vorhergesagten Wahrscheinlichkeiten sehr gut trennt.
-Für eine Müdigkeitserkennung ist insbesondere der Recall relevant, da übersehene Müdigkeitsanzeichen sicherheitskritisch sein können. In diesem Testlauf wurde kein tatsächliches Gähnen übersehen.
+Der finale Lauf erreichte auf dem unabhängigen Testsplit perfekte Werte für alle berechneten Metriken.
 
-## 11. Laufzeit und Rechenressourcen
-Die Laufzeit hängt insbesondere von folgenden Faktoren ab:
-    1.	Anzahl der Frames pro Video.
-    2.	Anzahl der Epochen.
-    3.	Anzahl der Optuna-Trials.
-    4.	Anzahl der Cross-Validation-Folds.
-    5.	Batchgröße.
-    6.	Verwendete Hardware.
+Die Confusion Matrizen der beiden Läufe ergaben:
 
-Verwendete Hardware:
-Komponente	Angabe
-CPU	Core Ultra 9 285H
-GPU	------
-RAM	32 GB 5600 MT/s
-Betriebssystem	Windows 11
-Gemessene Laufzeiten:
 
-Experiment | Laufzeit
-Hyperparameteroptimierung / Cross-Validation | 	8:54:17
-Finales Training auf trainval | 				ca. 0:49:00
-Separater Testlauf | 						0:00:31
+![Confusion Matrix finaler Lauf](/pictures/Confusion_Matrix_final.png) 
+Abbildung 4: Confusion Matrix des finalen Laufs auf dem unabhängigen Testsplit.
 
-## 12. Diskussion
-### 12.1 Bewertung des Ansatzes
+Das finale Modell klassifizierte alle 65 Testvideos korrekt. Es traten weder False Positives noch False Negatives auf.
+
+![Confusion Matrix Vergleichslauf](/pictures/Confusion_Matrix_Vergleichslauf.png) 
+Abbildung 5: Confusion Matrix des Vergleichslauf auf dem unabhängigen Testsplit.
+
+Die Confusion Matrix des Vergleichslaufs zeigt, dass keine positive Testsequenz übersehen wurde. Gleichzeitig zeigen die sechs False Positives, dass das Modell teilweise auch andere Mundbewegungen oder gesichtsbezogene Veränderungen als Gähnen interpretiert. Der F1-Score von 0.889 zeigt insgesamt trotzdem eine gute Balance zwischen Precision und Recall. \
+
+Die in beiden Läufen sehr hohen Werte für ROC-AUC und PR-AUC deuten darauf hin, dass das Modell die beiden Klassen über die vorhergesagten Wahrscheinlichkeiten sehr gut trennt.
+
+
+## 10.4 Interpretation der Ergebnisse
+Das finale Modell erreichte auf dem Testsplit eine Accuracy, Precision, Recall und einen F1-Score von jeweils 1.000. Damit wurden alle yawning- und non-yawning-Videos im Testsplit korrekt klassifiziert.
+Besonders relevant ist der Recall von 1.000, da im Kontext der Müdigkeitserkennung übersehene Müdigkeitsanzeichen potenziell sicherheitskritisch sein können. Im finalen Testlauf wurde kein tatsächliches Gähnen übersehen.
+Gleichzeitig müssen die perfekten Testergebnisse vorsichtig interpretiert werden. Der Testsplit umfasst nur 65 Videos, davon 24 mit Gähnen. Bei einer vergleichsweise kleinen Testmenge können einzelne Eigenschaften des Datensatzes einen starken Einfluss auf die Metriken haben. Daher ist nicht auszuschließen, dass das Modell stark von den spezifischen Aufnahmebedingungen, Personen, Kameraperspektiven oder Bewegungsmustern des Datensatzes profitiert.
+Eine weitere Validierung auf zusätzlichen, vollständig unabhängigen Videos wäre notwendig, um die Generalisierungsfähigkeit des Modells belastbarer zu bewerten.
+
+
+## 11. Diskussion
+### 11.1 Bewertung des Ansatzes
 Das Modell verwendet einen zweistufigen Ansatz aus räumlicher Feature-Extraktion und temporaler Gewichtung. Der ResNet18-Backbone extrahiert visuelle Merkmale aus den einzelnen Frames. Der Attention-Mechanismus gewichtet anschließend die zeitliche Relevanz dieser Frames.
+
 Ein Vorteil dieses Ansatzes ist, dass kein vollständig neues Videomodell von Grund auf trainiert werden muss. Durch den vortrainierten ResNet18-Backbone können bereits gelernte Bildmerkmale genutzt werden. Dies ist insbesondere bei einem kleinen Datensatz vorteilhaft.
+
+Der finale Trainingslauf zeigte, dass das vollständige Fine-Tuning des Backbones eine deutliche Verbesserung gegenüber dem vorherigen Lauf mit teilweise eingefrorenem Backbone erzielen konnte. Während der Vergleichslauf einen Test-F1 von 0.889 erreichte, erzielte das finale Modell einen Test-F1 von 1.000.
+
 Die Aussagekraft der finalen Testmetriken ist durch die begrenzte Größe des Testsets eingeschränkt. Der Testsplit umfasst 65 Videos, davon 24 mit Gähnen. Einzelne Fehlklassifikationen haben daher einen vergleichsweise starken Einfluss auf Precision, Accuracy und F1-Score.
 
-### 12.2 Herausforderungen
+### 11.2 Vergleich zwischen eingefrorenem und trainierbarem Backbone
+Im Vergleichslauf wurde `freeze_backbone = 1` verwendet. Dabei wurde der ResNet18-Backbone weitgehend eingefroren, während der letzte ResNet-Block `layer4` weiterhin trainierbar blieb. Dieses Vorgehen reduziert die Anzahl der trainierbaren Parameter und kann bei kleinen Datensätzen Overfitting entgegenwirken.
+
+Im finalen Lauf wurde hingegen `freeze_backbone = 0` gewählt. Dadurch wurde der gesamte ResNet18-Backbone trainiert. Dies ermöglichte dem Modell, die vortrainierten Bildmerkmale stärker an die spezifische Aufgabe der Gähn-Erkennung anzupassen.
+
+Die Ergebnisse deuten darauf hin, dass das vollständige Fine-Tuning des Backbones für diesen Datensatz vorteilhaft war. Gleichzeitig steigt dadurch die Gefahr, dass das Modell sehr stark an die spezifischen Eigenschaften des Trainingsdatensatzes angepasst wird.
+
+
+### 11.3 Diskussion der perfekten Testergebnisse
+Das finale Modell erreichte auf dem Testsplit perfekte Ergebnisse (1.000). Eine perfekte Klassifikation ist grundsätzlich positiv, muss jedoch kritisch betrachtet werden. Der Testsplit umfasst nur 65 Videos. Dadurch kann bereits eine kleine Anzahl zusätzlicher oder schwieriger Testvideos die Metriken deutlich verändern.
+
+Da das finale Modell den gesamten Backbone trainiert hat und der Trainingslauf umfangreicher war, besteht die Möglichkeit, dass das Modell sehr gut an die Verteilung des vorhandenen Datensatzes angepasst wurde. Obwohl die Aufteilung gruppiert nach ID erfolgte und somit keine identischen Personen-IDs zwischen Training, Validierung und Test auftreten, können dennoch ähnliche Aufnahmebedingungen, Kameraperspektiven, Hintergründe, Beleuchtung oder Bewegungsmuster über die Splits hinweg vorhanden sein.
+
+Daher kann nicht ausgeschlossen werden, dass das Modell neben tatsächlichen Gähnmerkmalen auch datensatzspezifische Muster nutzt. Dies wird nicht als direkter Datenleckage-Fehler bewertet, zeigt aber die Notwendigkeit einer zusätzlichen externen Validierung.
+
+### 11.4 Auswendiglernen und Overfittig
+Der Begriff „Auswendiglernen“ beschreibt im Kontext neuronaler Netze, dass ein Modell nicht nur allgemeine Merkmale einer Klasse lernt, sondern sich stark an konkrete Eigenschaften der Trainingsdaten anpasst. Bei Videodaten können solche Eigenschaften beispielsweise sein:
+
+- konstante Kamerapositionen,
+- ähnliche Innenräume oder Hintergründe,
+- ähnliche Beleuchtung,
+- wiederkehrende Personenmerkmale,
+- ähnliche Kopfhaltungen,
+- ähnliche Videolängen oder Aufnahmebedingungen.
+
+Durch die gruppierte Aufteilung nach ID wurde reduziert, dass Videos derselben Person gleichzeitig in Training und Test vorkommen. Dies verringert das Risiko direkter personenbezogener Datenleckage. Dennoch kann ein Modell bei einem kleinen und relativ homogenen Datensatz Muster lernen, die nicht vollständig allgemein auf neue Fahrsituationen übertragbar sind.
+
+Die perfekten Testergebnisse des finalen Modells sollten daher als sehr gutes Ergebnis auf dem vorhandenen Testsplit interpretiert werden, nicht jedoch automatisch als Nachweis einer perfekten Generalisierung auf reale Fahrsituationen.
+
+### 11.5 Herausforderungen
 Eine Herausforderung besteht darin, dass Gähnen nur in bestimmten Abschnitten der Videos vorkommt. Zudem können andere Mundbewegungen, Sprechen oder Gesichtsausdrücke ähnlich interpretiert werden. Auch Beleuchtung, Kameraperspektive, Kopfbewegungen, Brillen, Bart oder individuelle Unterschiede zwischen Personen können die Erkennung erschweren.
 Ein weiterer wichtiger Punkt ist die Datenaufteilung. Wenn Videos derselben Person gleichzeitig in Training und Test vorkommen, kann das Modell personenbezogene Merkmale lernen. Deshalb wurde eine gruppierte Aufteilung nach ID verwendet.
 Des Weiteren wurden alle verwendeten Videos aus Sicherheitsgründen in stillstehenden Fahrzeugen aufgenommen. Eine realistische Darstellung alltäglicher Fahrsituationen ist daher nicht gegeben.
 
-### 12.3 Grenzen des Modells
+### 11.6 Grenzen des Modells
 Die wichtigsten Grenzen des aktuellen Ansatzes sind:
     1.	Der Datensatz ist vergleichsweise klein.
     2.	Das Modell verwendet vollständige Frames und keine explizite Gesichtserkennung.
@@ -513,8 +565,9 @@ Die wichtigsten Grenzen des aktuellen Ansatzes sind:
     4.	Die Augmentationen sind relativ einfach.
     5.	Der Attention-Mechanismus betrachtet nur die zeitliche Relevanz, aber nicht direkt die räumlichen Bildbereiche.
     6.	Das Modell betrachtet nur Gähnen und keine weiteren Müdigkeitsmerkmale wie Blinzeln, Blickrichtung oder Kopfnicken.
+    7.  Eine externe Validierung auf vollständig neuen Aufnahmebedingungen wurde bisher nicht durchgeführt.
 
-### 12.4 Mögliche Erweiterungen
+### 11.7 Mögliche Erweiterungen
 Mögliche Erweiterungen für zukünftige Arbeiten sind:
     1.	Gesichtserkennung und Cropping auf die Gesichtsregion.
     2.	Separater Fokus auf die Mundregion.
@@ -527,73 +580,74 @@ Mögliche Erweiterungen für zukünftige Arbeiten sind:
     9.	Systematische Threshold-Analyse.
     10.	Erweiterung des Datensatzes um mehr eigene Videos.
     11.	Evaluation auf vollständig neuen Probanden.
+    12. Test auf realistischeren Fahrsituationen mit variierenden Straßen-, Licht- und Kamerabedingungen.
 
-## 13. Vergleich mit anderen Ansätzen
-Ein direkter Vergleich mit anderen Modellen wurde bisher noch nicht durchgeführt. Mögliche Vergleichsmodelle wären:
-    1.	ResNet18 mit Mittelwertbildung über alle Frame-Features.
-    2.	ResNet18 mit Max-Pooling über die Zeit.
-    3.	ResNet18-Features mit LSTM.
-    4.	ResNet18-Features mit GRU.
-    5.	3D-CNN.
-    6.	Video Transformer.
-    7.	Klassische Verfahren mit Mundregionserkennung und geometrischen Merkmalen.
+## 12. Vergleich mit anderen Ansätzen
+Ein direkter Vergleich mit anderen Modellen wurde bisher noch nicht durchgeführt. Mögliche Vergleichsmodelle wären: \
+    1.	ResNet18 mit Mittelwertbildung über alle Frame-Features. \
+    2.	ResNet18 mit Max-Pooling über die Zeit. \
+    3.	ResNet18-Features mit LSTM. \
+    4.	ResNet18-Features mit GRU. \
+    5.	3D-CNN. \
+    6.	Video Transformer. \
+    7.	Klassische Verfahren mit Mundregionserkennung und geometrischen Merkmalen. \
 Ein besonders naheliegender Vergleich wäre ein Modell mit einfacher Mittelwertbildung über alle Frame-Features. Dadurch könnte untersucht werden, ob der Attention-Mechanismus gegenüber einfachem Average Pooling einen messbaren Vorteil bringt.
 
-## 14. Reproduzierbarkeit
-Zur Verbesserung der Reproduzierbarkeit werden Seeds für Python, NumPy und PyTorch gesetzt. Die entsprechende Funktion befindet sich in:
-src/utils.py
-Der Seed wird in main.py gesetzt:
-setup_env(seed=0)
-Zusätzlich wird die Split-Datei gespeichert:
-data/splits.csv
+## 13. Reproduzierbarkeit
+Zur Verbesserung der Reproduzierbarkeit werden Seeds für Python, NumPy und PyTorch gesetzt. Die entsprechende Funktion befindet sich in: \
+src/utils.py \
+Der Seed wird in main.py gesetzt: \
+setup_env(seed=0) \
+Zusätzlich wird die Split-Datei gespeichert: \
+data/splits.csv \
 Diese Datei sollte für finale Experimente nicht mehr verändert werden.
 
-## 15. Hinweise zur Konsolenausgabe
+## 14. Hinweise zur Konsolenausgabe
 Beim Start von TensorBoard oder bei Verwendung des TensorBoard-Writers können TensorFlow-bezogene oneDNN-Hinweise erscheinen. Diese Meldungen stammen nicht aus dem eigentlichen PyTorch-Modelltraining und beeinflussen die Modelllogik nicht.
 Um diese Meldungen zu unterdrücken, wurde vor dem TensorBoard-Import folgende Umgebungsvariable gesetzt:
 import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 Diese Einstellung unterdrückt TensorFlow-Info- und Warnmeldungen, behebt aber keine echten Programmfehler.
 
-## 16. Hilfsskript summarize_trials.py
-Das Skript summarize_trials.py dient dazu, abgeschlossene Optuna-Trials nachträglich aus den TensorBoard-Logs auszuwerten. Das Skript ist ein Analyse- und Wiederherstellungswerkzeug und wird nicht für jeden regulären Trainingslauf benötigt.
+## 15. Hilfsskript summarize_trials.py
+Das Skript summarize_trials.py dient dazu, abgeschlossene Optuna-Trials nachträglich aus den TensorBoard-Logs auszuwerten. Das Skript ist ein Analyse- und Wiederherstellungswerkzeug und wird nicht für einen regulären Trainingslauf benötigt.
 Während der Hyperparameteroptimierung werden für jeden Trial und jeden Cross-Validation-Fold TensorBoard-Logs gespeichert. Falls die aggregierten Werte wie cv_mean_val_f1 nicht direkt in der TensorBoard-HParams-Tabelle sichtbar sind, können sie mit diesem Skript rekonstruiert werden.
-Das Skript liest dazu aus den Ordnern:
-runs/optuna_trial_X/fold_Y/
-die geloggten Werte des Tags:
-val/F1
+Das Skript liest dazu aus den Ordnern: \
+runs/optuna_trial_X/fold_Y/ \
+die geloggten Werte des Tags: \
+val/F1 \
 aus. Für jeden Fold wird der beste erreichte Validation-F1 bestimmt. Anschließend werden der Mittelwert und die Standardabweichung über alle Folds eines Trials berechnet.
 Dadurch lässt sich nachträglich bestimmen, welcher Optuna-Trial den besten mittleren Validation-F1 erreicht hat.
-Beispielaufruf bei 5 Cross-Validation-Folds:
-python summarize_trials.py --expected_folds 5
-Beispielaufruf bei 3 Cross-Validation-Folds:
-python summarize_trials.py --expected_folds 3
-Die Ausgabe enthält unter anderem:
-Trial 0
-Fold 0: best val/F1 = ...
-Fold 1: best val/F1 = ...
-Ergebnis: mean=..., std=..., folds=5/5, VOLLSTÄNDIG
-Am Ende wird der beste vollständige Trial ausgegeben:
-Bester vollständiger Trial
-Trial ID : ...
-cv_mean_val_f1 : ...
-cv_std_val_f1 : ...
+Beispielaufruf bei 5 Cross-Validation-Folds: \
+python summarize_trials.py --expected_folds 5 \
+Beispielaufruf bei 3 Cross-Validation-Folds: \
+python summarize_trials.py --expected_folds 3 \
+Die Ausgabe enthält unter anderem: \
+Trial 0 \
+Fold 0: best val/F1 = ... \
+Fold 1: best val/F1 = ... \
+Ergebnis: mean=..., std=..., folds=5/5, VOLLSTÄNDIG \
+Am Ende wird der beste vollständige Trial ausgegeben: \
+Bester vollständiger Trial \
+Trial ID : ... \
+cv_mean_val_f1 : ... \
+cv_std_val_f1 : ... \
 Dieses Skript ist besonders nützlich, wenn ein langer Trainingslauf abgebrochen wurde, bevor main.py das finale Modell speichern konnte, aber bereits TensorBoard-Logs der Cross-Validation vorhanden sind.
 
 
 ## 17. Hilfsskript final_train_only.py
 Das Skript final_train_only.py dient dazu, das finale Training separat nachzuholen. Es wird verwendet, wenn die Hyperparameter bereits bekannt sind, aber das finale Modell best_model_final.pt noch nicht erzeugt wurde. 
 Dies kann zum Beispiel passieren, wenn ein langer Lauf von main.py während oder nach der Cross-Validation abgebrochen wurde. In diesem Fall existieren häufig bereits Fold-Checkpoints und TensorBoard-Logs, aber noch kein finaler Checkpoint.
-Das Skript trainiert ein neues Modell mit den angegebenen Hyperparametern auf dem gesamten Split:
-trainval
-Dabei werden train und val gemeinsam verwendet. Anschließend wird das resultierende Modell als finaler Checkpoint gespeichert:
-best_model_final.pt
-Zusätzlich wird das Modell direkt auf dem unabhängigen Testsplit evaluiert.
-Das Skript verwendet keine erneute Hyperparameteroptimierung, sondern trainiert ausschließlich mit manuell übergebenen Hyperparametern.
-Der in diesem Projekt verwendete Aufruf lautete:
-python final_train_only.py --num_frames 32 --epochs 20 --batch_size 8 --freeze_backbone 1 --lr 0.00012836 --dropout 0.6 --threshold 0.31585 --cv_best_f1 0.9349
-Das Skript erzeugt nach erfolgreichem Training folgende Datei:
-best_model_final.pt
+Das Skript trainiert ein neues Modell mit den angegebenen Hyperparametern auf dem gesamten Split: \
+trainval\
+Dabei werden train und val gemeinsam verwendet. Anschließend wird das resultierende Modell als finaler Checkpoint gespeichert: \
+best_model_final.pt \
+Zusätzlich wird das Modell direkt auf dem unabhängigen Testsplit evaluiert. \
+Das Skript verwendet keine erneute Hyperparameteroptimierung, sondern trainiert ausschließlich mit manuell übergebenen Hyperparametern. \
+Der in diesem Projekt verwendete Aufruf lautete: \
+python final_train_only.py --num_frames 32 --epochs 20 --batch_size 8 --freeze_backbone 1 --lr 0.00012836 --dropout 0.6 --threshold 0.31585 --cv_best_f1 0.9349 \
+Das Skript erzeugt nach erfolgreichem Training folgende Datei: \
+best_model_final.pt \
 Dieser Checkpoint enthält neben den Modellgewichten auch die wichtigsten Hyperparameter.
 
 
@@ -607,3 +661,15 @@ Dieser Checkpoint enthält neben den Modellgewichten auch die wichtigsten Hyperp
     5.	Optuna Documentation: https://optuna.readthedocs.io/
     6.	TensorBoard Documentation: https://www.tensorflow.org/tensorboard
     7.	scikit-learn Documentation: https://scikit-learn.org/stable/
+    8.  Confusion Matrix Generator: https://www.damianoperri.it/public/confusionMatrix/index.php
+
+
+## Anhang
+![Accuracy finales Training](/pictures/Accuracy_Final_Train.png) 
+Abbildung 6: Verlauf der Accuracy während des finalen Trainings.
+
+![Precision finales Training](/pictures/Precision_Final_Train.png) 
+Abbildung 7: Verlauf der Precision während des finalen Trainings.
+
+![Racall finales Training](/pictures/Recall_Final_Train.png) 
+Abbildung 8: Verlauf des Recalls während des finalen Trainings.

@@ -17,3 +17,4 @@ data/*
 best_model_final.pt
 src/utils copy.py
 requirements_old.txt
+test_results.txt
