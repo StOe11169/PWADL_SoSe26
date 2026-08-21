@@ -8,15 +8,15 @@ Müdigkeit am Steuer stellt ein sicherheitsrelevantes Risiko dar, da sie die Rea
 
 ### 1.2 Zielsetzung
 Ziel der Arbeit ist die Entwicklung und Evaluation einer Deep-Learning-Pipeline zur Gähn-Erkennung in Fahrervideos. Die Pipeline soll folgende Anforderungen erfüllen:
-    1.	Einlesen aller Videodaten aus einem gemeinsamen Datenordner.
-    2.	Automatische Erzeugung und Nutzung einer reproduzierbaren Split-Datei.
-    3.	Gruppierte Aufteilung nach Personen- / Video-ID, um Datenleckage zu reduzieren.
-    4.	Extraktion einer festen Anzahl gleichmäßig verteilter Frames pro Video.
-    5.	Training eines geeigneten Modells für Videodaten.
-    6.	Hyperparameteroptimierung mittels Optuna.
-    7.	Evaluation auf einem unabhängigen Testsplit.
-    8.	Logging von Trainings- und Evaluationsmetriken mit TensorBoard.
-    9.	Speichern und erneutes Laden des finalen Modells.
+    - Einlesen aller Videodaten aus einem gemeinsamen Datenordner.
+    - Automatische Erzeugung und Nutzung einer reproduzierbaren Split-Datei.
+    - Gruppierte Aufteilung nach Personen- / Video-ID, um Datenleckage zu reduzieren.
+    - Extraktion einer festen Anzahl gleichmäßig verteilter Frames pro Video.
+    - Training eines geeigneten Modells für Videodaten.
+    - Hyperparameteroptimierung mittels Optuna.
+    - Evaluation auf einem unabhängigen Testsplit.
+    - Logging von Trainings- und Evaluationsmetriken mit TensorBoard.
+    - Speichern und erneutes Laden des finalen Modells.
 
 ### 1.3 Formale Problemdefinition
 Ein aus einem Video extrahierter Clip wird als Sequenz von Frames beschrieben:
@@ -239,7 +239,7 @@ tensorboard	        Logging und Visualisierung
 torchinfo	        optionale Modellzusammenfassung
 Die final verwendeten Python-Abhängigkeiten sind in `requirements.txt` gespeichert und können mit folgendem Befehl installiert werden:
 pip install -r requirements.txt
-Eine manuelle Installation ist ebenfalls möglich, beispielhaft über:
+Eine manuelle Installation ist ebenfalls möglich:
 pip install torch torchvision torchcodec pandas numpy scikit-learn tqdm optuna tensorboard torchinfo
 Je nach CUDA-Version sollte PyTorch gemäß der offiziellen PyTorch-Anleitung installiert werden:
 https://pytorch.org/get-started/locally/
