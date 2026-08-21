@@ -56,15 +56,15 @@ als Feature-Dimension.
 Da nicht alle Frames einer Videosequenz gleich relevant sind, wird ein Attetion-Mechanismus zu Gewichtung der Frames verwendet.
 
 Für jedes Frame t:
- 
+
         s_t ​= W_2(tanh(W_1 *​f*_t​))
  
 Anschließend werden die Attention-Gewichte berechnet:
- 
+
         α_t​ = e^(s_t) / sum_j{e^(s_j)}
  
 Die Videorepräsentation ergibt sich durch:
- 
+
         z = sum_(t=1){​α_t ​f_t}
 
 #### Klassifikationskopf
