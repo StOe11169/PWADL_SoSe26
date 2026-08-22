@@ -172,22 +172,36 @@ def run_experiment(df, args, study_dir):
         best_cfg = checkpoint["cfg"]
         device = get_device()
     
-        #Training on outer Train set
+        #Final training after hyperparam selection
         model = build_model(best_cfg, mode, device)
-        trainset = build_dataset(train_df_outer, best_cfg, mode)
-        testset  = build_dataset(test_df_outer, best_cfg, mode)
-    
-        trainloader = DataLoader(trainset, batch_size=best_cfg["batch_size"], shuffle=True, drop_last=True)
-        testloader  = DataLoader(testset,  batch_size=best_cfg["batch_size"], shuffle=False)
-    
-        trainer(trainloader=trainloader, valloader=testloader, model=model, device=device, trial_number="final", study_dir=fold_dir, cfg=best_cfg, input_key=input_key)
+       
+        #Final val split only from outer training data
+        final_sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+        final_train_idx, final_val_idx, = next(final_sgkf.split(train_df_outer, y=train_df_outer["yawning"], groups=train_df_outer["id"]))
 
-        # Evaluate best final model, not inner-CV model
+        final_train_df = train_df_outer.iloc[final_train_idx].reset_index(drop=True)
+        final_val_df = train_df_outer.iloc[final_val_idx].reset_index(drop=True)
+
+        #Build train/val datasets
+        final_trainset = build_dataset(final_train_df, best_cfg, mode)
+        final_valset = build_dataset(final_val_df, best_cfg, mode)
+
+        final_trainloader, final_valloader = build_loaders(final_trainset, final_valset, best_cfg)
+
+        #Train without touching outer test data
+        trainer(trainloader=final_trainloader, valloader=final_valloader, model=model, device=device, trial_number="final", study_dir=fold_dir, cfg=best_cfg, input_key=input_key)
+
+        #Load final model selected on final_val_df
         final_model_path = os.path.join(fold_dir, "best_model_trial_final.pth")
         final_checkpoint = torch.load(final_model_path, map_location="cpu")
 
         #Evaluate outer
-        model.load_state_dict(checkpoint["model_state_dict"])
+        model.load_state_dict(final_checkpoint["model_state_dict"])
+
+        #Create datasets for final outer test
+        testset = build_dataset(test_df_outer, best_cfg, mode)
+        testloader = DataLoader(testset, batch_size=best_cfg["batch_size"], num_workers=best_cfg["num_workers"], shuffle=False)
+
         model.eval()
         test_metrics = evaluate(testloader, model, device, input_key=input_key)
     
