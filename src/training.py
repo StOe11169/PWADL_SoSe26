@@ -1,3 +1,4 @@
+import optuna
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -65,13 +66,15 @@ def trainer(trainloader,
             save_dir="models",
             trial_params=None,
             tb_writer=None,
-            patience=5
+            patience=5,
+            trial=None
             ):
     
     os.makedirs(save_dir, exist_ok=True)
 
     best_f1 = 0
     best_epoch = 0
+    patience_counter = 0
 
 
     # objective function is binary cross entropy loss with logits 
@@ -89,24 +92,23 @@ def trainer(trainloader,
     # Get trainable parameters and hand to optimizer
     tp = [p for p in model.parameters() if p.requires_grad]
     optimizer = optim.AdamW(tp, lr=lr, weight_decay=1e-2) # AdamW uses weight decay with default 1e-2
-    
-    # summary(model)
+
 
     # train loop
     for epoch in range(epochs): 
 
         # init running loss
         running_loss = 0
-
         # go through all data
         model.train()
+
         for frames, labels in tqdm(trainloader, desc=f'Epoch {epoch}'):
             frames, labels = frames.to(device), labels.to(device) # shift data to device
 
             # forward + backward pass
             optimizer.zero_grad()
             logits = model(frames)          
-            loss    = criterion(logits, labels)
+            loss = criterion(logits, labels)
             loss.backward()        
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) # gradient clipping                
             optimizer.step()
@@ -118,7 +120,7 @@ def trainer(trainloader,
         print(f'  Loss: {running_loss:0.4f}')
         print(f'  Avg Loss: {avg_train_loss:0.4f}')
 
-        # evaluate train and validation data
+        # Evaluate train and validation data
         train_metrics = evaluate(trainloader, model, device)
         val_metrics = evaluate(valloader, model, device)
 
@@ -133,28 +135,44 @@ def trainer(trainloader,
             tb_writer.add_scalar("F1/Train", train_metrics['f1'], epoch)
             tb_writer.add_scalar("F1/Val", val_metrics['f1'], epoch)
 
+        if trial is not None:
+            trial.report(val_metrics['f1'], epoch)
+            if trial.should_prune():
+                print(f"➔ Trial {trial.number} gepruned in Epoche {epoch} (schlechte Performance).")
+                if tb_writer is not None:
+                    tb_writer.close()
+                raise optuna.TrialPruned()
+
         # Save best model checkpoint
         if val_metrics['f1'] > best_f1:
             best_f1 = val_metrics['f1']
             best_epoch = epoch
-            best_state = {k: v.cpu() for k, v in model.state_dict().items()}
+            patience_counter = 0  # Reset patience counter
 
             checkpoint = {
-                    "epoch": epoch,
-                    "model_state_dict": {k: v.cpu() for k, v in model.state_dict().items()},
-                    "optimizer_state_dict": optimizer.state_dict(),
-                    "val_f1": val_metrics['f1']
-                    #"val_acc": val_metrics['accuracy'],
-                    #"train_f1": train_metrics['f1'],
-                    #"train_acc": train_metrics['accuracy'],
-                    #"lr": lr,
-                    #"freeze_backbone": freeze_backbone,
-                    #"trial_params": trial_params
-                }
+                "epoch": epoch,
+                "model_state_dict": {k: v.cpu() for k, v in model.state_dict().items()},
+                "optimizer_state_dict": optimizer.state_dict(),
+                "val_f1": val_metrics['f1']
+                #"val_acc": val_metrics['accuracy'],
+                #"train_f1": train_metrics['f1'],
+                #"train_acc": train_metrics['accuracy'],
+                #"lr": lr,
+                #"freeze_backbone": freeze_backbone,
+                #"trial_params": trial_params
+            }
             
             path = os.path.join(save_dir, "best_model.pth")
             torch.save(checkpoint, path)
             print(f"✅ Saved new best model (F1={best_f1:.3f}) at epoch {epoch}")
+        else:
+            patience_counter += 1
+            print(f" Keine Verbesserung (F1: {val_metrics['f1']:.3f}). Patience: {patience_counter}/{patience}")
+
+        # Early stopping
+        if patience_counter >= patience:
+            print(f"🛑 Early Stopping ausgelöst in Epoche {epoch}. Beende diesen Trial.")
+            break
             
     return best_f1, best_epoch
 

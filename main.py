@@ -7,7 +7,7 @@ import optuna
 from torch.utils.tensorboard import SummaryWriter
 
 from src.utils import setup_env
-from src.data import CustomDataset, prepare_and_split_data
+from src.data import CustomDataset, prepare_and_split_data, check_data_leakage
 from src.training import trainer, YawDDclassifier
 from src.evaluation import evaluate
 
@@ -16,11 +16,11 @@ from src.evaluation import evaluate
 # * Hand more hyperparameters as arguments / add to optuna search space
 # * comparison with PWADL 2025: freeze/unfreeze backbone, two separate optimizers, lr scheduler
 
-def objective(trial):
+def objective(trial,trainset,valset,testset,args):
 
     # training hyperparameters to tune
     args.batch_size = trial.suggest_categorical("batch_size", [4, 8])
-    args.freeze_backbone = trial.suggest_categorical("freeze_backbone", [0, 1])
+    args.freeze_backbone = trial.suggest_categorical("freeze_backbone", [1, 0])
     args.lr = trial.suggest_float("lr", 1e-5, 1e-3, log=True)
     args.dropout = trial.suggest_float("dropout", 0.2, 0.6, step=0.1)
     print(f'=================================================================')
@@ -29,15 +29,10 @@ def objective(trial):
     # get device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # data preparation
-    trainset = CustomDataset('train', num_frames=args.num_frames)
-    valset = CustomDataset('val', num_frames=args.num_frames)
-    testset = CustomDataset('test', num_frames=args.num_frames)
-
     # dataloaders
-    trainloader = DataLoader(trainset, batch_size=args.batch_size, num_workers=2, shuffle=True, drop_last=True)
-    valloader = DataLoader(valset, batch_size=args.batch_size, num_workers=2, shuffle=False)
-    testloader = DataLoader(testset, batch_size=args.batch_size, num_workers=2, shuffle=False)
+    trainloader = DataLoader(trainset, batch_size=args.batch_size, num_workers=4, shuffle=True, drop_last=True)
+    valloader = DataLoader(valset, batch_size=args.batch_size, num_workers=4, shuffle=False)
+    testloader = DataLoader(testset, batch_size=args.batch_size, num_workers=4, shuffle=False)
 
     # model
     model = YawDDclassifier(args.dropout).to(device)
@@ -46,14 +41,15 @@ def objective(trial):
         "batch_size": args.batch_size,
         "lr": args.lr,
         "dropout": args.dropout,
-        "freeze_backbone": args.freeze_backbone
+        "freeze_backbone": int(args.freeze_backbone)
     }
 
     log_dir = f"runs/trial_{trial.number}"
     writer = SummaryWriter(log_dir=log_dir)
 
     # start training
-    f1_val, epoch = trainer(trainloader=trainloader,
+    f1_val, epoch = trainer(
+            trainloader=trainloader,
             valloader=valloader,
             model=model,
             epochs=args.epochs,
@@ -63,7 +59,8 @@ def objective(trial):
             save_dir=f"models/trial_{trial.number}",
             trial_params=trial_params,
             tb_writer=writer,
-            patience=args.patience
+            patience=args.patience,
+            trial=trial
             )
     
     # Decide if trial should be pruned
@@ -79,7 +76,7 @@ def objective(trial):
         "batch_size": args.batch_size,
         "lr": args.lr,
         "dropout": args.dropout,
-        "freeze_backbone": args.freeze_backbone
+        "freeze_backbone": int(args.freeze_backbone)
     }
     
     metrics_dict = {
@@ -88,15 +85,12 @@ def objective(trial):
         "hparam/test_acc": test_metrics['accuracy']
     }
     
-    # Wirte parameter result matching in the log
+    # Write parameter result matching in the log
     writer.add_hparams(hparams_dict, metrics_dict, run_name=".")
     writer.close()
     
     # Clear GPU VRAM
     del model
-    if 'optimizer' in locals():
-        del optimizer
-    
     gc.collect()
     torch.cuda.empty_cache()
 
@@ -119,7 +113,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_frames", type=int, default=64)
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--n_trials", type=int, default=2)
-    parser.add_argument('--patience', type=int, default=5, help='Anzahl der Epochen, die ohne Verbesserung gewartet wird, bevor abgebrochen wird.')
+    parser.add_argument('--patience', type=int, default=5, help='Number of epochs to wait for improvement before early stopping.')
     parser.add_argument("--prepare_data", action="store_true", help="Run data preparation and split raw files before training")
     parser.add_argument("--data_fraction", type=float, default=1.0, help="Fraction of the dataset to use (0.0 to 1.0)")
     args = parser.parse_args()
@@ -131,9 +125,21 @@ if __name__ == "__main__":
         prepare_and_split_data(data_fraction=args.data_fraction)
         print("=================================================================")
 
+    # Check for data leakage
+    check_data_leakage()
+
+    # data preparation
+    trainset = CustomDataset('train', num_frames=args.num_frames)
+    valset = CustomDataset('val', num_frames=args.num_frames)
+    testset = CustomDataset('test', num_frames=args.num_frames)
+
     # Create & run study, maximizing validation F1
     study = optuna.create_study(direction="maximize")
-    study.optimize(objective, n_trials=args.n_trials, show_progress_bar=True)
+    study.optimize(
+        lambda trial: objective(trial, trainset, valset, testset, args), 
+        n_trials=args.n_trials, 
+        show_progress_bar=True
+    )
 
     # Print out best trial
     print(f'=================================================================\nBest trial (val_f1): {study.best_value:.4f}')
@@ -144,7 +150,6 @@ if __name__ == "__main__":
     best_path = f"models/trial_{best_trial.number}/best_model.pth"
 
     checkpoint = torch.load(best_path)
-
     best_model = YawDDclassifier(best_trial.params.get("dropout", 0.5))
     best_model.load_state_dict(checkpoint["model_state_dict"])
 

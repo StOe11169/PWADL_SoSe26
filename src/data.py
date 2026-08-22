@@ -1,6 +1,7 @@
 import os
 import shutil
 import torch
+import sys
 from torch.utils.data import Dataset
 from pathlib import Path
 import pandas as pd
@@ -68,7 +69,7 @@ def split_data(df, test_size=0.15, val_size=0.15, random_state=42):
     Ensures the same person never appears in different splits.
     """
     # Create a unique subject group column (e.g., "1-Female" or "1-Male")
-    df['subject_group'] = df['id'] + '-' + df['info_labels']
+    df['subject_group'] = df.apply(lambda r: f"{r['id']}-{'Female' if 'Female' in r['info_labels'] else 'Male'}", axis=1)
     
     # 1. First Split: Separate Test subjects from the rest
     gss_test = GroupShuffleSplit(n_splits=1, test_size=test_size, random_state=random_state)
@@ -157,6 +158,69 @@ def prepare_and_split_data(raw_folder_path="data/raw", output_base_path="data", 
             shutil.copy(source_file, dest_file)
             
     print("Data preparation and split completed successfully!")
+
+def check_data_leakage(data_dir="data"):
+    """
+    Checks the train/val/test directories for data leakage (subject overlaps).
+    Extracts file names and determines the unique subject ID (ID + Gender).
+    """
+
+    print("\nChecking for data leakage between train, val, and test splits...")
+
+    splits = ['train', 'val', 'test']
+    subject_sets = {}
+
+    for split in splits:
+        split_path = os.path.join(data_dir, split)
+        if not os.path.exists(split_path):
+            print(f"[!] Warning: Directory '{split_path}' does not exist. Skipping leakage check.")
+            return
+
+        subjects = set()
+        for fname in os.listdir(split_path):
+            if fname.lower().endswith(('.mp4', '.avi', '.mov', '.mkv')):
+                parts = fname.split('-')
+                if len(parts) >= 2:
+                    sub_id = parts[0]
+                    info_labels = parts[1]
+                    gender = "Female" if "Female" in info_labels else "Male"
+                    unique_subject = f"{sub_id}-{gender}"
+                    subjects.add(unique_subject)
+
+        subject_sets[split] = subjects
+
+    # Find intersections between splits
+    train_val_overlap = subject_sets['train'] & subject_sets['val']
+    train_test_overlap = subject_sets['train'] & subject_sets['test']
+    val_test_overlap = subject_sets['val'] & subject_sets['test']
+
+    all_overlaps = train_val_overlap | train_test_overlap | val_test_overlap
+
+    if not all_overlaps:
+        print("[+] Datasets valid, no data leakage. Continuing...\n")
+    else:
+        print("\n" + "!" * 60)
+        print(" WARNING: DATA LEAKAGE DETECTED!")
+        print("   The following subjects exist in multiple splits:")
+        if train_val_overlap:
+            print(f"   - Train & Val:  {train_val_overlap}")
+        if train_test_overlap:
+            print(f"   - Train & Test: {train_test_overlap}")
+        if val_test_overlap:
+            print(f"   - Val & Test:   {val_test_overlap}")
+        print("!" * 60 + "\n")
+
+        # Interactive user confirmation
+        while True:
+            choice = input("Do you want to continue despite data leakage? (y/n): ").strip().lower()
+            if choice == 'y':
+                print("[!] Continuing execution despite data leakage...\n")
+                break
+            elif choice == 'n':
+                print("[-] Execution aborted by user.")
+                sys.exit(1)
+            else:
+                print("Invalid input. Please enter 'y' or 'n'.")
 
 class CustomDataset(Dataset):
     def __init__(self, split_type, num_frames): # is called only once
