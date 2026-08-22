@@ -14,7 +14,7 @@ from src.utils import get_writer, plot_confusion_matrix, build_optimizer, build_
 #check Logs folder is there
 os.makedirs("logs", exist_ok=True)
 
-def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg, trial= None, writer = None, input_key="frames"):
+def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg, trial= None, writer = None, input_key="frames", pruning_step_offset=0):
     
     epochs = cfg["epochs"]
     best_f1 = -1 # -1 so best model is saved at least once, even if it does not improve F1 score
@@ -74,7 +74,9 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
 
         #optuna pruning per epoch
         if trial is not None:
-            trial.report(val_metrics["f1"], epoch)
+            #keep pruning steps unique across folds
+            pruning_step = pruning_step_offset + epoch
+            trial.report(val_metrics["f1"], pruning_step)
 
             if trial.should_prune():
                 if writer:

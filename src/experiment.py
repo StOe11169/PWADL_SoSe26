@@ -81,7 +81,7 @@ def prepare_dataframe_for_mode(df, args):
 
     return df.reset_index(drop=True)
 
-def objective(trial,train_df_outer,args, study_dir):
+def objective(trial,train_df_outer,inner_splits,args, study_dir):
     try:
         #Load config & print to console
         cfg = build_config(trial, args)
@@ -95,31 +95,52 @@ def objective(trial,train_df_outer,args, study_dir):
         device = get_device()
 
         #Split for inner nested cv loop
-        gss = GroupShuffleSplit(n_splits=3, test_size=0.15, random_state=trial.number)
-        train_idx, val_idx = next(gss.split(train_df_outer, y=train_df_outer["yawning"], groups=train_df_outer["id"]))
-        train_df = train_df_outer.iloc[train_idx].reset_index(drop=True)
-        val_df   = train_df_outer.iloc[val_idx].reset_index(drop=True)
+       # gss = GroupShuffleSplit(n_splits=3, test_size=0.15, random_state=trial.number)
+        #train_idx, val_idx = next(gss.split(train_df_outer, y=train_df_outer["yawning"], groups=train_df_outer["id"]))
+        #train_df = train_df_outer.iloc[train_idx].reset_index(drop=True)
+        #val_df   = train_df_outer.iloc[val_idx].reset_index(drop=True)
 
+    
         # data preparation
-        trainset = build_dataset(train_df, cfg, mode)
-        valset = build_dataset(val_df, cfg, mode)
+       # trainset = build_dataset(train_df, cfg, mode)
+        #valset = build_dataset(val_df, cfg, mode)
 
         # dataloaders
-        trainloader,valloader = build_loaders(trainset, valset, cfg)
+        #trainloader,valloader = build_loaders(trainset, valset, cfg)
          
+        inner_f1_scores = []
+        inner_best_epochs = []
 
-        model = build_model(cfg, mode, device)
+        for inner_fold, (train_idx, val_idx) in enumerate(inner_splits):
+            print(f"--- Inner fold {inner_fold} ---")
+
+            train_df = train_df_outer.iloc[train_idx].reset_index(drop=True)
+            val_df = train_df_outer.iloc[val_idx].reset_index(drop=True)
+
+            #build datasets for this fold
+            trainset = build_dataset(train_df, cfg, mode)
+            valset = build_dataset(val_df, cfg, mode)
+
+            trainloader, valloader = build_loaders(trainset, valset, cfg)
+
+            #Fresh model for every fold
+            model = build_model(cfg, mode, device)
   
-        # start training
-        f1_val, epoch = trainer(trainloader=trainloader, valloader=valloader, model=model, device=device, trial_number= trial.number, study_dir = study_dir, cfg=cfg, trial = trial, input_key=input_key)
+            # start training
+            f1_val, epoch = trainer(trainloader=trainloader, valloader=valloader, model=model, device=device, 
+                                    trial_number= f"{trial.number}_inner_{inner_fold}", study_dir = study_dir, 
+                                    cfg=cfg, trial = trial, input_key=input_key, pruning_step_offset = inner_fold * cfg["epochs"])
+
+            inner_f1_scores.append(f1_val)
+            inner_best_epochs.append(epoch)
+        mean_f1 = float(np.mean(inner_f1_scores))
         
         #Save Trial summary
-        trial_summary = {"trial_number": trial.number, "f1_val": f1_val, "best_epoch": epoch, "params": cfg }
-        with open(os.path.join(study_dir, f"trial_{trial.number}_summary.json"), "w") as f:
+        trial_summary = {"trial_number": trial.number,"mean_f1_val": mean_f1, "fold_f1": inner_f1_scores, "best_epoch": inner_best_epochs, "params": cfg }
+        with open(os.path.join(study_dir, f"trial_{trial.number}_summary.json", "w")) as f:
             json.dump(trial_summary, f, indent=4)
 
-        return f1_val
-    
+        return mean_f1
     
     except Exception as e:
         #Remove incomplete files
@@ -150,13 +171,17 @@ def run_experiment(df, args, study_dir):
         #Fold specific directory for logging
         fold_dir = os.path.join(study_dir, f"outer_fold_{fold}")
         os.makedirs(fold_dir, exist_ok=True)
+
+        #same inner folds vor every trial so one trial does not get a lucky split (->running multiple outer folds prevents having "one unlucky split")
+        inner_cv = StratifiedGroupKFold(n_splits=3, shuffle=True, random_state=42)
+        inner_splits = list(inner_cv.split(train_df_outer, y=train_df_outer["yawning"], groups=train_df_outer["id"]))
     
         #Inner Loop
         study = optuna.create_study(direction="maximize", 
                                         pruner=optuna.pruners.MedianPruner(n_startup_trials=2, #dont prune immediatly
                                                                             n_warmup_steps=2, #wait one epoch
                                                                             interval_steps=1))
-        study.optimize(lambda trial: objective(trial, train_df_outer, args, fold_dir), n_trials=args.n_trials, show_progress_bar=True)
+        study.optimize(lambda trial: objective(trial, train_df_outer,inner_splits, args, fold_dir), n_trials=args.n_trials, show_progress_bar=True)
     
         #Skip if trial pruned to early
         completed_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
@@ -166,10 +191,12 @@ def run_experiment(df, args, study_dir):
     
         print(f"Bestial F1 (inner): {study.best_value:4f}")
         best_trial = study.best_trial
-        best_model_path = os.path.join(fold_dir, f"best_model_trial_{best_trial.number}.pth")
-    
-        checkpoint = torch.load(best_model_path, map_location="cpu")
-        best_cfg = checkpoint["cfg"]
+        best_summary_path = os.path.join(fold_dir,f"trial_{best_trial.number}_summary.json",)
+
+        with open(best_summary_path, "r") as f:
+            best_summary = json.load(f)
+
+        best_cfg = best_summary["params"]
         device = get_device()
     
         #Final training after hyperparam selection
