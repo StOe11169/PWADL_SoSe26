@@ -169,14 +169,29 @@ z.B.:
                         ...
                 src/
                 ...
-2. YawDD-Dataset herunterladen
+2. YawDD-Dataset herunterladen [https://ieee-dataport.org/open-access/yawdd-yawning-detection-dataset] Hiefür muss ein Account bei IEEE-Dataport angelegt werden.
 3. Videos aus Mirror-Ordner in Data-Ordner verschieben
 4. Eigene Videos in Data-Ordner (Auflösung beachten)
 5. ggf. DashCam Videos aus YawDD hinzufügen, hierbei muss jedoch der Titel der Videos nach der vorher festgelegten Benennung angepasst werden
 
 ### Visualisierung:
         
-        ???
+Zuur Visualisierung der Daten wird TensorBoard verwendet. Diese zeichnet während des Trainings verschiedene Metriken auf und stellt diese Extern graphisch dar. Folgende Metriken werden gepeichert:
+
+- Loss
+- Accuracy
+- Precision
+- Recall
+- F1-Score
+- Lernrate
+
+Nach einem erfolgreichen Training können die erzeugten Logs visualisiert werden. Hierzu müssen die beim Training erzeugten Daten in den Ordnern checkpoints/ und runs/ vorhanden sein. Um die Visualisierung durchzuführen muss folgender Befehl im Terminal ausgeführt werden:
+
+        tensorboard --logdir runs
+
+TensorBoard kann nun über einen erschaffenen und im Terminal angegebenen lokalen Webserver abgerufen werden. Die URL sollte ungefähr so aussehen:
+
+        http://localhost:6006/
 
 
 ## Kapitel 3 - Code und Anweisungen zum Ausführen des Repositorys:
