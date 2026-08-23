@@ -178,16 +178,41 @@ beim Training zu garantieren.
 
 ### Vorverarbeitung:
 
-Nicht Dashcamanteil von YawDD da Datenmenge sonst für Hardware zu groß, kann aber nach richtiger Videobeschriftung damit erweitert werden, Eigene Videos wurden von 1080p auf 360p heruntergebrochen
+Da neuronale Netze keine Videodateien direkt verarbeiten können, müssen diese zunächst in Einzelbilder zerlegt werden.
+
+Für jedes Video werden mithilfe des VideoDecoder gleichmäßig über die gesamte Videolänge verteilte Frames extrahiert.
+
+Anschließend erfolgt eine Bildvorverarbeitung entsprechend der folgenden Vorgehensweise:
+
+1. Skalierung auf 256 × 341 Pixel
+2. Center Crop auf 224 × 224 Pixel
+3. Umwandlung in Tensoren
+4. Normalisierung anhand der ImageNet-Mittelwerte und Standardabweichungen
+
+Die finale Eingabestruktur eines Videos besitzt somit die Dimension
+
+        T × 3 × 224 × 224
+
+wobei T die Anzahl der verwendeten Frames bezeichnet (Hier T = 64).
+
+Bei den selbst aufgenommenen Videos muss die Auflösung vor dem Skalieren noch manuell von 1080p auf 360p herunterskaliert werden. Dies dient der Verkürzung der Zeit des Preprocessings.
 
 ### Vorbereitung der Daten:
 
-        1. Data-Ordner in Projekt-Ordner erstellen
-        2. YawDD-Dataset herunterladen
-        3. Videos aus Mirror-Ordner in Data-Ordner verschieben
-        4. ggf. Eigene Videos in Data-Ordner
-        5. ggf. DashCam Videos aus YawDD hinzufügen
-        (bei 4. und 5. Vorverarbeitung beachten)
+1. Data-Ordner in Projekt-Ordner erstellen
+z.B.:
+        PWADL_soSe2026/
+                data/
+                        Video1
+                        Video2
+                        Video3
+                        ...
+                src/
+                ...
+2. YawDD-Dataset herunterladen
+3. Videos aus Mirror-Ordner in Data-Ordner verschieben
+4. Eigene Videos in Data-Ordner (Auflösung beachten)
+5. ggf. DashCam Videos aus YawDD hinzufügen, hierbei muss jedoch der Titel der Videos nach der vorher festgelegten Benennung angepasst werden
 
 ### Visualisierung:
         
