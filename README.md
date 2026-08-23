@@ -176,7 +176,7 @@ z.B.:
 
 ### Visualisierung:
         
-Zuur Visualisierung der Daten wird TensorBoard verwendet. Diese zeichnet während des Trainings verschiedene Metriken auf und stellt diese Extern graphisch dar. Folgende Metriken werden gepeichert:
+Zur Visualisierung der Daten wird TensorBoard verwendet. Diese zeichnet während des Trainings verschiedene Metriken auf und stellt diese Extern graphisch dar. Folgende Metriken werden gepeichert:
 
 - Loss
 - Accuracy
@@ -196,20 +196,139 @@ TensorBoard kann nun über einen erschaffenen und im Terminal angegebenen lokale
 
 ## Kapitel 3 - Code und Anweisungen zum Ausführen des Repositorys:
 
-### Abhängigkeiten:
+### Projektstruktur
 
-        1. Python und VSC installieren
-        2. Projekt aus Repository in Ordner lokal speichern und mit VSC aufrufen
-        3. VENV erschaffen
-        4. Bibliotheken über pip installieren
-        5. FFMPEG einrichten und zum Path hinzufügen
-        6. GitIgnore einrichten
-        7. Debugger einrichten
-        8. Testrun
+Das Repository ist modular aufgebaut und trennt Datenverarbeitung, Modellarchitektur, Training und Evaluation voneinander.
 
-### Trainingscode und Hyperparameter:
+        PWADL_SoSe26/
+                data/
+                checkpoints/
+                runs/
+                src/
+                        data.py
+                        evaluation.py
+                        training.py
+                        utils.py
+                main.py
+                config.py [!!!TODO!!!]
 
-### Evaluationscode:
+
+Diese Struktur erleichtert sowohl die Wartung als auch die Erweiterung des Projekts.
+
+### Verwendete Bibliotheken
+
+Für die Implementierung wurden ausschließlich etablierte Python-Bibliotheken verwendet.
+
+- PyTorch [Installationsbefehl sollte von der PyTorch-Website kopiert werden. Den Befehl nutzen, welcher an das benutzte System angepasst ist.]
+
+        [https://pytorch.org/get-started/locally/]
+
+- Torchvision
+
+        pip install torch torchvision
+
+- TorchCodec [Die mit TorchCodec und Python kompatible FFMpeg Version muss vorab installiert und dem PATH hinzugefügt werden.]
+
+        pip install torch torchcodec
+
+        FFMpeg-Anleitung (Windows): [https://www.wikihow.com/Install-FFmpeg-on-Windows]
+
+- Pandas
+
+        pip install pandas
+
+- NumPy
+
+        pip install numpy
+
+- Scikit-Learn
+
+        pip install scikit-learn
+
+- Optuna
+
+        pip install optuna
+
+- TensorBoard
+
+        pip install tensorboard
+
+- tqdm
+
+        pip install tqdm
+
+- psutil
+
+        pip install psutil
+
+PyTorch bildet dabei die Grundlage für die Implementierung und das Training des neuronalen Netzes. Torchvision wird für das Laden des vortrainierten ResNet18 genutzt, während TorchCodec die Dekodierung der Videodateien übernimmt.
+
+### Setup-Anweisungen
+
+1. Installierung von VisualStudioCode
+2. Repository aus Github herunterladen
+3. Ordner des Repository in VisualStudioCode öffnen
+4. Python und Jupyter_Notebooks in VisualStudioCode installieren
+5. Data-Ordner erschaffen und in Kapitel 2 empfohlene Schritte durchführen
+6. FFmppeg installieren und den PATH hinzufügen (Bei Linux nicht benötigt)
+7. Virtuelles Environment erschaffen
+8. Alle benötigten Bibliotheken installieren
+9. Debugger einrichten
+
+### Trainingsverfahren
+
+Das Training erfolgt als binäre Klassifikation.
+
+Als Verlustfunktion wird die Binary Cross Entropy mit Logits verwendet (BCEWithLogitsLoss). Zusätzlich wird die positive Klasse durch einen Gewichtungsfaktor von 2.0 stärker berücksichtigt. Dadurch sollen Fehler bei der Erkennung von Gähnen stärker bestraft werden als Fehler bei der negativen Klasse.
+
+Zur Optimierung wird der AdamW-Optimizer eingesetzt, welcher gegenüber klassischem Adam eine verbesserte Regularisierung durch Weight Decay ermöglicht.
+
+Zusätzlich wird Gradient Clipping verwendet, um instabile Gradienten während des Trainings zu verhindern.
+
+### Hyperparameter
+
+Für die Experimente wurden folgende Parameter verwendet:
+
+        Batch Size = 4
+
+        Learning Rate = 1.03 · 10^-4
+
+        Dropout = 0.2
+
+        Frames/Video = 64
+
+        Epochen, um Overfitting zu finden = 32
+
+        Optimale Epochen = 15
+
+        Optimizer = AdamW
+
+        Weight Decay = 0.01
+
+Diese ergaben sich als gute Hyperparamter unter Beachtung des zeitlichen Rahmens und der vorhandenen Hardware. Details folgen in den weiteren Kapiteln.
+
+### Hyperparameteroptimierung
+
+Das Projekt verwendet Optuna zur automatisierten Hyperparameteroptimierung.
+
+Die Optimierung basiert auf dem F1-Score des Validierungsdatensatzes. Dadurch wird nicht nur die reine Klassifikationsgenauigkeit betrachtet, sondern gleichzeitig das Gleichgewicht zwischen Precision und Recall berücksichtigt.
+
+Für jede Hyperparameterkombination wird ein eigener TensorBoard-Log erzeugt und das jeweils beste Modell automatisch gespeichert.
+
+Im Laufe des Projektes wurden insgesamt 27 Trials zur Findung der oben beschriebenen Hyperparamter durchgeführt. Die Absolvierung von deutlich mehr Trials wird als sinnvoll angesehen, insofern die Hardware genug Leistung hat, um in einer angebrachten Zeit Trials durchzuführen.
+
+### Evaluation
+
+Die Bewertung des Modells erfolgt anhand der vier wichtigsten Metriken für binäre Klassifikation:
+
+- Accuracy
+- Precision
+- Recall
+- F1-Score
+
+Als finale Vorhersage wird die Sigmoid-Ausgabe des Modells verwendet.
+
+Liegt die vorhergesagte Wahrscheinlichkeit über 50 %, wird das Video als „Gähnen“ klassifiziert.
 
 
 ## Kapitel 4 - Ergebnisse und Diskussion:
