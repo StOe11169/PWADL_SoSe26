@@ -1,10 +1,6 @@
 # PWADL_SoSe26 - Dokumentation:
 
----
-
 ## Kapitel 1 - Problembeschreibung:
-
----
 
 ### Ausgangslage:	
 
@@ -120,8 +116,6 @@ Durch diese Maßnahme wird ein stabilerer Trainingsprozess erreicht, da einzelne
 
 ## Kapitel 2 - Datensatz:
 
----
-
 ### Beschreibung des Datensatzes:
 
 Für die Durchführung des Projekts wurde hauptsächlich der **YawDD Mirror Videos Datensatz** verwendet. Die Quelle des Datensatzes ist in Kapitel 1 angegeben. Zusätzlich wurden eigene Videoaufnahmen erstellt und in den Datensatz integriert, um die Anzahl der Trainingsbeispiele zu erhöhen und zusätzliche Variationen hinsichtlich Personen, Beleuchtung und Aufnahmebedingungen abzudecken.
@@ -217,8 +211,6 @@ TensorBoard kann nun über einen erschaffenen und im Terminal angegebenen lokale
 ---
 
 ## Kapitel 3 - Code und Anweisungen zum Ausführen des Repositorys:
-
----
 
 ### Projektstruktur
 
@@ -369,8 +361,6 @@ Liegt die vorhergesagte Wahrscheinlichkeit über 50 %, wird das Video als „Gä
 ---
 
 ## Kapitel 4 - Ergebnisse und Diskussion:
-
----
 
 ### Laufzeit und Ressourcen:
 
