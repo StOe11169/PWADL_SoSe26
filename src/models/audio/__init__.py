@@ -1,2 +1,2 @@
 #Marks folder as python package for imports
-from src.models.audio.yamnet import YamNetLikeAudioClassifier
+from src.models.audio.yamnet import YamNetAudioClassifier

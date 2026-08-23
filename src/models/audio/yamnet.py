@@ -1,11 +1,88 @@
+# Now using: https://github.com/w-hc/torch_audioset.git
 # https://www.codegenes.net/blog/yamnet-pytorch/
-# because am lazy
 # converting to have it use waveform input as I cannot be bothered to create the spectrogramms for all files
 # also: https://github.com/tensorflow/models/tree/master/research/audioset/yamnet
 
 import torch
 import torch.nn as nn
- 
+from torch_audioset.yamnet.model import yamnet
+from torch_audioset.data.torch_input_processing import WaveformToInput
+
+class YamNetAudioClassifier(nn.Module):
+    """
+    pretrained yamnet backbone with binary yawning classifier
+    input: waveform [batch, samples]
+    output: logits [batch]
+
+    https://github.com/w-hc/torch_audioset.git
+    """
+
+    def __init__(self, dropout=0.3, sample_rate=16000,freeze_backbone = True):
+        super().__init__()
+
+        self.sample_rate = sample_rate
+        self.freeze_backbone = freeze_backbone
+
+        #wav -> log-mel
+        self.frontend = WaveformToInput()
+
+        #load pretrained weights
+        self.backbone = yamnet(pretrained=True)
+        
+        #Note: yamnet maps 1024 features -> 521 classes
+        embedding_size = self.backbone.classifier.in_features
+
+        #replace yamnet classifier (521 classes) with just the 1024 vector embedding
+        self.backbone.classifier = nn.Identity()
+
+        #simple binary classification head
+        self.classifier = nn.Sequential(nn.Dropout(dropout), nn.Linear(embedding_size, 1))
+
+        #train only the new classification head
+        if freeze_backbone:
+            for parameter in self.backbone.parameters():
+                parameter.requires_grad = False
+
+    def forward(self, waveform):
+        clip_embeddings = []
+
+        #process each videos audio independently
+        for sample in waveform:
+            #[samples] -> [1, samples]
+            sample = sample.unsqueeze(0)
+
+            #convert waveform into overlapping YAMNet patches
+            patches, _ = self.frontend.wavform_to_log_mel(sample.cpu(), self.sample_rate,)
+
+            patches = patches.to(waveform.device)
+
+            if self.freeze_backbone:
+                self.backbone.eval()
+                with torch.no_grad():
+                    embeddings = self.backbone(patches)
+            else:
+                embeddings = self.backbone(patches)
+
+            print("Patches:", patches.shape)
+            print("YAMNet embeddings:", embeddings.shape)
+            
+            #average all patches into one embedding per video
+            #[num_patches, 1024] -> [1024]
+            clip_embedding = embeddings.mean(dim=0)
+            clip_embeddings.append(clip_embedding)
+
+        #combine videos back unto a batch
+        # [B, 1024]
+        clip_embeddings = torch.stack(clip_embeddings)
+        print("Clip embeddings:", clip_embeddings.shape)
+
+        #binary logits (yawning? yes/no)
+        # [B, 1024] -> [B]
+        return self.classifier(clip_embeddings).squeeze(-1)
+
+
+""" 
+Misread note on torch audio and made these myself uncessarily, but keeping them for reference
 def hz_to_mel(freq):
     #convert frequency to mel-scale for creating log-mel-spectrogram
     #https://en.wikipedia.org/wiki/Mel_scale
@@ -16,12 +93,10 @@ def mel_to_hz(mel):
     return 700.0*(10.0 ** (mel / 2595.0) - 1.0)
 
 def create_mel_filterbank(sample_rate, n_fft, n_mels, f_min=0.0, f_max=None):
-    """
-    filterbank = array of bandpass filters to seperate input signal into multiple components
+    #filterbank = array of bandpass filters to seperate input signal into multiple components
     #n_fft = number of fasst fourier transforms
-    outputs Tensor[n_freq_bins, n_mels]
-    """
-
+    #outputs Tensor[n_freq_bins, n_mels]
+    
     if f_max is None:
         f_max = sample_rate / 2
 
@@ -50,57 +125,6 @@ def create_mel_filterbank(sample_rate, n_fft, n_mels, f_min=0.0, f_max=None):
             filterbank[center:right, m - 1] = torch.linspace(1, 0, right - center)
 
     return filterbank
-
-class LogMelSpectrogram(nn.Module):
-    """waveform to log-mel spectrogram.
-    Input:Tensor[B, num_samples]
-    Output:Tensor[B, 1, n_mels, time]
-    """
-
-    def __init__(self,sample_rate=16000, n_fft=1024, win_length=400,hop_length=160,n_mels=64,):
-        super().__init__()
-
-        self.n_fft = n_fft
-        self.win_length = win_length
-        self.hop_length = hop_length
-        self.n_mels = n_mels
-
-        window = torch.hann_window(win_length)
-        mel_filterbank = create_mel_filterbank(
-            sample_rate=sample_rate,
-            n_fft=n_fft,
-            n_mels=n_mels,
-        )
-
-        self.register_buffer("window", window)
-        self.register_buffer("mel_filterbank", mel_filterbank)
-
-    def forward(self, waveform):
-        if waveform.dim() != 2:
-            raise ValueError(f"Expected waveform shape [B, N], got {waveform.shape}")
-
-        stft = torch.stft(
-            waveform,
-            n_fft=self.n_fft,
-            hop_length=self.hop_length,
-            win_length=self.win_length,
-            window=self.window,
-            center=True,
-            return_complex=True,
-        )
-
-        power_spec = stft.abs().pow(2)              # [B, freq, time]
-        mel_spec = torch.matmul(
-            power_spec.transpose(1, 2),             # [B, time, freq]
-            self.mel_filterbank,                   # [freq, mel]
-        )                                          # [B, time, mel]
-
-        log_mel = torch.log(mel_spec + 1e-6)
-        log_mel = log_mel.transpose(1, 2)          # [B, mel, time]
-        log_mel = log_mel.unsqueeze(1)             # [B, 1, mel, time]
-
-        return log_mel
-
 
 class DepthwiseSeparableConv(nn.Module):
    #Depthwise separable convolution block
@@ -136,55 +160,31 @@ class DepthwiseSeparableConv(nn.Module):
         return self.block(x)
 
 
-class YamNetLikeAudioClassifier(nn.Module):
-    """
-    YAMNet-like binary audio classifier
-    Note: not actually googles pre-trained Yamnet, but has the same idea:
-      waveform -> log-mel spectrogram -> depthwise separable CNN
-    Output matches the visual model: logits shape [B].
-    """
 
-    def __init__(
-        self,
-        dropout=0.3,
-        sample_rate=16000,
-        n_mels=64,
-    ):
+
+
+class LogMelSpectrogram(nn.Module):
+    #waveform to log-mel spectrogram
+    #waveform -> Short-Time Fourier Transform -> power spectrum -> mel filterbank
+    #Input:Tensor[B, num_samples]
+    #Output:Tensor[B, 1, n_mels, time]
+    
+    def __init__(self,sample_rate=16000, n_fft=1024, win_length=400,hop_length=160,n_mels=64,):
         super().__init__()
-
-        self.frontend = LogMelSpectrogram(
-            sample_rate=sample_rate,
-            n_mels=n_mels,
-        )
-
-        self.features = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=3, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True),
-
-            DepthwiseSeparableConv(32, 64, stride=1),
-            DepthwiseSeparableConv(64, 128, stride=2),
-            DepthwiseSeparableConv(128, 128, stride=1),
-            DepthwiseSeparableConv(128, 256, stride=2),
-            DepthwiseSeparableConv(256, 256, stride=1),
-            DepthwiseSeparableConv(256, 512, stride=2),
-        )
-
-        self.pool = nn.AdaptiveAvgPool2d((1, 1))
-
-        self.cls_head = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(512, 256),
-            nn.BatchNorm1d(256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(dropout),
-            nn.Linear(256, 1),
-        )
-
+        self.mel_spectrogram = T.MelSpectrogram(sample_rate=sample_rate,n_fft=n_fft,win_length=win_length,hop_length=hop_length,n_mels=n_mels,
+            power=2.0, center=True, norm=None, mel_scale="htk")
+        
     def forward(self, waveform):
-        x = self.frontend(waveform)
-        x = self.features(x)
-        x = self.pool(x)
-        logits = self.cls_head(x).squeeze(-1)
+    #batches 1D audio into [batch, samples]
+        if waveform.dim() != 2:
+            raise ValueError(f"Expected waveform shape [B, N], got {waveform.shape}")
+        # Output[B, n_mels, time]
+        mel_spec = self.mel_spectrogram(waveform)
 
-        return logits
+        log_mel = torch.log(mel_spec + 1e-6)
+
+        # CNN expects image-like channel dimension
+        # [B, 1, n_mels, time]
+        return log_mel.unsqueeze(1)
+"""
+

@@ -13,7 +13,7 @@ from src.data_audio import AudioYawDDDataset
 from src.utils_audio import filter_audio_dataframe
 
 from src.models.visual.model import YawDDclassifier
-from src.models.audio.yamnet import YamNetLikeAudioClassifier
+from src.models.audio.yamnet import YamNetAudioClassifier
 
 from src.training import trainer
 from src.evaluation import evaluate
@@ -49,7 +49,7 @@ def build_model(cfg, mode, device):
         return YawDDclassifier(cfg["dropout"]).to(device)
 
     if mode == "audio":
-        return YamNetLikeAudioClassifier(
+        return YamNetAudioClassifier(
             dropout=cfg["dropout"],
             sample_rate=cfg["audio_sample_rate"],
         ).to(device)
