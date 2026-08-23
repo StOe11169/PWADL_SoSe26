@@ -57,7 +57,7 @@ Die Videorepräsentation ergibt sich durch:
 
         z = sum_(t=1){​α_t ​f_t}
 
-#### Klassifikationskopf
+#### Klassifikationskopf:
 
 Die aggregierten Features werden durch mehrere Fully-Connected-​Layers verarbeitet:
 
@@ -77,7 +77,7 @@ Die Wahrscheinlichkeit eines Gähnens wird über die Sigmoid-Funktion berechnet:
 
         p(y=1) = σ(y)
 
-#### Lossfunction
+#### Lossfunction:
 
 Verwendet wird:
 
@@ -91,7 +91,7 @@ um die positive Klasse stärker zu gewichten.
 
 ---
 
-### Optimizer
+### Optimizer:
 
 Für die Optimierung des neuronalen Netzes wird der **AdamW-Optimizer** verwendet. AdamW kombiniert die Vorteile des adaptiven Adam-Optimierers mit einer verbesserten Regularisierung durch sogenanntes Weight Decay. Während klassische Optimierungsverfahren für alle Parameter dieselbe Lernrate verwenden, passt AdamW die Lernraten für einzelne Parameter anhand der während des Trainings beobachteten Gradienten dynamisch an. Dadurch kann das Modell in der Regel schneller und stabiler konvergieren.
 
@@ -99,7 +99,7 @@ Im Rahmen dieses Projekts wird eine Lernrate von 1.03*10^(-4) sowie ein Weight D
 
 ---
 
-### Gradient Clipping
+### Gradient Clipping:
 
 Zur Verbesserung der Trainingsstabilität wird Gradient Clipping eingesetzt. Während des Backpropagation- Schrittes können insbesondere bei tiefen neuronalen Netzen sehr große Gradienten entstehen. Dieses sogenannte Exploding-Gradient-Problem kann zu instabilen Parameterupdates und einem fehlerhaften Trainingsverlauf führen.
 
@@ -212,7 +212,7 @@ TensorBoard kann nun über einen erschaffenen und im Terminal angegebenen lokale
 
 ## Kapitel 3 - Code und Anweisungen zum Ausführen des Repositorys:
 
-### Projektstruktur
+### Projektstruktur:
 
 Das Repository ist modular aufgebaut und trennt Datenverarbeitung, Modellarchitektur, Training und Evaluation voneinander.
 
@@ -233,7 +233,7 @@ Diese Struktur erleichtert sowohl die Wartung als auch die Erweiterung des Proje
 
 ---
 
-### Verwendete Bibliotheken
+### Verwendete Bibliotheken:
 
 Für die Implementierung wurden ausschließlich etablierte Python-Bibliotheken verwendet.
 
@@ -283,7 +283,7 @@ PyTorch bildet dabei die Grundlage für die Implementierung und das Training des
 
 ---
 
-### Setup-Anweisungen
+### Setup-Anweisungen:
 
 1. Installierung von VisualStudioCode
 2. Repository aus Github herunterladen
@@ -297,7 +297,7 @@ PyTorch bildet dabei die Grundlage für die Implementierung und das Training des
 
 ---
 
-### Trainingsverfahren
+### Trainingsverfahren:
 
 Das Training erfolgt als binäre Klassifikation.
 
@@ -309,7 +309,7 @@ Zusätzlich wird Gradient Clipping verwendet, um instabile Gradienten während d
 
 ---
 
-### Hyperparameter
+### Hyperparameter:
 
 Für die Experimente wurden folgende Parameter verwendet:
 
@@ -333,7 +333,7 @@ Diese ergaben sich als gute Hyperparamter unter Beachtung des zeitlichen Rahmens
 
 ---
 
-### Hyperparameteroptimierung
+### Hyperparameteroptimierung:
 
 Das Projekt verwendet Optuna zur automatisierten Hyperparameteroptimierung.
 
@@ -345,7 +345,7 @@ Im Laufe des Projektes wurden insgesamt 27 Trials zur Findung der oben beschrieb
 
 ---
 
-### Evaluation
+### Evaluation:
 
 Die Bewertung des Modells erfolgt anhand der vier wichtigsten Metriken für binäre Klassifikation:
 
