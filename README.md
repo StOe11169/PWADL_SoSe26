@@ -1,7 +1,7 @@
 # PWADL_SoSe26 - Dokumentation:
-
+---
 ## Kapitel 1 - Problembeschreibung:
-
+---
 ### Ausgangslage:	
 
 Laut statistischem Bundesamt gab es 2020 1448 Unfälle in Deutschland, die durch Müdigkeit am Steuer entstanden sind. Die Dunkelziffer wird deutlich höher geschätzt, da unter anderem 26% der befragten Fahrer im Rahmen einer Befragung des DVR zugaben schon einmal am Steuer eingeschlafen zu sein. Verschiedenster Studien zufolge sind bis zu 25% der Todesopfer im Straßenverkehr auf Müdigkeitsunfälle zurückzuführen. [https://www.dvr.de/ueber-uns/positionen-des-dvr/beschluesse/muedigkeit-im-strassenverkehr]
@@ -9,8 +9,7 @@ Laut statistischem Bundesamt gab es 2020 1448 Unfälle in Deutschland, die durch
 Seit Juli 2024 sind Müdigkeitswarner für neue Autos in der EU Pflicht. Um die Müdigkeitserkennung zu verbessern, wird weltweit nach Möglichkeiten der besseren Erkennung gesucht. Der Einsatz von neuronalen Netzen gilt als eine der vielversprechenden Varianten der Müdigkeitserkennung. Diese werden klassisch zur Videoanalyse ausgelegt und auf  verschiedensten Datensätzen trainiert. Einer der größten Datensätze in diesem Bereich ist der YawDD-Datensatz eingereicht von Shervin Shirmohammadi im Jahre 2020. Dieser wird bis heute (08/2026) aktuell gehalten. [https://ieee-dataport.org/open-access/yawdd-yawning-detection-dataset]
 
 Dieses Projekt befasst sich mit der Müdigkeitserkennung durch ein ResNet, um visuelle Anzeichen auf Müdigkeit in Videodateien zu erkennen. Als Datensatz dient der YawDD-Datensatz, welcher mit eigenen Aufnahmen erweitert wurde.
-
-
+---
 ### Modell-Architektur + Mathematische Beschreibung:
 		
 #### Feature-Extraktion:
@@ -87,13 +86,13 @@ mit einer Klassengewichtung:
         pos_weight = 2.0
 
 um die positive Klasse stärker zu gewichten.
-
+---
 ### Optimizer
 
 Für die Optimierung des neuronalen Netzes wird der **AdamW-Optimizer** verwendet. AdamW kombiniert die Vorteile des adaptiven Adam-Optimierers mit einer verbesserten Regularisierung durch sogenanntes Weight Decay. Während klassische Optimierungsverfahren für alle Parameter dieselbe Lernrate verwenden, passt AdamW die Lernraten für einzelne Parameter anhand der während des Trainings beobachteten Gradienten dynamisch an. Dadurch kann das Modell in der Regel schneller und stabiler konvergieren.
 
 Im Rahmen dieses Projekts wird eine Lernrate von 1.03*10^(-4) sowie ein Weight Decay von 0.01 verwendet. Das Weight Decay wirkt einer Überanpassung (Overfitting) entgegen, indem große Parameterwerte während des Trainings bestraft werden. Aufgrund seiner Robustheit und guten Leistung hat sich AdamW als Standardverfahren für viele moderne Deep-Learning-Anwendungen etabliert.
-
+---
 ### Gradient Clipping
 
 Zur Verbesserung der Trainingsstabilität wird Gradient Clipping eingesetzt. Während des Backpropagation- Schrittes können insbesondere bei tiefen neuronalen Netzen sehr große Gradienten entstehen. Dieses sogenannte Exploding-Gradient-Problem kann zu instabilen Parameterupdates und einem fehlerhaften Trainingsverlauf führen.
@@ -106,9 +105,9 @@ Um dies zu verhindern, werden die Gradienten aller Modellparameter nach jeder R�
         )
 
 Durch diese Maßnahme wird ein stabilerer Trainingsprozess erreicht, da einzelne Ausreißer bei den Gradienten nun keinen übermäßig großen Einfluss auf die Aktualisierung der Modellparameter mehr haben.
-
+---
 ## Kapitel 2 - Datensatz:
-
+---
 ### Beschreibung des Datensatzes:
 
 Für die Durchführung des Projekts wurde hauptsächlich der **YawDD Mirror Videos Datensatz** verwendet. Die Quelle des Datensatzes ist in Kapitel 1 angegeben. Zusätzlich wurden eigene Videoaufnahmen erstellt und in den Datensatz integriert, um die Anzahl der Trainingsbeispiele zu erhöhen und zusätzliche Variationen hinsichtlich Personen, Beleuchtung und Aufnahmebedingungen abzudecken.
@@ -120,7 +119,7 @@ Alle Videos besitzen eine Länge von ungefähr **30 Sekunden** und liegen in ein
 Die Benennung der Videodateien folgt einem einheitlichen Schema:
 
         ID-Spezifikation-Label
-
+---
 ### Daten-Split:
 
 Eine zentrale Herausforderung bei biometrischen Datensätzen besteht darin, sogenannte Data Leaks zu verhindern. Werden Videos derselben Person gleichzeitig für Training und Test verwendet, kann das Model personenbezogene Merkmale lernen und dadurch unrealistisch gute Ergebnisse erzielen.
@@ -135,7 +134,7 @@ Die Daten werden in folgende Teilmengen aufgeteilt:
 
 Als Group dient die in der Videobeschriftung enthaltene ID. Dadurch wird sichergestellt, dass eine Person ausschließlich in einem einzigen Datensatzsplit vorkommt. Zu beachten ist, dass die Nummerierung durch die ID bei Damen und Herren seperat beginnt, sodass die ID´s nicht einzigartig im Datensatz sind. Hier ist dies jedoch keine Einschränkung, sondern eine Möglichkeit die Gleichverteilung bezüglich des Geschlechtes
 beim Training zu garantieren.
-
+---
 ### Vorverarbeitung:
 
 Da neuronale Netze keine Videodateien direkt verarbeiten können, müssen diese zunächst in Einzelbilder zerlegt werden.
@@ -156,7 +155,7 @@ Die finale Eingabestruktur eines Videos besitzt somit die Dimension
 wobei T die Anzahl der verwendeten Frames bezeichnet (Hier T = 64).
 
 Bei den selbst aufgenommenen Videos muss die Auflösung vor dem Skalieren noch manuell von 1080p auf 360p herunterskaliert werden. Dies dient der Verkürzung der Zeit des Preprocessings.
-
+---
 ### Vorbereitung der Daten:
 
 1. Data-Ordner in Projekt-Ordner erstellen
@@ -173,7 +172,7 @@ z.B.:
 3. Videos aus Mirror-Ordner in Data-Ordner verschieben
 4. Eigene Videos in Data-Ordner (Auflösung beachten)
 5. ggf. DashCam Videos aus YawDD hinzufügen, hierbei muss jedoch der Titel der Videos nach der vorher festgelegten Benennung angepasst werden
-
+---
 ### Visualisierung:
         
 Zur Visualisierung der Daten wird TensorBoard verwendet. Diese zeichnet während des Trainings verschiedene Metriken auf und stellt diese Extern graphisch dar. Folgende Metriken werden gepeichert:
@@ -193,9 +192,9 @@ TensorBoard kann nun über einen erschaffenen und im Terminal angegebenen lokale
 
         http://localhost:6006/
 
-
+---
 ## Kapitel 3 - Code und Anweisungen zum Ausführen des Repositorys:
-
+---
 ### Projektstruktur
 
 Das Repository ist modular aufgebaut und trennt Datenverarbeitung, Modellarchitektur, Training und Evaluation voneinander.
@@ -214,7 +213,7 @@ Das Repository ist modular aufgebaut und trennt Datenverarbeitung, Modellarchite
 
 
 Diese Struktur erleichtert sowohl die Wartung als auch die Erweiterung des Projekts.
-
+---
 ### Verwendete Bibliotheken
 
 Für die Implementierung wurden ausschließlich etablierte Python-Bibliotheken verwendet.
@@ -262,7 +261,7 @@ Für die Implementierung wurden ausschließlich etablierte Python-Bibliotheken v
         pip install psutil
 
 PyTorch bildet dabei die Grundlage für die Implementierung und das Training des neuronalen Netzes. Torchvision wird für das Laden des vortrainierten ResNet18 genutzt, während TorchCodec die Dekodierung der Videodateien übernimmt.
-
+---
 ### Setup-Anweisungen
 
 1. Installierung von VisualStudioCode
@@ -274,7 +273,7 @@ PyTorch bildet dabei die Grundlage für die Implementierung und das Training des
 7. Virtuelles Environment erschaffen
 8. Alle benötigten Bibliotheken installieren
 9. Debugger einrichten
-
+---
 ### Trainingsverfahren
 
 Das Training erfolgt als binäre Klassifikation.
@@ -284,7 +283,7 @@ Als Verlustfunktion wird die Binary Cross Entropy mit Logits verwendet (BCEWithL
 Zur Optimierung wird der AdamW-Optimizer eingesetzt, welcher gegenüber klassischem Adam eine verbesserte Regularisierung durch Weight Decay ermöglicht.
 
 Zusätzlich wird Gradient Clipping verwendet, um instabile Gradienten während des Trainings zu verhindern.
-
+---
 ### Hyperparameter
 
 Für die Experimente wurden folgende Parameter verwendet:
@@ -306,7 +305,7 @@ Für die Experimente wurden folgende Parameter verwendet:
         Weight Decay = 0.01
 
 Diese ergaben sich als gute Hyperparamter unter Beachtung des zeitlichen Rahmens und der vorhandenen Hardware. Details folgen in den weiteren Kapiteln.
-
+---
 ### Hyperparameteroptimierung
 
 Das Projekt verwendet Optuna zur automatisierten Hyperparameteroptimierung.
@@ -316,7 +315,7 @@ Die Optimierung basiert auf dem F1-Score des Validierungsdatensatzes. Dadurch wi
 Für jede Hyperparameterkombination wird ein eigener TensorBoard-Log erzeugt und das jeweils beste Modell automatisch gespeichert.
 
 Im Laufe des Projektes wurden insgesamt 27 Trials zur Findung der oben beschriebenen Hyperparamter durchgeführt. Die Absolvierung von deutlich mehr Trials wird als sinnvoll angesehen, insofern die Hardware genug Leistung hat, um in einer angebrachten Zeit Trials durchzuführen.
-
+---
 ### Evaluation
 
 Die Bewertung des Modells erfolgt anhand der vier wichtigsten Metriken für binäre Klassifikation:
@@ -329,48 +328,40 @@ Die Bewertung des Modells erfolgt anhand der vier wichtigsten Metriken für bin�
 Als finale Vorhersage wird die Sigmoid-Ausgabe des Modells verwendet.
 
 Liegt die vorhergesagte Wahrscheinlichkeit über 50 %, wird das Video als „Gähnen“ klassifiziert.
-
-
+---
 ## Kapitel 4 - Ergebnisse und Diskussion:
+---
+### Laufzeit und Ressourcen:
 
-Laufzeit und Ressourcen: FOLGT
+Hardware:
 
-Verwendete Metriken: Accuracy, F1Score, GGF WEITERE
+        OS: Linux
+        CPU: Intel Core i7-10510U (8GB) 4.90GHz
+        GPU: Intel UHD Graphics 1.15Ghz (Integrated)
+        RAM: 16GB DDR4
 
-Darstellung der Metriken: FOLGT
+Laufzeit finaler Test:
 
-Vergleich: IN ZITARO NACHSCHAUEN
+        Datenmenge: Alle YawDD-Mirrorvideos, Eigene Videos
+        Einzigartige Personen: 42 female, 52 male
+        Batch Size: 4
+        Epochen: 32
+        Trials: 1
+        Frames: 64
+        Laufzeit: 15h 46min 12sec
+---
+### Verwendete Metriken:
 
-Besonderheiten und Schwächen: VIELE
-
-
-
-----------------------------------------------------------------------------
-
-Das Projekt ist modular aufgebaut und besteht aus den folgenden Modulen:
-		
-		Data.py:
-                Dieses Modul importiert die im Data-Ordner zur Verfügung gestellt Daten, erkennt die Label und fasst Sie in einem
-                Dataframe zusammen.Dann werden die Daten über einen Group-Shuffle-Split in Trainings-, Validierungs- und Testdaten
-                unterteilt. Abschließend folgt die Datenbearbeitung.
-	
-		Evaluation.py:
-                Bei der Evaluation findet die Bewertung des Modells durch Vergleich seiner Antworten mit den gespeicherten Labels statt.
-                Dargestellt wird diese während des Trainings durch die Ausgabe von Accuracy und F1Score von Trainingsdaten und Validierungsdaten.
-
-		Training.py:
-                Beinhaltet die Struktur des neuronalen Netzes, die Spezifikationen des Trainers und den Trainingsloop. 
-
-		Utils.py:
-                Utils beinhaltet die für den Setup wichtigen Daten wie zum Beispiel den benutzen Seed.
-
-		Config.py:
-                TODO
-
-		Main.py:
-                Kern des neuronalen Netzes. Hier werden die anderen Module abgerufen und das neuronale Netz zum Leben erwacht.
-
-
-
-                YawDD Mirror Videos, Quelle siehe oben, eigene Videos, Videos mit Gähnen und ohne Gähnen, Videos mit Brille, Sonnenbrille und ohne Brille, Videobeschriftung besteht aus ID/Spezifikation/Label, 30Sek Länge, 360p
-
+- Loss
+- Accuracy
+- Precision
+- Recall
+- F1-Score
+- Lernrate
+---
+### Darstellung der Metriken: FOLGT
+---
+### Vergleich: IN ZITARO NACHSCHAUEN
+---
+### Besonderheiten und Schwächen: VIELE
+---
