@@ -4,29 +4,18 @@
 
 ### Ausgangslage:	
 
-Laut statistischem Bundesamt gab es 2020 1448 Unfälle in Deutschland, die durch Müdigkeit am Steuer entstanden sind.
-Die Dunkelziffer wird deutlich höher geschätzt, da unter anderem 26% der befragten Fahrer im Rahmen einer Befragung
-des DVR zugaben schon einmal am Steuer eingeschlafen zu sein. Verschiedenster Studien zufolge sind bis zu 25% der
-Todesopfer im Straßenverkehr auf Müdigkeitsunfälle zurückzuführen.
-[https://www.dvr.de/ueber-uns/positionen-des-dvr/beschluesse/muedigkeit-im-strassenverkehr]
+Laut statistischem Bundesamt gab es 2020 1448 Unfälle in Deutschland, die durch Müdigkeit am Steuer entstanden sind. Die Dunkelziffer wird deutlich höher geschätzt, da unter anderem 26% der befragten Fahrer im Rahmen einer Befragung des DVR zugaben schon einmal am Steuer eingeschlafen zu sein. Verschiedenster Studien zufolge sind bis zu 25% der Todesopfer im Straßenverkehr auf Müdigkeitsunfälle zurückzuführen. [https://www.dvr.de/ueber-uns/positionen-des-dvr/beschluesse/muedigkeit-im-strassenverkehr]
 		
-Seit Juli 2024 sind Müdigkeitswarner für neue Autos in der EU Pflicht. Um die Müdigkeitserkennung zu verbessern, wird
-weltweit nach Möglichkeiten der besseren Erkennung gesucht. Der Einsatz von neuronalen Netzen gilt als eine der
-vielversprechenden Varianten der Müdigkeitserkennung. Diese werden klassisch zur Videoanalyse ausgelegt und auf 
-verschiedensten Datensätzen trainiert. Einer der größten Datensätze in diesem Bereich ist der YawDD-Datensatz eingereicht
-von Shervin Shirmohammadi im Jahre 2020. Dieser wird bis heute (08/2026) aktuell gehalten.
-[https://ieee-dataport.org/open-access/yawdd-yawning-detection-dataset]
+Seit Juli 2024 sind Müdigkeitswarner für neue Autos in der EU Pflicht. Um die Müdigkeitserkennung zu verbessern, wird weltweit nach Möglichkeiten der besseren Erkennung gesucht. Der Einsatz von neuronalen Netzen gilt als eine der vielversprechenden Varianten der Müdigkeitserkennung. Diese werden klassisch zur Videoanalyse ausgelegt und auf  verschiedensten Datensätzen trainiert. Einer der größten Datensätze in diesem Bereich ist der YawDD-Datensatz eingereicht von Shervin Shirmohammadi im Jahre 2020. Dieser wird bis heute (08/2026) aktuell gehalten. [https://ieee-dataport.org/open-access/yawdd-yawning-detection-dataset]
 
-Dieses Projekt befasst sich mit der Müdigkeitserkennung durch ein ResNet, um visuelle Anzeichen auf Müdigkeit in Videodateien
-zu erkennen. Als Datensatz dient der YawDD-Datensatz, welcher mit eigenen Aufnahmen erweitert wurde.
+Dieses Projekt befasst sich mit der Müdigkeitserkennung durch ein ResNet, um visuelle Anzeichen auf Müdigkeit in Videodateien zu erkennen. Als Datensatz dient der YawDD-Datensatz, welcher mit eigenen Aufnahmen erweitert wurde.
 
 
 ### Modell-Architektur + Mathematische Beschreibung:
 		
 #### Feature-Extraktion:
 
-Als Backbone wird ein vortrainiertes ResNet18-Modell verwendet. Die finale Klassifikationschicht wird entfernt,
-sodass ausschließlich die Merkmalsextraktion genutzt wird.
+Als Backbone wird ein vortrainiertes ResNet18-Modell verwendet. Die finale Klassifikationschicht wird entfernt, sodass ausschließlich die Merkmalsextraktion genutzt wird.
 
 Input:
 
@@ -53,8 +42,7 @@ als Feature-Dimension.
 
 #### Temporal Attention Pooling:
 
-Da nicht alle Frames einer Videosequenz gleich relevant sind, wird ein Attetion-Mechanismus zu Gewichtung
-der Frames verwendet.
+Da nicht alle Frames einer Videosequenz gleich relevant sind, wird ein Attetion-Mechanismus zu Gewichtung der Frames verwendet.
 
 Für jedes Frame t:
 
@@ -102,53 +90,32 @@ um die positive Klasse stärker zu gewichten.
 
 ### Optimizer
 
-Für die Optimierung des neuronalen Netzes wird der **AdamW-Optimizer** verwendet. AdamW kombiniert
-die Vorteile des adaptiven Adam-Optimierers mit einer verbesserten Regularisierung durch sogenanntes
-Weight Decay. Während klassische Optimierungsverfahren für alle Parameter dieselbe Lernrate verwenden,
-passt AdamW die Lernraten für einzelne Parameter anhand der während des Trainings beobachteten
-Gradienten dynamisch an. Dadurch kann das Modell in der Regel schneller und stabiler konvergieren.
+Für die Optimierung des neuronalen Netzes wird der **AdamW-Optimizer** verwendet. AdamW kombiniert die Vorteile des adaptiven Adam-Optimierers mit einer verbesserten Regularisierung durch sogenanntes Weight Decay. Während klassische Optimierungsverfahren für alle Parameter dieselbe Lernrate verwenden, passt AdamW die Lernraten für einzelne Parameter anhand der während des Trainings beobachteten Gradienten dynamisch an. Dadurch kann das Modell in der Regel schneller und stabiler konvergieren.
 
-Im Rahmen dieses Projekts wird eine Lernrate von 1.03*10^(-4) sowie ein Weight Decay von 0.01 verwendet.
-Das Weight Decay wirkt einer Überanpassung (Overfitting) entgegen, indem große Parameterwerte während
-des Trainings bestraft werden. Aufgrund seiner Robustheit und guten Leistung hat sich AdamW als
-Standardverfahren für viele moderne Deep-Learning-Anwendungen etabliert.
+Im Rahmen dieses Projekts wird eine Lernrate von 1.03*10^(-4) sowie ein Weight Decay von 0.01 verwendet. Das Weight Decay wirkt einer Überanpassung (Overfitting) entgegen, indem große Parameterwerte während des Trainings bestraft werden. Aufgrund seiner Robustheit und guten Leistung hat sich AdamW als Standardverfahren für viele moderne Deep-Learning-Anwendungen etabliert.
 
 ### Gradient Clipping
 
-Zur Verbesserung der Trainingsstabilität wird Gradient Clipping eingesetzt. Während des Backpropagation-
-Schrittes können insbesondere bei tiefen neuronalen Netzen sehr große Gradienten entstehen. Dieses
-sogenannte Exploding-Gradient-Problem kann zu instabilen Parameterupdates und einem fehlerhaften
-Trainingsverlauf führen.
+Zur Verbesserung der Trainingsstabilität wird Gradient Clipping eingesetzt. Während des Backpropagation- Schrittes können insbesondere bei tiefen neuronalen Netzen sehr große Gradienten entstehen. Dieses sogenannte Exploding-Gradient-Problem kann zu instabilen Parameterupdates und einem fehlerhaften Trainingsverlauf führen.
 
-Um dies zu verhindern, werden die Gradienten aller Modellparameter nach jeder Rückwärtspropagation auf
-einen maximalen Betrag von 1.0 begrenzt. Überschreitet die Norm der Gradienten diesen Wert, werden sie
-entsprechend skaliert. In der Implementierung erfolgt dies mithilfe der Funktion:
+Um dies zu verhindern, werden die Gradienten aller Modellparameter nach jeder Rückwärtspropagation auf einen maximalen Betrag von 1.0 begrenzt. Überschreitet die Norm der Gradienten diesen Wert, werden sie entsprechend skaliert. In der Implementierung erfolgt dies mithilfe der Funktion:
 
         torch.nn.utils.clip_grad_norm_(
                 model.parameters(),
                 max_norm=1.0
         )
 
-Durch diese Maßnahme wird ein stabilerer Trainingsprozess erreicht, da einzelne Ausreißer bei den Gradienten
-nun keinen übermäßig großen Einfluss auf die Aktualisierung der Modellparameter mehr haben.
+Durch diese Maßnahme wird ein stabilerer Trainingsprozess erreicht, da einzelne Ausreißer bei den Gradienten nun keinen übermäßig großen Einfluss auf die Aktualisierung der Modellparameter mehr haben.
 
 ## Kapitel 2 - Datensatz:
 
 ### Beschreibung des Datensatzes:
 
-Für die Durchführung des Projekts wurde hauptsächlich der **YawDD Mirror Videos Datensatz** verwendet.
-Die Quelle des Datensatzes ist in Kapitel 1 angegeben. Zusätzlich wurden eigene Videoaufnahmen erstellt und
-in den Datensatz integriert, um die Anzahl der Trainingsbeispiele zu erhöhen und zusätzliche Variationen
-hinsichtlich Personen, Beleuchtung und Aufnahmebedingungen abzudecken.
+Für die Durchführung des Projekts wurde hauptsächlich der **YawDD Mirror Videos Datensatz** verwendet. Die Quelle des Datensatzes ist in Kapitel 1 angegeben. Zusätzlich wurden eigene Videoaufnahmen erstellt und in den Datensatz integriert, um die Anzahl der Trainingsbeispiele zu erhöhen und zusätzliche Variationen hinsichtlich Personen, Beleuchtung und Aufnahmebedingungen abzudecken.
 
-Der Datensatz enthält Videos von Personen sowohl **mit Gähnen** als auch **ohne Gähnen**. Darüber hinaus
-wurden verschiedene Erscheinungsformen berücksichtigt, sodass sowohl Aufnahmen von Personen
-**ohne Brille**, **mit Brille** sowie **mit Sonnenbrille** enthalten sind. Dies erhöht die Robustheit des Modells
-gegenüber unterschiedlichen realen Einsatzbedingungen.
+Der Datensatz enthält Videos von Personen sowohl **mit Gähnen** als auch **ohne Gähnen**. Darüber hinaus wurden verschiedene Erscheinungsformen berücksichtigt, sodass sowohl Aufnahmen von Personen **ohne Brille**, **mit Brille** sowie **mit Sonnenbrille** enthalten sind. Dies erhöht die Robustheit des Modells gegenüber unterschiedlichen realen Einsatzbedingungen.
 
-Alle Videos besitzen eine Länge von ungefähr **30 Sekunden** und liegen in einer Auflösung von **360p** vor.
-Die Videos wurden mit einer festen Kameraposition aufgenommen und zeigen das Gesicht der Person
-während verschiedener Aktivitäten.
+Alle Videos besitzen eine Länge von ungefähr **30 Sekunden** und liegen in einer Auflösung von **360p** vor. Die Videos wurden mit einer festen Kameraposition aufgenommen und zeigen das Gesicht der Person während verschiedener Aktivitäten.
 
 Die Benennung der Videodateien folgt einem einheitlichen Schema:
 
@@ -156,13 +123,9 @@ Die Benennung der Videodateien folgt einem einheitlichen Schema:
 
 ### Daten-Split:
 
-Eine zentrale Herausforderung bei biometrischen Datensätzen besteht darin, sogenannte Data Leaks zu
-verhindern. Werden Videos derselben Person gleichzeitig für Training und Test verwendet, kann das Modell
-personenbezogene Merkmale lernen und dadurch unrealistisch gute Ergebnisse erzielen.
+Eine zentrale Herausforderung bei biometrischen Datensätzen besteht darin, sogenannte Data Leaks zu verhindern. Werden Videos derselben Person gleichzeitig für Training und Test verwendet, kann das Model personenbezogene Merkmale lernen und dadurch unrealistisch gute Ergebnisse erzielen.
 
-Um dieses Problem zu vermeiden, wurde eine gruppenbasierte Aufteilung des Datensatzes implementiert.
-Die Gruppen werden durch die im Dateinamen enthaltenen Personen-IDs definiert. Für die Aufteilung wird
-die Klasse GroupShuffleSplit aus Scikit-Learn eingesetzt.
+Um dieses Problem zu vermeiden, wurde eine gruppenbasierte Aufteilung des Datensatzes implementiert Die Gruppen werden durch die im Dateinamen enthaltenen Personen-IDs definiert. Für die Aufteilung wird die Klasse GroupShuffleSplit aus Scikit-Learn eingesetzt.
 
 Die Daten werden in folgende Teilmengen aufgeteilt:
 
@@ -170,10 +133,7 @@ Die Daten werden in folgende Teilmengen aufgeteilt:
 - Validierungsdaten: 15 %
 - Testdaten: 15 %
 
-Als Group dient die in der Videobeschriftung enthaltene ID. Dadurch wird sichergestellt, dass eine Person
-ausschließlich in einem einzigen Datensatzsplit vorkommt. Zu beachten ist, dass die Nummerierung durch
-die ID bei Damen und Herren seperat beginnt, sodass die ID´s nicht einzigartig im Datensatz sind. Hier ist
-dies jedoch keine Einschränkung, sondern eine Möglichkeit die Gleichverteilung bezüglich des Geschlechtes
+Als Group dient die in der Videobeschriftung enthaltene ID. Dadurch wird sichergestellt, dass eine Person ausschließlich in einem einzigen Datensatzsplit vorkommt. Zu beachten ist, dass die Nummerierung durch die ID bei Damen und Herren seperat beginnt, sodass die ID´s nicht einzigartig im Datensatz sind. Hier ist dies jedoch keine Einschränkung, sondern eine Möglichkeit die Gleichverteilung bezüglich des Geschlechtes
 beim Training zu garantieren.
 
 ### Vorverarbeitung:
