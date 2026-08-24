@@ -209,4 +209,5 @@ class YawDDDataset(Dataset):
         # get corresponding label
         labels = self.labels[idx]
 
-        return {"frames": torch.stack(images), "labels": torch.tensor(labels)} #torch.stack converts list of tensors into one, torch.tensor turns scalar labels into a tensor
+        return {"frames": torch.stack(images), "labels": torch.tensor(labels)#torch.stack converts list of tensors into one, torch.tensor turns scalar labels into a tensor
+                , "filepath": self.image_paths[idx]} #used to align visual and audio predictions

@@ -63,8 +63,8 @@ class YamNetAudioClassifier(nn.Module):
             else:
                 embeddings = self.backbone(patches)
 
-            print("Patches:", patches.shape)
-            print("YAMNet embeddings:", embeddings.shape)
+            #print("Patches:", patches.shape)
+            #print("YAMNet embeddings:", embeddings.shape)
             
             #average all patches into one embedding per video
             #[num_patches, 1024] -> [1024]
@@ -74,7 +74,7 @@ class YamNetAudioClassifier(nn.Module):
         #combine videos back unto a batch
         # [B, 1024]
         clip_embeddings = torch.stack(clip_embeddings)
-        print("Clip embeddings:", clip_embeddings.shape)
+        #print("Clip embeddings:", clip_embeddings.shape)
 
         #binary logits (yawning? yes/no)
         # [B, 1024] -> [B]

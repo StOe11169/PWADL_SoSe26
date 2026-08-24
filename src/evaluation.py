@@ -1,9 +1,11 @@
 import torch
+import pandas as pd
 from tqdm import tqdm  
 from sklearn.metrics import accuracy_score , precision_score, recall_score, f1_score
 
 
 def evaluate(loader, model, device, criterion=None, input_key="frames"):
+
     
     #Set model to evaluation mode. I.e no dropout, dont compute gradients etc.
     model.eval()
@@ -51,3 +53,25 @@ def evaluate(loader, model, device, criterion=None, input_key="frames"):
         results["y_pred"] = y_pred
 
         return results
+
+
+@torch.inference_mode() #https://docs.pytorch.org/docs/2.9/notes/autograd.html#inference-mode
+def predict_logits(loader, model, device, input_key):
+    #return raw logits for late fusion, one row for each video
+    model.eval()
+    rows = []
+
+    for batch in tqdm(loader, desc=f"Predicting {input_key}", leave=False):
+        inputs = batch[input_key].to(device)
+
+        #save logits before classification
+        logits = model(inputs).cpu()
+
+        labels = batch["labels"].cpu()
+        filepath = batch["filepath"]
+
+        #save one prediction per video
+        for filepath, label, logit in zip(filepath, labels, logits):
+            rows.append({"filepath": filepath, "label": int(label.item()), "logit": float(logit.item())}) #Note:label and logit are pytorch tensors
+
+    return pd.DataFrame(rows)

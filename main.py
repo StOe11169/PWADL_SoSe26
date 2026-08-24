@@ -19,9 +19,10 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--n_trials", type=int, default=8)
 
-    #testing audio pipeline
-    parser.add_argument("--mode", type=str, default="visual", choices=["visual", "audio"])
+    #testing audio/fusion pipeline
+    parser.add_argument("--mode", type=str, default="visual", choices=["visual", "audio", "multimodal"])
     parser.add_argument("--audio_exclude_path_parts", nargs="*", default=["Mirror"])
+    parser.add_argument("--visual_weight", type=float, default=0.5, help="Visual logit weight for late fusion.")
 
     args = parser.parse_args()
 

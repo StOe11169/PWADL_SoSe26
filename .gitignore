@@ -1,9 +1,7 @@
 data/
 logs/
 data_augmented/
-tests/
-test_audio_loader_dummy.py
-test_audio_loader.py
+**/_test_output/
 #gitignore Template from https://github.com/github/gitignore/blob/main/Python.gitignore
 
 # Byte-compiled / optimized / DLL files
