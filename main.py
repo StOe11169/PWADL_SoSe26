@@ -1,4 +1,5 @@
 import os
+import sys
 import argparse, time
 import gc
 import torch
@@ -114,7 +115,7 @@ if __name__ == "__main__":
     print("Cuda status: ")
     print(torch.cuda.is_available())
 
-    # Establish determinism (set seeds and precision)
+    # Establish determinism (set seeds and precision) 
     setup_env(seed=0)    
 
     # Parse command-line arguments 
@@ -126,6 +127,8 @@ if __name__ == "__main__":
     parser.add_argument('--patience', type=int, default=7, help='Number of epochs to wait for improvement before early stopping.')
     parser.add_argument("--prepare_data", action="store_true", help="Run data preparation and split raw files before training")
     parser.add_argument("--data_fraction", type=float, default=1.0, help="Fraction of the dataset to use (0.0 to 1.0)")
+    parser.add_argument("--mode", type=str, choices=["train", "test"], default="train", help="Execution mode: 'train' for optimization, 'test' for evaluating a saved model.")
+    parser.add_argument("--model_path", type=str, default="models/best_yawdd_model.pth", help="Path to the saved model state dict for testing.")
     args = parser.parse_args()
 
     # Prepare data if requested
@@ -143,6 +146,42 @@ if __name__ == "__main__":
     valset = CustomDataset('val', num_frames=args.num_frames)
     testset = CustomDataset('test', num_frames=args.num_frames)
 
+    if args.mode == "test":
+        print("\n" + "="*65)
+        print("RUNNING IN TEST MODE")
+        print(f"Loading model weights from: {args.model_path}")
+        
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        
+        # Initialize model (Dropout value doesn't matter for eval mode)
+        model = YawDDclassifier(dropout=0.5).to(device)
+        
+        # Load weights
+        if not os.path.exists(args.model_path):
+            print(f"[!] Error: Model file '{args.model_path}' not found.")
+            sys.exit(1)
+            
+        model.load_state_dict(torch.load(args.model_path))
+        
+        # Create Test DataLoader (using batch size 8 as default for testing)
+        testloader = DataLoader(testset, batch_size=8, num_workers=4, shuffle=False)
+        
+        # Evaluate
+        print("Evaluating on test set...")
+        test_metrics = evaluate(testloader, model, device)
+        
+        print(f"\n--- Final Test Results ---")
+        print(f"Accuracy:  {test_metrics['accuracy']*100:.2f} %")
+        print(f"F1-Score:  {test_metrics['f1']*100:.2f} %")
+        print(f"Precision: {test_metrics['precision']*100:.2f} %")
+        print(f"Recall:    {test_metrics['recall']*100:.2f} %")
+        print("="*65 + "\n")
+        
+        # Terminate script early since we only want to test
+        sys.exit(0)
+
+
+    print("RUNNING IN TRAIN MODE")
     # Initialize and execute Optuna study, maximizing validation F1 score
     study = optuna.create_study(
         direction="maximize", 
