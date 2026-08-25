@@ -205,8 +205,10 @@ Zusätzlich unterstützt der Code intern den Split trainval. Dieser kombiniert t
 Die Aufteilung wurde gruppiert nach ID erzeugt. Dadurch wird verhindert, dass Videos derselben ID gleichzeitig in Trainings-, Validierungs- und Testdaten vorkommen, wodurch das Modell personenbezogene Merkmale lernen könnte.
 
 ### 4.4 Split-Statistik
-Die vollständige Split-Statistik kann mit folgendem Befehl ausgegeben werden: \
-python -c "from src.data import load_split_csv, print_split_statistics; df=load_split_csv(); print_split_statistics(df)" \
+Die vollständige Split-Statistik kann mit folgendem Befehl ausgegeben werden:
+```
+python -c "from src.data import load_split_csv, print_split_statistics; df=load_split_csv(); print_split_statistics(df)"
+```
 Der finale Split hat die folgende Aufteilung:
 | Split	| Videos | Yawning | Non-Yawning | IDs |
 |-------|--------|---------|-------------|-----|
