@@ -569,7 +569,7 @@ Das finale Modell klassifizierte alle 65 Testvideos korrekt. Es traten weder Fal
 ![Confusion Matrix Vergleichslauf](/pictures/Confusion_Matrix_Vergleichslauf.png) 
 Abbildung 5: Confusion Matrix des Vergleichslauf auf dem unabhängigen Testsplit.
 
-Die Confusion Matrix des Vergleichslaufs zeigt, dass keine positive Testsequenz übersehen wurde. Gleichzeitig zeigen die sechs False Positives, dass das Modell teilweise auch andere Mundbewegungen oder gesichtsbezogene Veränderungen als Gähnen interpretiert. Der F1-Score von 0.889 zeigt insgesamt trotzdem eine gute Balance zwischen Precision und Recall. \
+Die Confusion Matrix des Vergleichslaufs zeigt, dass keine positive Testsequenz übersehen wurde. Gleichzeitig zeigen die sechs False Positives, dass das Modell teilweise auch andere Mundbewegungen oder gesichtsbezogene Veränderungen als Gähnen interpretiert. Der F1-Score von 0.889 zeigt insgesamt trotzdem eine gute Balance zwischen Precision und Recall.
 
 Die in beiden Läufen sehr hohen Werte für ROC-AUC und PR-AUC deuten darauf hin, dass das Modell die beiden Klassen über die vorhergesagten Wahrscheinlichkeiten sehr gut trennt.
 
