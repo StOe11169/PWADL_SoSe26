@@ -262,8 +262,10 @@ Die wichtigsten Abhängigkeiten sind:
 | tensorboard	| Logging und Visualisierung        |
 | torchinfo	    | optionale Modellzusammenfassung   |
 
-Die final verwendeten Python-Abhängigkeiten sind in `requirements.txt` gespeichert und können mit folgendem Befehl installiert werden: \
-pip install -r requirements.txt \
+Die final verwendeten Python-Abhängigkeiten sind in `requirements.txt` gespeichert und können mit folgendem Befehl installiert werden:
+```
+pip install -r requirements.txt 
+```
 Eine manuelle Installation ist ebenfalls möglich: \
 pip install torch torchvision torchcodec pandas numpy scikit-learn tqdm optuna tensorboard torchinfo \
 Je nach CUDA-Version sollte PyTorch gemäß der offiziellen PyTorch-Anleitung installiert werden: \
