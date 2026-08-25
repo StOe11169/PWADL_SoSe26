@@ -119,9 +119,7 @@ Abbildung 1: Verlauf der Lernraten im Training über verschiedene Trials und Fol
 ### 3.4 Gradient Clipping
 Nach der Backpropagation wird Gradient Clipping verwendet:
 ```
-
 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-
 ```
 Dadurch werden sehr große Gradienten begrenzt. Dies kann das Training stabilisieren und insbesondere bei kleinen Batchgrößen oder komplexeren Modellteilen wie Attention hilfreich sein.
 
@@ -241,12 +239,16 @@ Die wichtigsten Dateien des Projekts sind:
 
 ### 6.2 Installation
 Es wird empfohlen, eine virtuelle Python-Umgebung zu verwenden. \
-Unter Windows PowerShell: \
-python -m venv .venv \
-.venv\Scripts\activate \
-Unter Linux oder macOS: \
-python -m venv .venv \
-source .venv/bin/activate \
+Unter Windows PowerShell:
+```
+python -m venv .venv 
+.venv\Scripts\activate
+```
+Unter Linux oder macOS:
+```
+python -m venv .venv 
+source .venv/bin/activate
+```
 
 Die wichtigsten Abhängigkeiten sind:
 | Bibliothek    | Verwendung                        |
