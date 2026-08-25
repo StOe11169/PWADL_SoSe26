@@ -218,8 +218,11 @@ Der finale Split hat die folgende Aufteilung:
 
 ## 5. Datenvorverarbeitung
 ### 5.1 Frame-Extraktion
-Aus jedem Video wird eine feste Anzahl T gleichmäßig verteilter Frames extrahiert. Die Anzahl der Frames wird über den Parameter \ 
---num_frames gesteuert (Beispiel: --num_frames 32) \
+Aus jedem Video wird eine feste Anzahl T gleichmäßig verteilter Frames extrahiert. Die Anzahl der Frames wird über den Parameter
+```
+--num_frames 
+```
+gesteuert (Beispiel: --num_frames 32) \
 Die Frames werden mit torchcodec aus den Videodateien geladen.
 
 ### 5.2 Vorverarbeitung für Training
