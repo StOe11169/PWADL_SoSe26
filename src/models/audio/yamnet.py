@@ -44,44 +44,49 @@ class YamNetAudioClassifier(nn.Module):
                 parameter.requires_grad = False
 
     def forward(self, waveform):
+        if waveform.ndim != 3:
+            raise ValueError("Expected waveform shape [batch, num_clips, samples_per_clip], got {tuple(waveform.shape)}")
+
         video_embeddings = []
 
         #process each videos audio separetly
+        # waveform: [batch, num_clips, samples_per_clip]
         for video_clips in waveform:
             clip_embeddings = []
+
             #process one videos sampled clips at a time
-            for video_clips in waveform:
-                clip_embeddings = []
+            #video_clips: [num_clips, samples_per_clip]
+           
 
-                for clip in video_clips:
-                    # [samples] -> [1, samples]
-                    clip = clip.unsqueeze(0)
+            for clip in video_clips:
+                # [samples] -> [1, samples]
+                clip = clip.unsqueeze(0)
 
-                    #convert clip to YAMNet-compatible patches
-                    patches, _ = self.frontend.wavform_to_log_mel(clip.cpu(), self.sample_rate)
-                    patches = patches.to(waveform.device)
+                #convert clip to YAMNet-compatible patches
+                patches, _ = self.frontend.wavform_to_log_mel(clip.cpu(), self.sample_rate)
+                patches = patches.to(waveform.device)
 
-                    if self.freeze_backbone:
-                        self.backbone.eval()
+                if self.freeze_backbone:
+                    self.backbone.eval()
 
-                        with torch.no_grad():
-                            # [num_patches, 1024]
-                            embeddings = self.backbone(patches)
-                    else:
+                    with torch.no_grad():
+                        #[num_patches, 1024]
                         embeddings = self.backbone(patches)
+                else:
+                    embeddings = self.backbone(patches)
 
-                    #average YAMNet patches within this specific audio 
-                    clip_embedding = embeddings.mean(dim=0)
+                #average YAMNet patches within this specific audio 
+                #[num_patches, 1024] -> [1024]
+                clip_embedding = embeddings.mean(dim=0)
+                clip_embeddings.append(clip_embedding)
 
-                    clip_embeddings.append(clip_embedding)
+            #average sampled clips into one representation for the hole video
+            #[num_clips, 1024] -> [1024]
+            video_embedding = torch.stack(clip_embeddings).mean(dim=0)
+            video_embeddings.append(video_embedding)
 
-                #average sampled clips into one representation for the hole video
-                video_embedding = torch.stack(clip_embeddings).mean(dim=0)
-
-                video_embeddings.append(video_embedding)
-
-            # [B, 1024]
-            video_embeddings = torch.stack(video_embeddings)
+        # [B, 1024]
+        video_embeddings = torch.stack(video_embeddings)
 
         # [B, 1024] -> [B]
         return self.classifier(video_embeddings).squeeze(-1)

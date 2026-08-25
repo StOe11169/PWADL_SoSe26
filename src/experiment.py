@@ -301,7 +301,6 @@ def run_multimodal_experiment(df, args, study_dir):
     print(f"Mean F1: {np.mean(outer_results):.4f}")
     print(f"Std F1:  {np.std(outer_results):.4f}")
 
-
 def run_experiment(df, args, study_dir):
     """Dispatch the requested experiment mode.
     Visual/audio use one model and one input key.
