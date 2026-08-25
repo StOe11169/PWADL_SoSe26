@@ -27,7 +27,7 @@ def build_config(trial: Trial, args: Namespace):
     cfg["dropout"] = trial.suggest_float("dropout", 0.2, 0.6, step=0.1)
 
     #Loss
-    cfg["pos_weight"] = 2
+    cfg["class_weighting"] = "train_negative_to_positive_ratio"
 
     #Optimizer
     cfg["optimizer"] = trial.suggest_categorical("optimizer", ["adamw", "sgd"])

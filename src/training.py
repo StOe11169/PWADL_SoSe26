@@ -25,8 +25,16 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
     #initialize Writer for tensorboard logging
     writer = get_writer(study_dir, trial_number)
 
+    #trainer() should never guess or provide a fallback class weight. experiment workflow must calculate it from the current training fold
+    if "pos_weight" not in cfg:
+        raise ValueError("Training config is missing pos_weight. Calculate it from the ""current training fold before calling trainer().")
+
+    #BCEWithLogitsLoss requires pos_weight to be a floating-point tensor on the same device as model and labels
+    pos_weight = torch.tensor( float(cfg["pos_weight"]), dtype=torch.float32, device=device)
+
+
     # objective function is binary cross entropy loss with logits 
-    criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(cfg["pos_weight"], device=device)) #missclafiying yawns is twice as costly 
+    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight, device=device) #missclafiying yawns is pos_weight as costly 
     
 
     #Removed as freezing backbone lead to terrible results early on, keeping comments as note

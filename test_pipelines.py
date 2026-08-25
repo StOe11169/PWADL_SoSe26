@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 
 from src.data import get_all_data_paths
 from src.evaluation import predict_logits
-from src.experiment import build_dataset, build_model, evaluate_multimodal, get_input_key
+from src.experiment import build_dataset, build_model, evaluate_multimodal, get_input_key,  with_fold_class_weight
 from src.utils import get_device
 
 TEST_CFG = {
@@ -30,6 +30,35 @@ TEST_CFG = {
 EXPECTED_FILES = {"001-driver-yawning.mp4": 1.0,
     "002-driver-normal.mp4": 0.0,
     "003-driver-yawning.mp4": 1.0}
+
+def check_fold_class_weighting():
+    """Check normal and invalid training-fold distributions."""
+
+    # represents the shared Optuna configuration.
+    base_cfg = {"class_weighting": "train_negative_to_positive_ratio"}
+
+    #Two positive and four negative examples should produce 4 / 2 = 2.
+    train_df = pd.DataFrame({"yawning": [1.0, 1.0, 0.0, 0.0, 0.0, 0.0]})
+
+    fold_cfg = with_fold_class_weight(base_cfg, train_df)
+
+    #dont modify shared config
+    assert "pos_weight" not in base_cfg
+
+    #Verify the calculated ratio and recorded counts
+    assert fold_cfg["pos_weight"] == 2.0
+    assert fold_cfg["train_class_counts"] == {"positive": 2,"negative": 4}
+
+    #single-class fold cant produce valid ratio
+    for single_class_labels in ([0.0, 0.0], [1.0, 1.0]):
+        try:
+            with_fold_class_weight(base_cfg,pd.DataFrame({"yawning": single_class_labels}))
+        except ValueError as exc:
+            assert "both classes" in str(exc)
+        else:
+            raise AssertionError("A single-class training fold must be rejected.")
+
+    print("[OK] Fold-specific positive class weighting.")
 
 def load_test_dataframe(data_dir):
     #load the three dumy and verify labels
@@ -218,6 +247,7 @@ def main():
     parser.add_argument("--visual-weight", type=float, default=0.5, help="Visual logit weight for multimodal fusion.")
 
     args = parser.parse_args()
+    check_fold_class_weighting()
 
     if not 0.0 <= args.visual_weight <= 1.0:
         raise ValueError("--visual-weight must be between 0 and 1.")

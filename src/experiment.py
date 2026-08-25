@@ -21,6 +21,57 @@ from src.config import build_config
 from src.utils import get_device, get_writer
 from src.fusion import fuse_logits, get_fusion_metrics, get_contribution_summary, save_fusion_results
 
+def with_fold_class_weight(cfg, train_df, label_column="yawning"):
+    """
+    Create copy of cfg using the class-weight/positive-negative-ratio for one specific training iteration
+    Only train_df is used. Validation and test labels must never be passed to
+    this function because that would leak information into model training.
+    """
+
+    #fail early if the expected target column is unavailable
+    if label_column not in train_df.columns:
+        raise ValueError(f"Missing label column: {label_column}")
+
+    labels = train_df[label_column]
+
+    #account for missing labels
+    if labels.isna().any():
+        raise ValueError("Training labels contain missing values.")
+
+    # BCEWithLogitsLoss expects binary targets
+    invalid_labels = set(labels.unique()) - {0, 0.0, 1, 1.0}
+
+    if invalid_labels:
+        invalid_display = sorted(repr(label) for label in invalid_labels)
+        raise ValueError(f"Expected binary training labels 0/1, got: {invalid_display}")
+
+    #count vids as loss is calculated once per vid
+    positive_count = int((labels == 1).sum())
+    negative_count = int((labels == 0).sum())
+
+    #single-class fold cannot produce a meaningful inverse-frequency weight.
+    #would also make F1 difficult to interpret
+    if positive_count == 0 or negative_count == 0:
+        raise ValueError("Each training fold must contain both classes to calculate pos_weight.Found positive={positive_count}, negative={negative_count}.")
+
+    #don't modify shared Optuna config
+    #every inner fold may have a different distirbution
+    fold_cfg = dict(cfg)
+
+    #multiply only positive BCE term
+    fold_cfg["pos_weight"] = negative_count / positive_count
+
+    # Store counts so the exact calculation is reproducible 
+    fold_cfg["train_class_counts"] = {"positive": positive_count,
+                                      "negative": negative_count}
+
+    print("Training class balance: "
+        f"positive={positive_count}, "
+        f"negative={negative_count}, "
+        f"pos_weight={fold_cfg['pos_weight']:.6f}")
+
+    return fold_cfg
+
 def get_input_key(mode):
     #return key used by trainer/evaluate
     if mode == "visual":
@@ -112,18 +163,23 @@ def objective(trial,train_df_outer,inner_splits,args, study_dir, mode):
         device = get_device()
         inner_f1_scores = []
         inner_best_epochs = []
+        #store class counts and weight used by every inner fold
+        inner_class_balance = []
 
         for inner_fold, (train_idx, val_idx) in enumerate(inner_splits):
             print(f"--- Inner fold {inner_fold} ---")
 
             train_df = train_df_outer.iloc[train_idx].reset_index(drop=True)
             val_df = train_df_outer.iloc[val_idx].reset_index(drop=True)
+            #calculate pos_weight only from this inner fold
+            #val_df is deliberately not passed to the calculation.
+            fold_cfg = with_fold_class_weight(cfg, train_df)
 
             #build datasets for this fold
             trainset = build_dataset(train_df, cfg, mode)
             valset = build_dataset(val_df, cfg, mode)
 
-            trainloader, valloader = build_loaders(trainset, valset, cfg)
+            trainloader, valloader = build_loaders(trainset, valset, fold_cfg)
 
             #Fresh model for every fold
             model = build_model(cfg, mode, device)
@@ -131,14 +187,15 @@ def objective(trial,train_df_outer,inner_splits,args, study_dir, mode):
             # start training
             f1_val, epoch = trainer(trainloader=trainloader, valloader=valloader, model=model, device=device, 
                                     trial_number= f"{trial.number}_inner_{inner_fold}", study_dir = study_dir, 
-                                    cfg=cfg, trial = trial, input_key=input_key, pruning_step_offset = inner_fold * cfg["epochs"])
+                                    cfg=fold_cfg, trial = trial, input_key=input_key, pruning_step_offset = inner_fold * cfg["epochs"])
 
             inner_f1_scores.append(f1_val)
             inner_best_epochs.append(epoch)
+            inner_class_balance.append({"inner_fold": inner_fold, "positive": fold_cfg["train_class_counts"]["positive"],"negative": fold_cfg["train_class_counts"]["negative"],"pos_weight": fold_cfg["pos_weight"]})
         mean_f1 = float(np.mean(inner_f1_scores))
         
         #Save Trial summary
-        trial_summary = {"trial_number": trial.number,"mean_f1_val": mean_f1, "fold_f1": inner_f1_scores, "best_epoch": inner_best_epochs, "params": cfg }
+        trial_summary = {"trial_number": trial.number,"mean_f1_val": mean_f1, "fold_f1": inner_f1_scores, "best_epoch": inner_best_epochs, "fold_class_balance": inner_class_balance, "params": cfg }
         with open(os.path.join(study_dir, f"trial_{trial.number}_summary.json"), "w") as f:
             json.dump(trial_summary, f, indent=4)
 
@@ -190,17 +247,19 @@ def train_final_model(final_train_df, final_val_df, cfg, mode, device, model_dir
     #The outer test set is deliberately not passed here
 
     input_key = get_input_key(mode)
+    #calculate pos_weight from final distribution
+    final_cfg = with_fold_class_weight(cfg, final_train_df)
     #build fresh model for final training
-    model = build_model(cfg, mode, device)
+    model = build_model(final_cfg, mode, device)
 
     #build mode specific datasets
-    trainset = build_dataset(final_train_df, cfg, mode)
-    valset = build_dataset(final_val_df, cfg, mode)
+    trainset = build_dataset(final_train_df, final_cfg, mode)
+    valset = build_dataset(final_val_df, final_cfg, mode)
 
-    trainloader, valloader = build_loaders(trainset, valset, cfg)
+    trainloader, valloader = build_loaders(trainset, valset, final_cfg)
 
     #select best epoch only using final validation data
-    trainer(trainloader=trainloader, valloader=valloader, model=model, device=device, trial_number="final", study_dir=model_dir, cfg=cfg, input_key=input_key)
+    trainer(trainloader=trainloader, valloader=valloader, model=model, device=device, trial_number="final", study_dir=model_dir, cfg=final_cfg, input_key=input_key)
 
     #reload the best final checkpoint
     checkpoint_path = os.path.join(model_dir, "best_model_trial_final.pth")
@@ -365,15 +424,17 @@ def run_experiment(df, args, study_dir):
 
         final_train_df = train_df_outer.iloc[final_train_idx].reset_index(drop=True)
         final_val_df = train_df_outer.iloc[final_val_idx].reset_index(drop=True)
+        #calculate a new pos_weight from the final training data only
+        final_cfg = with_fold_class_weight(best_cfg, final_train_df)
 
         #Build train/val datasets
-        final_trainset = build_dataset(final_train_df, best_cfg, mode)
-        final_valset = build_dataset(final_val_df, best_cfg, mode)
+        final_trainset = build_dataset(final_train_df, final_cfg, mode)
+        final_valset = build_dataset(final_val_df, final_cfg, mode)
 
-        final_trainloader, final_valloader = build_loaders(final_trainset, final_valset, best_cfg)
+        final_trainloader, final_valloader = build_loaders(final_trainset, final_valset, final_cfg)
 
         #Train without touching outer test data
-        trainer(trainloader=final_trainloader, valloader=final_valloader, model=model, device=device, trial_number="final", study_dir=fold_dir, cfg=best_cfg, input_key=input_key)
+        trainer(trainloader=final_trainloader, valloader=final_valloader, model=model, device=device, trial_number="final", study_dir=fold_dir, cfg=final_cfg, input_key=input_key)
 
         #Load final model selected on final_val_df
         final_model_path = os.path.join(fold_dir, "best_model_trial_final.pth")
@@ -383,8 +444,8 @@ def run_experiment(df, args, study_dir):
         model.load_state_dict(final_checkpoint["model_state_dict"])
 
         #Create datasets for final outer test
-        testset = build_dataset(test_df_outer, best_cfg, mode)
-        testloader = DataLoader(testset, batch_size=best_cfg["batch_size"], num_workers=best_cfg["num_workers"], shuffle=False)
+        testset = build_dataset(test_df_outer, final_cfg, mode)
+        testloader = DataLoader(testset, batch_size=final_cfg["batch_size"], num_workers=best_cfg["num_workers"], shuffle=False)
 
         model.eval()
         test_metrics = evaluate(testloader, model, device, input_key=input_key)
