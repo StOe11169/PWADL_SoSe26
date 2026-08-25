@@ -661,7 +661,8 @@ Ein direkter Vergleich mit anderen Modellen wurde bisher noch nicht durchgeführ
 4.	ResNet18-Features mit GRU. 
 5.	3D-CNN. 
 6.	Video Transformer. 
-7.	Klassische Verfahren mit Mundregionserkennung und geometrischen Merkmalen. 
+7.	Klassische Verfahren mit Mundregionserkennung und geometrischen Merkmalen.
+
 Ein besonders naheliegender Vergleich wäre ein Modell mit einfacher Mittelwertbildung über alle Frame-Features. Dadurch könnte untersucht werden, ob der Attention-Mechanismus gegenüber einfachem Average Pooling einen messbaren Vorteil bringt.
 
 ## 13. Reproduzierbarkeit
