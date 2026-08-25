@@ -135,7 +135,7 @@ Die verwendeten Einstellungen sind:
 | factor	| 0.7  |
 | patience	| 5    |
 Damit wird die Lernrate reduziert, wenn der F1-Score auf den Validierungsdaten stagniert.
- ![Verlauf der Lernrate im Training](/pictures/LR_Training.png)
+ ![Verlauf der Lernrate im Training](pictures/LR_Training.png)
 Abbildung 1: Verlauf der Lernraten im Training über verschiedene Trials und Folds
 
 ### 3.4 Gradient Clipping
@@ -150,7 +150,7 @@ Dadurch werden sehr große Gradienten begrenzt. Dies kann das Training stabilisi
 Als Grundlage wird das Yawning Detection Dataset, kurz YawDD verwendet. Der Datensatz ist über IEEE DataPort verfügbar und enthält Videos von Fahrerinnen und Fahrern in unterschiedlichen Zuständen, darunter Gähnen und Nicht-Gähnen. 
 Zusätzlich wurden eigene Videos aufgenommen, die dem YawDD-Format angeglichen und über fortlaufende IDs an den Datensatz angehängt wurden.
 Der YawDD-Datensatz muss aufgrund der Lizenzbedingungen separat von der offiziellen Quelle bezogen werden.
-Alle Videos liegen gemeinsam im Ordner data/videos/. Das erwartete Dateinamenformat lautet: \ ID-info_labels-activity, \ wobei Videodateien mit den Endungen .mp4, .avi oder .mov unterstützt werden.
+Alle Videos liegen gemeinsam im Ordner data/videos/. Das erwartete Dateinamenformat lautet "ID-info_labels-activity", wobei Videodateien mit den Endungen .mp4, .avi oder .mov unterstützt werden.
 Beispiele:
 | Dateiname	            | Bedeutung                                 |
 |-----------------------|-------------------------------------------|
@@ -254,7 +254,7 @@ Die verwendeten Normalisierungswerte sind:
 | B	    | 0.406	     | 0.225              |
 
 ## 6. Implementierung
-6.1 Code-Struktur
+### 6.1 Code-Struktur
 Die wichtigsten Dateien des Projekts sind:
 | Datei             | Aufgabe                                                                                   |
 |-------------------|-------------------------------------------------------------------------------------------|
@@ -512,7 +512,7 @@ Der beste rekonstruierte Cross-Validation-F1 betrug: 0.9349
 
 Im Gegensatz zum vorherigen Vergleichslauf wurde beim finalen Modell der Backbone nicht eingefroren. Dadurch konnten alle Parameter des ResNet18-Backbones während des Trainings angepasst werden.
 
-### 10.2 Finales Training
+### 10.3 Finales Training
 Die Klassenverteilung im finalen Trainingssplit trainval war in beiden Läufen:
 | Klasse        | Anzahl    |
 |---------------|-----------|
@@ -525,10 +525,10 @@ pos_weight = 1.709
 
 Diese Gewichtung wurde in BCEWithLogitsLoss verwendet, um die im Vergleich seltenere positive Klasse yawning stärker zu berücksichtigen.
 Während des finalen Trainings wurde kein Early Stopping verwendet, da das Modell auf dem gesamten trainval-Split trainiert wurde und somit kein separater Validierungssplit für die Modellauswahl mehr zur Verfügung stand. Der Trainingsloss und der Trainings-F1 entwickelten sich im finalen Training wie folgt:
-![Verlauf des Train Loss](/pictures/Loss_Final_Train.png) 
+![Verlauf des Train Loss](pictures/Loss_Final_Train.png) 
 Abbildung 2: Verlauf des Train Loss während des finalen Trainings
 
-![Verlauf des Train F1](/pictures/F1_Final_Train.png) 
+![Verlauf des Train F1](pictures/F1_Final_Train.png) 
 Abbildung 3: Verlauf des F1-Scores während des finalen Trainings
 
 Die Abbildungen zeigen, dass der Trainingsloss im Verlauf sinkt und die Trainingsmetriken ansteigen. Dies bestätigt, dass der Trainingscode das Modell erfolgreich optimiert.
@@ -537,7 +537,7 @@ Die Abbildungen zeigen, dass der Trainingsloss im Verlauf sinkt und die Training
 Das finale Modell wurde erfolgreich gespeichert unter: \
 best_model_final.pt
 
-### 10.3 Finale Testergebnisse
+### 10.4 Finale Testergebnisse
 Nach dem finalen Training wurde das Modell auf dem unabhängigen Testsplit evaluiert. Der Testsplit wurde weder während der Hyperparameteroptimierung noch während des finalen Trainings zur Modellauswahl verwendet.
 Die Klassenverteilung im Testsplit war:
 | Klasse        | Anzahl    |
@@ -561,12 +561,12 @@ Der finale Lauf erreichte auf dem unabhängigen Testsplit perfekte Werte für al
 Die Confusion Matrizen der beiden Läufe ergaben:
 
 
-![Confusion Matrix finaler Lauf](/pictures/Confusion_Matrix_final.png) 
+![Confusion Matrix finaler Lauf](pictures/Confusion_Matrix_final.png) 
 Abbildung 4: Confusion Matrix des finalen Laufs auf dem unabhängigen Testsplit.
 
 Das finale Modell klassifizierte alle 65 Testvideos korrekt. Es traten weder False Positives noch False Negatives auf.
 
-![Confusion Matrix Vergleichslauf](/pictures/Confusion_Matrix_Vergleichslauf.png) 
+![Confusion Matrix Vergleichslauf](pictures/Confusion_Matrix_Vergleichslauf.png) 
 Abbildung 5: Confusion Matrix des Vergleichslauf auf dem unabhängigen Testsplit.
 
 Die Confusion Matrix des Vergleichslaufs zeigt, dass keine positive Testsequenz übersehen wurde. Gleichzeitig zeigen die sechs False Positives, dass das Modell teilweise auch andere Mundbewegungen oder gesichtsbezogene Veränderungen als Gähnen interpretiert. Der F1-Score von 0.889 zeigt insgesamt trotzdem eine gute Balance zwischen Precision und Recall.
@@ -574,7 +574,7 @@ Die Confusion Matrix des Vergleichslaufs zeigt, dass keine positive Testsequenz 
 Die in beiden Läufen sehr hohen Werte für ROC-AUC und PR-AUC deuten darauf hin, dass das Modell die beiden Klassen über die vorhergesagten Wahrscheinlichkeiten sehr gut trennt.
 
 
-## 10.4 Interpretation der Ergebnisse
+### 10.5 Interpretation der Ergebnisse
 Das finale Modell erreichte auf dem Testsplit eine Accuracy, Precision, Recall und einen F1-Score von jeweils 1.000. Damit wurden alle yawning- und non-yawning-Videos im Testsplit korrekt klassifiziert.
 Besonders relevant ist der Recall von 1.000, da im Kontext der Müdigkeitserkennung übersehene Müdigkeitsanzeichen potenziell sicherheitskritisch sein können. Im finalen Testlauf wurde kein tatsächliches Gähnen übersehen.
 Gleichzeitig müssen die perfekten Testergebnisse vorsichtig interpretiert werden. Der Testsplit umfasst nur 65 Videos, davon 24 mit Gähnen. Bei einer vergleichsweise kleinen Testmenge können einzelne Eigenschaften des Datensatzes einen starken Einfluss auf die Metriken haben. Daher ist nicht auszuschließen, dass das Modell stark von den spezifischen Aufnahmebedingungen, Personen, Kameraperspektiven oder Bewegungsmustern des Datensatzes profitiert.
@@ -677,8 +677,10 @@ Diese Datei sollte für finale Experimente nicht mehr verändert werden.
 ## 14. Hinweise zur Konsolenausgabe
 Beim Start von TensorBoard oder bei Verwendung des TensorBoard-Writers können TensorFlow-bezogene oneDNN-Hinweise erscheinen. Diese Meldungen stammen nicht aus dem eigentlichen PyTorch-Modelltraining und beeinflussen die Modelllogik nicht.
 Um diese Meldungen zu unterdrücken, wurde vor dem TensorBoard-Import folgende Umgebungsvariable gesetzt:
+```
 import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+```
 Diese Einstellung unterdrückt TensorFlow-Info- und Warnmeldungen, behebt aber keine echten Programmfehler.
 
 ## 15. Hilfsskript summarize_trials.py
@@ -743,11 +745,11 @@ Dieser Checkpoint enthält neben den Modellgewichten auch die wichtigsten Hyperp
 
 
 ## 18. Anhang
-![Accuracy finales Training](/pictures/Accuracy_Final_Train.png) 
+![Accuracy finales Training](pictures/Accuracy_Final_Train.png) 
 Abbildung 6: Verlauf der Accuracy während des finalen Trainings.
 
-![Precision finales Training](/pictures/Precision_Final_Train.png) 
+![Precision finales Training](pictures/Precision_Final_Train.png) 
 Abbildung 7: Verlauf der Precision während des finalen Trainings.
 
-![Recall finales Training](/pictures/Recall_Final_Train.png) 
+![Recall finales Training](pictures/Recall_Final_Train.png) 
 Abbildung 8: Verlauf des Recalls während des finalen Trainings.
