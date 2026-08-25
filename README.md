@@ -162,24 +162,26 @@ Beispiele:
 Das Label wird automatisch aus dem Feld activity abgeleitet. Enthält activity den Begriff yawning, wird das Label 1 vergeben. Andernfalls wird das Label 0 vergeben.
 
 ### 4.2 Datenstruktur
-Die aktuelle Datenstruktur lautet: \
-data/ \
- videos/ \
+Die aktuelle Datenstruktur lautet:
+```
+data/
+ videos/
   ...
- splits.csv \
+ splits.csv
 src/ \
  data.py \
- evaluation.py \
- training.py \
- utils.py    \
-main.py \
-Tester.py \
-best_model_final.pt \
-checkpoints/ \
-runs/ \
-README.md \
-(summarize_trials.py) \
+ evaluation.py
+ training.py
+ utils.py
+main.py
+Tester.py
+best_model_final.pt
+checkpoints/
+runs/
+README.md
+(summarize_trials.py)
 (final_train_only.py) 
+```
 
 ### 4.3 Daten-Split
 Alle Videos liegen in data/videos, und die Aufteilung wird über die Datei data/splits.csv gesteuert.
