@@ -162,7 +162,7 @@ Beispiele:
 Das Label wird automatisch aus dem Feld activity abgeleitet. Enthält activity den Begriff yawning, wird das Label 1 vergeben. Andernfalls wird das Label 0 vergeben.
 
 ### 4.2 Datenstruktur
-Die aktuelle Datenstruktur lautet:
+Die aktuelle Datenstruktur lautet: \
 data/ \
  videos/ \
   ...
