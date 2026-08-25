@@ -1,6 +1,28 @@
-# PWADL_SoSe26
+# Müdigkeitserkennung durch Gähn-Detektion in Fahrervideos
+## Projektarbeit im Modul PWADL, SoSe 2026
 In dieser Projektarbeit wird ein Deep-Learning-Modell zur automatischen Erkennung von Gähnen in Fahrervideos entwickelt. Gähnen wird dabei als mögliches visuelles Merkmal für Müdigkeit am Steuer betrachtet. Als Datengrundlage wird der YawDD-Datensatz verwendet, der durch eigene Videos im gleichen Format ergänzt wurde. Das Modell klassifiziert Videosequenzen binär in die Klassen yawning und non-yawning.
 Die entwickelte Pipeline umfasst das Einlesen von Videodaten aus einem Sammelordner, die reproduzierbare Aufteilung aller Daten in Trainings-, Validierungs- und Testdaten, eine framebasierte Vorverarbeitung, ein neuronales Netz mit ResNet18-Backbone und temporaler Attention sowie Training, Hyperparameteroptimierung, Logging und Evaluation. Die finale Bewertung erfolgt auf einem unabhängigen Testsplit.
+
+## Inhaltsverzeichnis
+
+1. [Problembeschreibung](#1-problembeschreibung)
+2. [Modellarchitektur](#2-modellarchitektur)
+3. [Loss-Funktion und Optimierung](#3-loss-funktion-und-optimierung)
+4. [Datensatz](#4-datensatz)
+5. [Datenvorverarbeitung](#5-datenvorverarbeitung)
+6. [Implementierung](#6-implementierung)
+7. [Training](#7-training)
+8. [Evaluation](#8-evaluation)
+9. [Logging und Visualisierung](#9-logging-und-visualisierung)
+10. [Ergebnisse](#10-ergebnisse)
+11. [Diskussion](#11-diskussion)
+12. [Vergleich mit anderen Ansätzen](#12-vergleich-mit-anderen-ansätzen)
+13. [Reproduzierbarkeit](#13-reproduzierbarkeit)
+14. [Hinweise zur Konsolenausgabe](#14-hinweise-zur-konsolenausgabe)
+15. [Hilfsskript summarize_trials.py](#15-hilfsskript-summarize_trialspy)
+16. [Hilfsskript final_train_only.py](#16-hilfsskript-final_train_onlypy)
+17. [Quellen](#17-quellen)
+18. [Anhang](#18-anhang)
 
 ## 1. Problembeschreibung
 ### 1.1 Motivation
@@ -268,33 +290,47 @@ Die final verwendeten Python-Abhängigkeiten sind in `requirements.txt` gespeich
 ```
 pip install -r requirements.txt 
 ```
-Eine manuelle Installation ist ebenfalls möglich: \
-pip install torch torchvision torchcodec pandas numpy scikit-learn tqdm optuna tensorboard torchinfo \
+Eine manuelle Installation ist ebenfalls möglich:
+```
+pip install torch torchvision torchcodec pandas numpy scikit-learn tqdm optuna tensorboard torchinfo
+```
 Je nach CUDA-Version sollte PyTorch gemäß der offiziellen PyTorch-Anleitung installiert werden: \
 https://pytorch.org/get-started/locally/
 
 ### 6.3 Datensatz vorbereiten
 Alle Videos müssen in folgendem Ordner liegen: \
 data/videos/ \
-Die Split-Datei kann mit folgendem Befehl erzeugt werden: \
-python -c "from src.data import create_split_csv; create_split_csv(force=True)" \
+Die Split-Datei kann mit folgendem Befehl erzeugt werden:
+```
+python -c "from src.data import create_split_csv; create_split_csv(force=True)"
+```
 Wenn die Split-Datei final erzeugt wurde, sollte sie nicht erneut mit force=True überschrieben werden. Dadurch bleibt der Testsplit über alle Experimente hinweg konstant.
 
 ### 6.4 Dataset-Test
-Zum Testen, ob das Dataset korrekt geladen wird, kann folgender Befehl verwendet werden: \
-python -c "from src.data import YawDDDataset; ds=YawDDDataset('train', num_frames=8, train=False); x,y=ds[0]; print(x.shape, y)" \
-Eine erwartete Ausgabe ist: \
-torch.Size([8, 3, 224, 224]) tensor(...) \
+Zum Testen, ob das Dataset korrekt geladen wird, kann folgender Befehl verwendet werden:
+```
+python -c "from src.data import YawDDDataset; ds=YawDDDataset('train', num_frames=8, train=False); x,y=ds[0]; print(x.shape, y)"
+```
+Eine erwartete Ausgabe ist:
+```
+torch.Size([8, 3, 224, 224]) tensor(...)
+```
 Damit ist geprüft, dass ein Video geladen, vorverarbeitet und als Tensor zurückgegeben wird.
 
 ## 7. Training
 ### 7.1 Trainingsaufruf
-Ein kurzer technischer Testlauf kann mit folgendem Befehl gestartet werden: \
-python main.py --num_frames 8 --epochs 1 --n_trials 1 --n_splits_cv 3 \
-Ein vollständigerer Trainingslauf kann beispielsweise so gestartet werden: \
-python main.py --num_frames 32 --epochs 20 --n_trials 10 --n_splits_cv 5 \
-Eine gründlichere Hyperparametersuche kann beispielsweise so aussehen: \
+Ein kurzer technischer Testlauf kann mit folgendem Befehl gestartet werden:
+```
+python main.py --num_frames 8 --epochs 1 --n_trials 1 --n_splits_cv 3
+```
+Ein vollständigerer Trainingslauf kann beispielsweise so gestartet werden:
+```
+python main.py --num_frames 32 --epochs 20 --n_trials 10 --n_splits_cv 5
+```
+Eine gründlichere Hyperparametersuche kann beispielsweise so aussehen:
+```
 python main.py --num_frames 32 --epochs 25 --n_trials 20 --n_splits_cv 5
+```
 
 ### 7.2 Hyperparameter
 Folgende Hyperparameter werden mit Optuna optimiert:
@@ -347,8 +383,10 @@ Dieser Checkpoint enthält:
 ## 8. Evaluation
 ### 8.1 Evaluationsablauf
 Nach dem finalen Training wird das Modell auf dem unabhängigen Testsplit evaluiert. Dieser Testsplit wurde während der Hyperparameteroptimierung und während des finalen Trainings nicht verwendet.
-Alternativ kann die Evaluation separat mit dem Tester gestartet werden: \
-python Tester.py \
+Alternativ kann die Evaluation separat mit dem Tester gestartet werden:
+```
+python Tester.py
+```
 Der Tester lädt automatisch: \
 best_model_final.pt \
 und verwendet die im Checkpoint gespeicherten Werte für: 
@@ -398,8 +436,10 @@ Für Logging und Visualisierung wird TensorBoard verwendet. Während des Trainin
 | LearningRate      | aktuelle Lernrate                             |
 | test/F1           | F1-Score auf Testdaten                        |
 
-TensorBoard kann mit folgendem Befehl gestartet werden: \
-tensorboard --logdir runs \
+TensorBoard kann mit folgendem Befehl gestartet werden:
+```
+tensorboard --logdir runs
+```
 Anschließend kann die Oberfläche im Browser geöffnet werden: \
 http://localhost:6006
 
@@ -423,7 +463,7 @@ Der zweite Lauf erzielte die besten Ergebnisse und wird daher als finales Modell
 | Finaler Test-Precision    | 0.800                                             | 1.000                         |
 | Laufzeit                  | ca. 8 h 54 min für Hyperparameteroptimierung/CV   | 38 h 42 min 29 s gesamt       |
 
-Obwohl der finale Lauf auf einer deutlich leistungsfähigeren GPU durchgeführt wurde, war die Gesamtlaufzeit höher. Dies liegt daran, dass der Lauf umfangreicher war und das finale Modell mit `freeze_backbone = 0` trainiert wurde. Dadurch wurden nicht nur der Klassifikationskopf und der letzte ResNet-Block, sondern der gesamte ResNet18-Backbone trainiert. Dies erhöht den Rechenaufwand deutlich. Des Weiteren wurde der Sourcecode für das Training auf CPU-basierten Systemen optimiert (num_workes=0), daher wurde nicht parallelisiert und die GPU nicht voll ausgelastet. Die GPU ermöglichte dennoch das Training eines umfangreicheren Modells mit vollständig trainierbarem Backbone und führte zu besseren Ergebnissen auf dem Testsplit.
+Obwohl der finale Lauf auf einer deutlich leistungsfähigeren GPU durchgeführt wurde, war die Gesamtlaufzeit höher. Dies liegt daran, dass der Lauf umfangreicher war und das finale Modell mit `freeze_backbone = 0` trainiert wurde. Dadurch wurden nicht nur der Klassifikationskopf und der letzte ResNet-Block, sondern der gesamte ResNet18-Backbone trainiert. Dies erhöht den Rechenaufwand deutlich. Da der Code ursprünglich für ein CPU-basiertes System mit `num_workers=0` ausgelegt war, wurde das Laden der Daten nicht parallelisiert. Dadurch konnte die GPU im finalen Lauf vermutlich nicht vollständig ausgelastet werden. Die GPU ermöglichte dennoch das Training eines umfangreicheren Modells mit vollständig trainierbarem Backbone und führte zu besseren Ergebnissen auf dem Testsplit.
 
 Die Laufzeit hängt insbesondere von folgenden Faktoren ab: 
 
@@ -434,7 +474,7 @@ Die Laufzeit hängt insbesondere von folgenden Faktoren ab:
 5.	Batchgröße. 
 6.	Verwendete Hardware. 
 
-Der finale Lauf lief über 10 Trials mit je 30 Epochen und 5 Folds, während der Vergleichslauf nur 5 Trials mit je 20 Epochen und 3 Folds verwendete.
+Der finale Lauf lief über 10 Trials mit maximal 30 Epochen und 5 Folds, während der Vergleichslauf nur 5 Trials mit maximal 20 Epochen und 3 Folds verwendete.
 
 Der zweite Trainingslauf erzielte sowohl in der Cross-Validation als auch auf dem finalen Testsplit bessere Ergebnisse. Besonders auffällig ist, dass das finale Modell im zweiten Lauf alle Testvideos korrekt klassifizierte.
 
@@ -442,7 +482,7 @@ Der zweite Trainingslauf erzielte sowohl in der Cross-Validation als auch auf de
 Die Hyperparameter wurden zunächst mithilfe von Optuna und gruppierter Cross-Validation auf dem kombinierten Split trainval bestimmt. Anschließend wurde mit dem besten gefundenen Parametersatz ein finales Modell auf dem gesamten trainval-Split trainiert. Der beste Cross-Validation-F1 des finalen Laufs betrug: \
 Best trial CV-F1: 0.9482 \
 Die besten Hyperparameter waren:
-| Hyperparamter     | Wert                      |
+| Hyperparameter     | Wert                      |
 |-------------------|---------------------------|
 | batch_size        | 8                         |
 | freeze_backbone   | 0                         |
@@ -483,6 +523,8 @@ Abbildung 2: Verlauf des Train Loss während des finalen Trainings
 
 ![Verlauf des Train F1](/pictures/F1_Final_Train.png) 
 Abbildung 3: Verlauf des F1-Scores während des finalen Trainings
+
+Die Abbildungen zeigen, dass der Trainingsloss im Verlauf sinkt und die Trainingsmetriken ansteigen. Dies bestätigt, dass der Trainingscode das Modell erfolgreich optimiert.
 
 
 Das finale Modell wurde erfolgreich gespeichert unter: \
@@ -557,7 +599,7 @@ Da das finale Modell den gesamten Backbone trainiert hat und der Trainingslauf u
 
 Daher kann nicht ausgeschlossen werden, dass das Modell neben tatsächlichen Gähnmerkmalen auch datensatzspezifische Muster nutzt. Dies wird nicht als direkter Datenleckage-Fehler bewertet, zeigt aber die Notwendigkeit einer zusätzlichen externen Validierung.
 
-### 11.4 Auswendiglernen und Overfittig
+### 11.4 Auswendiglernen und Overfitting
 Der Begriff „Auswendiglernen“ beschreibt im Kontext neuronaler Netze, dass ein Modell nicht nur allgemeine Merkmale einer Klasse lernt, sondern sich stark an konkrete Eigenschaften der Trainingsdaten anpasst. Bei Videodaten können solche Eigenschaften beispielsweise sein:
 
 - konstante Kamerapositionen,
@@ -640,10 +682,14 @@ die geloggten Werte des Tags: \
 val/F1 \
 aus. Für jeden Fold wird der beste erreichte Validation-F1 bestimmt. Anschließend werden der Mittelwert und die Standardabweichung über alle Folds eines Trials berechnet.
 Dadurch lässt sich nachträglich bestimmen, welcher Optuna-Trial den besten mittleren Validation-F1 erreicht hat.
-Beispielaufruf bei 5 Cross-Validation-Folds: \
-python summarize_trials.py --expected_folds 5 \
-Beispielaufruf bei 3 Cross-Validation-Folds: \
-python summarize_trials.py --expected_folds 3 \
+Beispielaufruf bei 5 Cross-Validation-Folds:
+```
+python summarize_trials.py --expected_folds 5
+```
+Beispielaufruf bei 3 Cross-Validation-Folds:
+```
+python summarize_trials.py --expected_folds 3
+```
 Die Ausgabe enthält unter anderem: \
 Trial 0 \
 Fold 0: best val/F1 = ... \
@@ -666,8 +712,10 @@ Dabei werden train und val gemeinsam verwendet. Anschließend wird das resultier
 best_model_final.pt \
 Zusätzlich wird das Modell direkt auf dem unabhängigen Testsplit evaluiert. \
 Das Skript verwendet keine erneute Hyperparameteroptimierung, sondern trainiert ausschließlich mit manuell übergebenen Hyperparametern. \
-Der in diesem Projekt verwendete Aufruf lautete: \
-python final_train_only.py --num_frames 32 --epochs 20 --batch_size 8 --freeze_backbone 1 --lr 0.00012836 --dropout 0.6 --threshold 0.31585 --cv_best_f1 0.9349 \
+Der in diesem Projekt für den Vergleichslauf verwendete Aufruf lautete:
+```
+python final_train_only.py --num_frames 32 --epochs 20 --batch_size 8 --freeze_backbone 1 --lr 0.00012836 --dropout 0.6 --threshold 0.31585 --cv_best_f1 0.9349
+```
 Das Skript erzeugt nach erfolgreichem Training folgende Datei: \
 best_model_final.pt \
 Dieser Checkpoint enthält neben den Modellgewichten auch die wichtigsten Hyperparameter.
@@ -693,5 +741,5 @@ Abbildung 6: Verlauf der Accuracy während des finalen Trainings.
 ![Precision finales Training](/pictures/Precision_Final_Train.png) 
 Abbildung 7: Verlauf der Precision während des finalen Trainings.
 
-![Racall finales Training](/pictures/Recall_Final_Train.png) 
+![Recall finales Training](/pictures/Recall_Final_Train.png) 
 Abbildung 8: Verlauf des Recalls während des finalen Trainings.
