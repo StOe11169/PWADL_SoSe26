@@ -2,21 +2,22 @@
 In dieser Projektarbeit wird ein Deep-Learning-Modell zur automatischen Erkennung von Gähnen in Fahrervideos entwickelt. Gähnen wird dabei als mögliches visuelles Merkmal für Müdigkeit am Steuer betrachtet. Als Datengrundlage wird der YawDD-Datensatz verwendet, der durch eigene Videos im gleichen Format ergänzt wurde. Das Modell klassifiziert Videosequenzen binär in die Klassen yawning und non-yawning.
 Die entwickelte Pipeline umfasst das Einlesen von Videodaten aus einem Sammelordner, die reproduzierbare Aufteilung aller Daten in Trainings-, Validierungs- und Testdaten, eine framebasierte Vorverarbeitung, ein neuronales Netz mit ResNet18-Backbone und temporaler Attention sowie Training, Hyperparameteroptimierung, Logging und Evaluation. Die finale Bewertung erfolgt auf einem unabhängigen Testsplit.
 
-## 1.Problembeschreibung
+## 1. Problembeschreibung
 ### 1.1 Motivation
 Müdigkeit am Steuer stellt ein sicherheitsrelevantes Risiko dar, da sie die Reaktionsfähigkeit und Aufmerksamkeit der fahrenden Person beeinträchtigen kann. Viele Automobilhersteller entwickeln daher seit Jahren eigene Systeme, um Müdigkeit und Erschöpfung zu erkennen. Ein mögliches visuelles Anzeichen für Müdigkeit ist Gähnen. Ziel dieses Projekts ist es daher, ein Modell zu entwickeln, das anhand kurzer Videosequenzen erkennt, ob eine Person gähnt oder nicht. Dazu wird die Aufgabe als binäres Klassifikationsproblem umgesetzt. Für jede Videosequenz wird vorhergesagt, ob sie zur Klasse yawning oder zur Klasse non-yawning gehört.
 
 ### 1.2 Zielsetzung
-Ziel der Arbeit ist die Entwicklung und Evaluation einer Deep-Learning-Pipeline zur Gähn-Erkennung in Fahrervideos. Die Pipeline soll folgende Anforderungen erfüllen:\
-    1. Einlesen aller Videodaten aus einem gemeinsamen Datenordner. \
-    2. Automatische Erzeugung und Nutzung einer reproduzierbaren Split-Datei. \
-    3. Gruppierte Aufteilung nach Personen- / Video-ID, um Datenleckage zu reduzieren. \
-    4. Extraktion einer festen Anzahl gleichmäßig verteilter Frames pro Video. \
-    5. Training eines geeigneten Modells für Videodaten. \
-    6. Hyperparameteroptimierung mittels Optuna. \
-    7. Evaluation auf einem unabhängigen Testsplit. \
-    8. Logging von Trainings- und Evaluationsmetriken mit TensorBoard. \
-    9. Speichern und erneutes Laden des finalen Modells.
+Ziel der Arbeit ist die Entwicklung und Evaluation einer Deep-Learning-Pipeline zur Gähn-Erkennung in Fahrervideos. Die Pipeline soll folgende Anforderungen erfüllen:
+
+1. Einlesen aller Videodaten aus einem gemeinsamen Datenordner. 
+2. Automatische Erzeugung und Nutzung einer reproduzierbaren Split-Datei. 
+3. Gruppierte Aufteilung nach Personen- / Video-ID, um Datenleckage zu reduzieren. 
+4. Extraktion einer festen Anzahl gleichmäßig verteilter Frames pro Video. 
+5. Training eines geeigneten Modells für Videodaten. 
+6. Hyperparameteroptimierung mittels Optuna. 
+7. Evaluation auf einem unabhängigen Testsplit. 
+8. Logging von Trainings- und Evaluationsmetriken mit TensorBoard. 
+9. Speichern und erneutes Laden des finalen Modells.
 
 ### 1.3 Formale Problemdefinition
 Ein aus einem Video extrahierter Clip wird als Sequenz von Frames beschrieben: \
@@ -36,10 +37,12 @@ Der Schwellwert τ wird im Rahmen der Hyperparameteroptimierung bestimmt.
 
 ## 2. Modellarchitektur
 ### 2.1 Überblick
-Das verwendete Modell besteht aus drei Hauptkomponenten: \
-    1.	ResNet18-Backbone zur Feature-Extraktion pro Frame.\
-    2.	Temporaler Attention-Mechanismus zur Gewichtung relevanter Frames. \
-    3.	Fully-Connected-Klassifikationskopf zur binären Klassifikation. \
+Das verwendete Modell besteht aus drei Hauptkomponenten:
+
+1.	ResNet18-Backbone zur Feature-Extraktion pro Frame.
+2.	Temporaler Attention-Mechanismus zur Gewichtung relevanter Frames. 
+3.	Fully-Connected-Klassifikationskopf zur binären Klassifikation. 
+
 Die Eingabe des Modells besitzt die Form: \
 (B, T, C, H, W) \
 Dabei gilt: 
@@ -114,8 +117,12 @@ Damit wird die Lernrate reduziert, wenn der F1-Score auf den Validierungsdaten s
 Abbildung 1: Verlauf der Lernraten im Training über verschiedene Trials und Folds
 
 ### 3.4 Gradient Clipping
-Nach der Backpropagation wird Gradient Clipping verwendet: \
-torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) \
+Nach der Backpropagation wird Gradient Clipping verwendet:
+```
+
+torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
+```
 Dadurch werden sehr große Gradienten begrenzt. Dies kann das Training stabilisieren und insbesondere bei kleinen Batchgrößen oder komplexeren Modellteilen wie Attention hilfreich sein.
 
 ## 4. Datensatz
@@ -193,22 +200,26 @@ Aus jedem Video wird eine feste Anzahl T gleichmäßig verteilter Frames extrahi
 Die Frames werden mit torchcodec aus den Videodateien geladen.
 
 ### 5.2 Vorverarbeitung für Training
-Für Trainingsdaten werden folgende Schritte angewendet: \
-    1.	Resize auf 256 × 341. \
-    2.	Zufälliger horizontaler Flip. \
-    3.	Zufällige Rotation im Bereich von ungefähr ±10 Grad. \
-    4.	Color-Jitter für Helligkeit, Kontrast, Sättigung und Farbton. \
-    5.	Center-Crop auf 224 × 224. \
-    6.	Konvertierung in Tensoren. \
-    7.	Normalisierung mit ImageNet-Mittelwerten und Standardabweichungen. \
+Für Trainingsdaten werden folgende Schritte angewendet: 
+
+1.	Resize auf 256 × 341. 
+2.	Zufälliger horizontaler Flip. 
+3.	Zufällige Rotation im Bereich von ungefähr ±10 Grad. 
+4.	Color-Jitter für Helligkeit, Kontrast, Sättigung und Farbton. 
+5.	Center-Crop auf 224 × 224. 
+6.	Konvertierung in Tensoren. 
+7.	Normalisierung mit ImageNet-Mittelwerten und Standardabweichungen. 
+
 Die zufälligen Augmentationen werden identisch auf alle Frames eines Clips angewendet. Dadurch entstehen keine künstlichen Sprünge zwischen aufeinanderfolgenden Frames.
 
 ### 5.3 Vorverarbeitung für Validierung und Test
-Für Validierungs- und Testdaten werden keine zufälligen Augmentationen verwendet. Die Schritte lauten: \
-    1.	Resize auf 256 × 341. \
-    2.	Center-Crop auf 224 × 224. \
-    3.	Konvertierung in Tensoren. \
-    4.	Normalisierung mit ImageNet-Mittelwerten und Standardabweichungen. \
+Für Validierungs- und Testdaten werden keine zufälligen Augmentationen verwendet. Die Schritte lauten: 
+
+1.	Resize auf 256 × 341. 
+2.	Center-Crop auf 224 × 224. 
+3.	Konvertierung in Tensoren. 
+4.	Normalisierung mit ImageNet-Mittelwerten und Standardabweichungen. 
+
 Die verwendeten Normalisierungswerte sind:
 | Kanal | Mittelwert | Standardabweichung |
 |-------|------------|--------------------|
@@ -216,7 +227,7 @@ Die verwendeten Normalisierungswerte sind:
 | G	    | 0.456	     | 0.224              |
 | B	    | 0.406	     | 0.225              |
 
-### 6. Implementierung
+## 6. Implementierung
 6.1 Code-Struktur
 Die wichtigsten Dateien des Projekts sind:
 | Datei             | Aufgabe                                                                                   |
@@ -336,11 +347,11 @@ Alternativ kann die Evaluation separat mit dem Tester gestartet werden: \
 python Tester.py \
 Der Tester lädt automatisch: \
 best_model_final.pt \
-und verwendet die im Checkpoint gespeicherten Werte für: \
-    1.	Dropout \
-    2.	Threshold \
-    3.	Anzahl Frames \
-    4.	Batchgröße 
+und verwendet die im Checkpoint gespeicherten Werte für: 
+1.	Dropout 
+2.	Threshold 
+3.	Anzahl Frames 
+4.	Batchgröße 
 
 ### 8.2 Metriken
 Für die Evaluation werden folgende Metriken verwendet:
@@ -360,10 +371,10 @@ Precision = TP / (TP + FP) \
 Recall = TP / (TP + FN) \
 F1-Score = 2 · (Precision · Recall) / (Precision + Recall) \
 Confusion Matrix:
-| Ground Truth          | Vorhersage non-yawning    | Vorhersage yawning    |
-|-----------------------|---------------------------|-----------------------|
-Tatsächlich non-yawning	| TN                        | FP                    |
-Tatsächlich yawning     | FN                        | TP                    |
+| Ground Truth              | Vorhersage non-yawning    | Vorhersage yawning    |
+|---------------------------|--------------------------:|----------------------:|
+| Tatsächlich non-yawning	| TN                        | FP                    |
+| Tatsächlich yawning       | FN                        | TP                    |
 
 In der Konsolenausgabe wird die Confusion Matrix in folgender Form dargestellt: \
     [[TN FP] \
@@ -410,13 +421,14 @@ Der zweite Lauf erzielte die besten Ergebnisse und wird daher als finales Modell
 
 Obwohl der finale Lauf auf einer deutlich leistungsfähigeren GPU durchgeführt wurde, war die Gesamtlaufzeit höher. Dies liegt daran, dass der Lauf umfangreicher war und das finale Modell mit `freeze_backbone = 0` trainiert wurde. Dadurch wurden nicht nur der Klassifikationskopf und der letzte ResNet-Block, sondern der gesamte ResNet18-Backbone trainiert. Dies erhöht den Rechenaufwand deutlich. Des Weiteren wurde der Sourcecode für das Training auf CPU-basierten Systemen optimiert (num_workes=0), daher wurde nicht parallelisiert und die GPU nicht voll ausgelastet. Die GPU ermöglichte dennoch das Training eines umfangreicheren Modells mit vollständig trainierbarem Backbone und führte zu besseren Ergebnissen auf dem Testsplit.
 
-Die Laufzeit hängt insbesondere von folgenden Faktoren ab: \
-    1.	Anzahl der Frames pro Video. \
-    2.	Anzahl der Epochen. \
-    3.	Anzahl der Optuna-Trials. \
-    4.	Anzahl der Cross-Validation-Folds. \
-    5.	Batchgröße. \
-    6.	Verwendete Hardware. 
+Die Laufzeit hängt insbesondere von folgenden Faktoren ab: 
+
+1.	Anzahl der Frames pro Video. 
+2.	Anzahl der Epochen. 
+3.	Anzahl der Optuna-Trials. 
+4.	Anzahl der Cross-Validation-Folds. 
+5.	Batchgröße. 
+6.	Verwendete Hardware. 
 
 Der finale Lauf lief über 10 Trials mit je 30 Epochen und 5 Folds, während der Vergleichslauf nur 5 Trials mit je 20 Epochen und 3 Folds verwendete.
 
@@ -483,6 +495,7 @@ Die Klassenverteilung im Testsplit war:
 
 Die finale Evaluation ergab folgende Metriken:
 | Metrik	    | Vergleichslauf    | Finaler Lauf  |
+|---------------|------------------:|--------------:|
 | Accuracy	    | 0.908             | 1.000         |          
 | Precision	    | 0.800             | 1.000         |
 | Recall	    | 1.000             | 1.000         |
@@ -561,38 +574,41 @@ Des Weiteren wurden alle verwendeten Videos aus Sicherheitsgründen in stillsteh
 
 ### 11.6 Grenzen des Modells
 Die wichtigsten Grenzen des aktuellen Ansatzes sind:
-    1.	Der Datensatz ist vergleichsweise klein.
-    2.	Das Modell verwendet vollständige Frames und keine explizite Gesichtserkennung.
-    3.	Die Mundregion wird nicht separat lokalisiert.
-    4.	Die Augmentationen sind relativ einfach.
-    5.	Der Attention-Mechanismus betrachtet nur die zeitliche Relevanz, aber nicht direkt die räumlichen Bildbereiche.
-    6.	Das Modell betrachtet nur Gähnen und keine weiteren Müdigkeitsmerkmale wie Blinzeln, Blickrichtung oder Kopfnicken.
-    7.  Eine externe Validierung auf vollständig neuen Aufnahmebedingungen wurde bisher nicht durchgeführt.
+
+1.	Der Datensatz ist vergleichsweise klein.
+2.	Das Modell verwendet vollständige Frames und keine explizite Gesichtserkennung.
+3.	Die Mundregion wird nicht separat lokalisiert.
+4.	Die Augmentationen sind relativ einfach.
+5.	Der Attention-Mechanismus betrachtet nur die zeitliche Relevanz, aber nicht direkt die räumlichen Bildbereiche.
+6.	Das Modell betrachtet nur Gähnen und keine weiteren Müdigkeitsmerkmale wie Blinzeln, Blickrichtung oder Kopfnicken.
+7.  Eine externe Validierung auf vollständig neuen Aufnahmebedingungen wurde bisher nicht durchgeführt.
 
 ### 11.7 Mögliche Erweiterungen
 Mögliche Erweiterungen für zukünftige Arbeiten sind:
-    1.	Gesichtserkennung und Cropping auf die Gesichtsregion.
-    2.	Separater Fokus auf die Mundregion.
-    3.	Integration weiterer Müdigkeitsmerkmale.
-    4.	Multimodaler Ansatz mit Audiointegration
-    5.	Vergleich mit LSTM-, GRU- oder Transformer-Modellen.
-    6.	Vergleich mit 3D-CNNs.
-    7.	Visualisierung der Attention-Gewichte über die Zeit.
-    8.	Grad-CAM zur räumlichen Interpretierbarkeit.
-    9.	Systematische Threshold-Analyse.
-    10.	Erweiterung des Datensatzes um mehr eigene Videos.
-    11.	Evaluation auf vollständig neuen Probanden.
-    12. Test auf realistischeren Fahrsituationen mit variierenden Straßen-, Licht- und Kamerabedingungen.
+
+1.	Gesichtserkennung und Cropping auf die Gesichtsregion.
+2.	Separater Fokus auf die Mundregion.
+3.	Integration weiterer Müdigkeitsmerkmale.
+4.	Multimodaler Ansatz mit Audiointegration
+5.	Vergleich mit LSTM-, GRU- oder Transformer-Modellen.
+6.	Vergleich mit 3D-CNNs.
+7.	Visualisierung der Attention-Gewichte über die Zeit.
+8.	Grad-CAM zur räumlichen Interpretierbarkeit.
+9.	Systematische Threshold-Analyse.
+10.	Erweiterung des Datensatzes um mehr eigene Videos.
+11.	Evaluation auf vollständig neuen Probanden.
+12. Test auf realistischeren Fahrsituationen mit variierenden Straßen-, Licht- und Kamerabedingungen.
 
 ## 12. Vergleich mit anderen Ansätzen
-Ein direkter Vergleich mit anderen Modellen wurde bisher noch nicht durchgeführt. Mögliche Vergleichsmodelle wären: \
-    1.	ResNet18 mit Mittelwertbildung über alle Frame-Features. \
-    2.	ResNet18 mit Max-Pooling über die Zeit. \
-    3.	ResNet18-Features mit LSTM. \
-    4.	ResNet18-Features mit GRU. \
-    5.	3D-CNN. \
-    6.	Video Transformer. \
-    7.	Klassische Verfahren mit Mundregionserkennung und geometrischen Merkmalen. \
+Ein direkter Vergleich mit anderen Modellen wurde bisher noch nicht durchgeführt. Mögliche Vergleichsmodelle wären: 
+
+1.	ResNet18 mit Mittelwertbildung über alle Frame-Features. 
+2.	ResNet18 mit Max-Pooling über die Zeit. 
+3.	ResNet18-Features mit LSTM. 
+4.	ResNet18-Features mit GRU. 
+5.	3D-CNN. 
+6.	Video Transformer. 
+7.	Klassische Verfahren mit Mundregionserkennung und geometrischen Merkmalen. 
 Ein besonders naheliegender Vergleich wäre ein Modell mit einfacher Mittelwertbildung über alle Frame-Features. Dadurch könnte untersucht werden, ob der Attention-Mechanismus gegenüber einfachem Average Pooling einen messbaren Vorteil bringt.
 
 ## 13. Reproduzierbarkeit
@@ -637,7 +653,7 @@ cv_std_val_f1 : ... \
 Dieses Skript ist besonders nützlich, wenn ein langer Trainingslauf abgebrochen wurde, bevor main.py das finale Modell speichern konnte, aber bereits TensorBoard-Logs der Cross-Validation vorhanden sind.
 
 
-## 17. Hilfsskript final_train_only.py
+## 16. Hilfsskript final_train_only.py
 Das Skript final_train_only.py dient dazu, das finale Training separat nachzuholen. Es wird verwendet, wenn die Hyperparameter bereits bekannt sind, aber das finale Modell best_model_final.pt noch nicht erzeugt wurde. 
 Dies kann zum Beispiel passieren, wenn ein langer Lauf von main.py während oder nach der Cross-Validation abgebrochen wurde. In diesem Fall existieren häufig bereits Fold-Checkpoints und TensorBoard-Logs, aber noch kein finaler Checkpoint.
 Das Skript trainiert ein neues Modell mit den angegebenen Hyperparametern auf dem gesamten Split: \
@@ -654,19 +670,19 @@ Dieser Checkpoint enthält neben den Modellgewichten auch die wichtigsten Hyperp
 
 
 
-## 18. Quellen
+## 17. Quellen
 
-    1.	YawDD: Yawning Detection Dataset. YawDD: Yawning Detection Dataset | IEEE DataPort
-    2.	He, K., Zhang, X., Ren, S., Sun, J.: Deep Residual Learning for Image Recognition. IEEE Conference on Computer Vision and Pattern Recognition, 2016.
-    3.	PyTorch Documentation: https://pytorch.org/docs/stable/index.html
-    4.	Torchvision Documentation: https://pytorch.org/vision/stable/index.html
-    5.	Optuna Documentation: https://optuna.readthedocs.io/
-    6.	TensorBoard Documentation: https://www.tensorflow.org/tensorboard
-    7.	scikit-learn Documentation: https://scikit-learn.org/stable/
-    8.  Confusion Matrix Generator: https://www.damianoperri.it/public/confusionMatrix/index.php
+1.	YawDD: Yawning Detection Dataset. YawDD: Yawning Detection Dataset | IEEE DataPort
+2.	He, K., Zhang, X., Ren, S., Sun, J.: Deep Residual Learning for Image Recognition. IEEE Conference on Computer Vision and Pattern Recognition, 2016.
+3.	PyTorch Documentation: https://pytorch.org/docs/stable/index.html
+4.	Torchvision Documentation: https://pytorch.org/vision/stable/index.html
+5.	Optuna Documentation: https://optuna.readthedocs.io/
+6.	TensorBoard Documentation: https://www.tensorflow.org/tensorboard
+7.	scikit-learn Documentation: https://scikit-learn.org/stable/
+8.  Confusion Matrix Generator: https://www.damianoperri.it/public/confusionMatrix/index.php
 
 
-## Anhang
+## 18. Anhang
 ![Accuracy finales Training](/pictures/Accuracy_Final_Train.png) 
 Abbildung 6: Verlauf der Accuracy während des finalen Trainings.
 
