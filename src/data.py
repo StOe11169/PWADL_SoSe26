@@ -14,7 +14,7 @@ def get_all_data_paths(root="data"):
     """
     Scan dataset directory and returns a DataFrame with
     filepath,id, info_labels, activity, yawning binary label
-    
+    labels and subject groups come from filenames
     Assumes filenames follow pattern:
         <id>-<info>-<activity>.mp4
     e.g:
@@ -44,7 +44,7 @@ def get_all_data_paths(root="data"):
     df['activity'] = df['activity'].astype(str) #convert to string
     # Create binary label: 1.0 if 'yawning' appears in activity 
     # pd.notna + str() to safely handle missing or non-string values
-    df['yawning'] = df['activity'].apply(lambda x: 1.0 if pd.notna(x) and 'yawning' in str(x).lower() else 0.0)
+    df['yawning'] = df['activity'].apply(lambda x: 1.0 if pd.notna(x) and 'yawning' in str(x).lower() else 0.0) #keep Talking&Yawning in the positive class
 
 
     # Optional: ensure consistent ordering (for reproducibility)
@@ -159,16 +159,47 @@ def create_group_splits(df, output_dir, file_col = 'filepath', test_size = 0.15,
     return train_df, val_df, test_df
 
 def load_images_from_path(file_path, num_frames): #get fixed number of frames from a video
+    try:
     # Convert video into singular frames
-    decoder = VideoDecoder(file_path) 
+        decoder = VideoDecoder(file_path) 
 
-    # Select frames from linearly spaced indices across the whole video/frame sequence, returns 1D tensor, long just for memory
-    indices = torch.linspace(0, decoder.metadata.num_frames - 1, num_frames).long()
+        # Select frames from linearly spaced indices across the whole video/frame sequence, returns 1D tensor, long just for memory
+        indices = torch.linspace(0, decoder.metadata.num_frames - 1, num_frames).long()
 
-    #Return only selected raw images frames
-    return decoder.get_frames_at(indices=list(indices)).data
+        #Return only selected raw images frames
+        return decoder.get_frames_at(indices=list(indices)).data
+    
+    except Exception as exc:
+        raise RuntimeError(f"Failed to seek or decode video: {file_path}") from exc
 
+def validate_video_decoding(df, num_frames=2):
+    """
+    Check first & last sampled positions of every video before training
+    two enough to test basic random-access 
+    """
+    failed = []
 
+    for index, filepath in enumerate(df["filepath"], start=1):
+        try:
+            load_images_from_path(filepath, num_frames=num_frames)
+        except Exception as exc:
+            failed.append((filepath, str(exc)))
+            print(f"[INVALID VIDEO] {filepath}")
+
+        if index % 50 == 0:
+            print(f"Validated {index}/{len(df)} videos")
+
+    if failed:
+        failed_paths = "\n".join(
+            f"- {filepath}: {error}"
+            for filepath, error in failed
+        )
+
+        raise RuntimeError(
+            f"{len(failed)} videos failed decoding:\n{failed_paths}"
+        )
+
+    print(f"[OK] All {len(df)} videos support random-access decoding.")
 
 #--------------------------------------------------------------------------------------------#
 

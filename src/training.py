@@ -34,7 +34,7 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
 
 
     # objective function is binary cross entropy loss with logits 
-    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight, device=device) #missclafiying yawns is pos_weight as costly 
+    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight) #missclafiying yawns is pos_weight as costly 
     
 
     #Removed as freezing backbone lead to terrible results early on, keeping comments as note
