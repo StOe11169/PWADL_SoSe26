@@ -12,6 +12,15 @@ from torchvision import transforms
 
 
 def get_image_paths(split):
+    """
+    Retrieves file paths and generates labels for a specific dataset split.
+
+    Args:
+        split (str): The dataset split directory to read from (e.g., 'train', 'val', 'test').
+
+    Returns:
+        pd.DataFrame: DataFrame containing IDs, info labels, activity, file paths, and the binary 'yawning' label.
+    """
     file_paths = []
     file_names = []
     folder_path = os.path.join("data", split)
@@ -28,45 +37,77 @@ def get_image_paths(split):
     return df
 
 def load_images_from_path(file_path, num_frames):
+    """
+    Extracts a fixed number of evenly spaced frames from a video file.
+
+    Args:
+        file_path (str): The path to the video file.
+        num_frames (int): The exact number of frames to extract.
+
+    Returns:
+        list: A list of RGB frames as numpy arrays.
+    """
     # Open Video with OpenCV
     cap = cv2.VideoCapture(file_path)
     if not cap.isOpened():
         raise IOError(f"Konnte Video nicht öffnen: {file_path}")
         
-    # Read Frames
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
-    # Calculate indices
+    # Calculate target indices and use them as a sorted queue
     indices = torch.linspace(0, total_frames - 1, num_frames).long().tolist()
+    indices_queue = sorted(indices)
     
     frames = []
+    current_frame = 0
     
-    for idx in indices:
-        # Jump to Frame
-        cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+    # Read frames sequentially
+    while True:
         ret, frame = cap.read()
         
-        if ret:
+        # Break if the video ends or all required frames have been found
+        if not ret or not indices_queue:
+            break
+            
+        if current_frame == indices_queue[0]:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frames.append(frame)
-        else:
-            # Fallback
-            if len(frames) > 0:
-                frames.append(frames[-1]) # Duplicate last successful frame
-            else:
-                # Empty Frame, if first is failing
-                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)) or 224
-                width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)) or 224
-                import numpy as np
-                frames.append(np.zeros((height, width, 3), dtype=np.uint8))
+            indices_queue.pop(0)
+            
+            # Handle edge cases where torch.linspace generates duplicate indices due to rounding
+            while indices_queue and current_frame == indices_queue[0]:
+                frames.append(frame)
+                indices_queue.pop(0)
+                
+        current_frame += 1
 
     cap.release()
+    
+    # Fallback padding if the video ends unexpectedly early
+    while len(frames) < num_frames:
+        if len(frames) > 0:
+            frames.append(frames[-1])
+        else:
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)) or 224
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)) or 224
+            import numpy as np
+            frames.append(np.zeros((height, width, 3), dtype=np.uint8))
+
     return frames
 
 def split_data(df, test_size=0.15, val_size=0.15, random_state=42):
     """
     Splits data based on subject IDs to prevent data leakage.
     Ensures the same person never appears in different splits.
+
+    Args:
+        df (pd.DataFrame): The full dataset metadata.
+        test_size (float): Proportion of the dataset to include in the test split.
+        val_size (float): Proportion of the dataset to include in the validation split.
+        random_state (int): Seed for reproducibility.
+
+    Returns:
+        tuple: (train_df, val_df, test_df) containing the respective splits.
     """
     # Create a unique subject group column (e.g., "1-Female" or "1-Male")
     df['subject_group'] = df.apply(lambda r: f"{r['id']}-{'Female' if 'Female' in r['info_labels'] else 'Male'}", axis=1)
@@ -92,6 +133,12 @@ def prepare_and_split_data(raw_folder_path="data/raw", output_base_path="data", 
     """
     Scans the raw data folder, sub-samples the dataset based on data_fraction (0.0 to 1.0) using a subject-grouped split,
     clears any old split directories, applies the train/val/test split, and copies the video files.
+
+    Args:
+        raw_folder_path (str): Directory containing the raw video files.
+        output_base_path (str): Target directory for the split subfolders.
+        data_fraction (float): Percentage of the dataset to utilize (0.0 to 1.0).
+        random_state (int): Seed for reproducibility.
     """
     file_paths = []
     file_names = []
@@ -163,6 +210,9 @@ def check_data_leakage(data_dir="data"):
     """
     Checks the train/val/test directories for data leakage (subject overlaps).
     Extracts file names and determines the unique subject ID (ID + Gender).
+
+    Args:
+        data_dir (str): Base directory containing the 'train', 'val', and 'test' subfolders.
     """
 
     print("\nChecking for data leakage between train, val, and test splits...")
@@ -223,18 +273,28 @@ def check_data_leakage(data_dir="data"):
                 print("Invalid input. Please enter 'y' or 'n'.")
 
 class CustomDataset(Dataset):
-    def __init__(self, split_type, num_frames): # is called only once
+    """
+    PyTorch Dataset class for loading and transforming video frames.
+    """
+    def __init__(self, split_type, num_frames):
+        """
+        Initializes the dataset object. Executed only once during instantiation.
+
+        Args:
+            split_type (str): The dataset split (e.g., 'train', 'val', 'test').
+            num_frames (int): Number of frames to extract per video.
+        """
         df_image_paths = get_image_paths(split_type)
 
         self.image_paths = df_image_paths['filepath'].tolist() # data_paths for efficient data handling with large datasets
         self.labels = df_image_paths['yawning'].tolist()
 
-        # transforms
+        # Image transformations
         self.transform = transforms.Compose([
              transforms.ToPILImage(), 
-             transforms.Resize((256, 341)),            # resize
+             transforms.Resize((256, 341)),     # resize
              transforms.CenterCrop(224),        # crop
-             transforms.ToTensor(),             # back to C×H×W tensor
+             transforms.ToTensor(),             # convert back to C×H×W tensor
              transforms.Normalize(
                   mean=[0.485, 0.456, 0.406],
                   std=[0.229, 0.224, 0.225]
@@ -245,14 +305,25 @@ class CustomDataset(Dataset):
 
 
     def __len__(self):
+        """Returns the total number of samples in the dataset."""
         return len(self.labels)
 
-    def __getitem__(self, idx): # is called multiple times during training and evaluation and should be written efficiently
-        # load one image sequence from path
-        image_sequence = load_images_from_path(self.image_paths[idx], num_frames=self.num_frames) #Possible error at num_frames
+    def __getitem__(self, idx):
+        """
+        Loads and returns a single transformed video sequence and its label.
+        Executed multiple times during training and evaluation; must be efficient.
+        
+        Args:
+            idx (int): Index of the data sample to retrieve.
+
+        Returns:
+            tuple: (torch.Tensor of shape T×C×H×W, torch.Tensor label)
+        """
+        # Load one image sequence from path
+        image_sequence = load_images_from_path(self.image_paths[idx], num_frames=self.num_frames)
         images = [self.transform(frame) for frame in image_sequence] 
 
-        # get corresponding label
+        # Get corresponding label
         label = self.labels[idx]
 
         return torch.stack(images), torch.tensor(label)

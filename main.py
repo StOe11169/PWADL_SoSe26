@@ -11,109 +11,119 @@ from src.data import CustomDataset, prepare_and_split_data, check_data_leakage
 from src.training import trainer, YawDDclassifier
 from src.evaluation import evaluate
 
+def objective(trial, trainset, valset, testset, args):
+    """
+    Optuna objective function for hyperparameter tuning.
 
-# Optional TODOs: 
-# * Hand more hyperparameters as arguments / add to optuna search space
-# * comparison with PWADL 2025: freeze/unfreeze backbone, two separate optimizers, lr scheduler
+    Args:
+        trial (optuna.Trial): A specific hyperparameter trial.
+        trainset (Dataset): The training dataset.
+        valset (Dataset): The validation dataset.
+        testset (Dataset): The independent test dataset.
+        args (argparse.Namespace): Parsed command-line arguments.
 
-def objective(trial,trainset,valset,testset,args):
+    Returns:
+        float: The best validation F1 score achieved in this trial.
+    """
+    trial_args = argparse.Namespace(**vars(args))
 
-    # training hyperparameters to tune
-    args.batch_size = trial.suggest_categorical("batch_size", [4, 8])
-    args.freeze_backbone = trial.suggest_categorical("freeze_backbone", [1, 0])
-    args.lr = trial.suggest_float("lr", 1e-5, 1e-3, log=True)
-    args.dropout = trial.suggest_float("dropout", 0.2, 0.6, step=0.1)
+    # Define training hyperparameters to tune
+    trial_args.batch_size = trial.suggest_categorical("batch_size", [4, 8])
+    trial_args.freeze_backbone = bool(trial.suggest_categorical("freeze_backbone", [1, 0]))
+    trial_args.lr = trial.suggest_float("lr", 1e-5, 1e-3, log=True)
+    trial_args.dropout = trial.suggest_float("dropout", 0.2, 0.6, step=0.1)
     print(f'=================================================================')
-    print(f' batch_size: {args.batch_size}, freeze_backbone: {args.freeze_backbone}, lr: {args.lr:0.5f}, dropout: {args.dropout:0.1f}')
+    print(f' batch_size: {trial_args.batch_size}, freeze_backbone: {trial_args.freeze_backbone}, lr: {trial_args.lr:0.5f}, dropout: {trial_args.dropout:0.1f}')
 
-    # get device
+    # Establish computation device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # dataloaders
-    trainloader = DataLoader(trainset, batch_size=args.batch_size, num_workers=4, shuffle=True, drop_last=True)
-    valloader = DataLoader(valset, batch_size=args.batch_size, num_workers=4, shuffle=False)
-    testloader = DataLoader(testset, batch_size=args.batch_size, num_workers=4, shuffle=False)
+    # Initialize dataloaders
+    trainloader = DataLoader(trainset, batch_size=trial_args.batch_size, num_workers=4, shuffle=True, drop_last=True)
+    valloader = DataLoader(valset, batch_size=trial_args.batch_size, num_workers=4, shuffle=False)
+    testloader = DataLoader(testset, batch_size=trial_args.batch_size, num_workers=4, shuffle=False)
 
-    # model
-    model = YawDDclassifier(args.dropout).to(device)
-    
+    # Initialize model
+    model = YawDDclassifier(trial_args.dropout).to(device)
+
     trial_params = {
-        "batch_size": args.batch_size,
-        "lr": args.lr,
-        "dropout": args.dropout,
-        "freeze_backbone": int(args.freeze_backbone)
+        "batch_size": trial_args.batch_size,
+        "lr": trial_args.lr,
+        "dropout": trial_args.dropout,
+        "freeze_backbone": int(trial_args.freeze_backbone)
     }
 
     log_dir = f"runs/trial_{trial.number}"
     writer = SummaryWriter(log_dir=log_dir)
 
-    # start training
-    f1_val, epoch = trainer(
-            trainloader=trainloader,
-            valloader=valloader,
-            model=model,
-            epochs=args.epochs,
-            lr=args.lr,
-            freeze_backbone = args.freeze_backbone,
-            device=device,
-            save_dir=f"models/trial_{trial.number}",
-            trial_params=trial_params,
-            tb_writer=writer,
-            patience=args.patience,
-            trial=trial
-            )
-    
-    # Decide if trial should be pruned
-    trial.report(f1_val, epoch)
-    if trial.should_prune():
-        raise optuna.TrialPruned()
-    
-    # test
-    test_metrics = evaluate(testloader, model, device)
-    print(f"=================================================================\nTest Acc: {test_metrics['accuracy']:.3f}")
+    try:
+        # Launch training loop
+        f1_val, epoch = trainer(
+                trainloader=trainloader,
+                valloader=valloader,
+                model=model,
+                epochs=trial_args.epochs,
+                lr=trial_args.lr,
+                freeze_backbone = trial_args.freeze_backbone,
+                device=device,
+                save_dir=f"models/trial_{trial.number}",
+                trial_params=trial_params,
+                tb_writer=writer,
+                patience=trial_args.patience,
+                trial=trial
+                )
+        
+        # Evaluate on test set
+        test_metrics = evaluate(testloader, model, device)
+        print(f"\nTest Acc: {test_metrics['accuracy']:.3f}")
+        print(f"Test F1: {test_metrics['f1']:.3f}")
 
-    hparams_dict = {
-        "batch_size": args.batch_size,
-        "lr": args.lr,
-        "dropout": args.dropout,
-        "freeze_backbone": int(args.freeze_backbone)
-    }
+        hparams_dict = {
+            "batch_size": trial_args.batch_size,
+            "lr": trial_args.lr,
+            "dropout": trial_args.dropout,
+            "freeze_backbone": int(trial_args.freeze_backbone)
+        }
+        
+        metrics_dict = {
+            "hparam/best_val_f1": f1_val,
+            "hparam/best_val_epoch": epoch,
+            "hparam/test_acc": test_metrics['accuracy'],
+            "hparam/test_f1": test_metrics['f1'],
+        }
+        
+        # Write hyperparameter metrics to TensorBoard log
+        writer.add_hparams(hparams_dict, metrics_dict, run_name=".")
+        return f1_val
     
-    metrics_dict = {
-        "hparam/best_val_f1": f1_val,
-        "hparam/best_val_epoch": epoch,
-        "hparam/test_acc": test_metrics['accuracy']
-    }
-    
-    # Write parameter result matching in the log
-    writer.add_hparams(hparams_dict, metrics_dict, run_name=".")
-    writer.close()
-    
-    # Clear GPU VRAM
-    del model
-    gc.collect()
-    torch.cuda.empty_cache()
-
-    return f1_val
-
+    finally:
+        # Close TensorBoard writer and free GPU memory even if pruned/exception occurs
+        try:
+            writer.close()
+        except Exception:
+            pass
+        del model
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
 if __name__ == "__main__":
-    # get start time
+    # Record start time
     start_timestamp = time.time()
 
     print("Cuda status: ")
     print(torch.cuda.is_available())
 
-    # set seed and precision
+    # Establish determinism (set seeds and precision)
     setup_env(seed=0)    
 
-    # get args 
+    # Parse command-line arguments 
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
     parser.add_argument("--num_frames", type=int, default=64)
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--n_trials", type=int, default=2)
-    parser.add_argument('--patience', type=int, default=5, help='Number of epochs to wait for improvement before early stopping.')
+    parser.add_argument('--patience', type=int, default=7, help='Number of epochs to wait for improvement before early stopping.')
     parser.add_argument("--prepare_data", action="store_true", help="Run data preparation and split raw files before training")
     parser.add_argument("--data_fraction", type=float, default=1.0, help="Fraction of the dataset to use (0.0 to 1.0)")
     args = parser.parse_args()
@@ -125,7 +135,7 @@ if __name__ == "__main__":
         prepare_and_split_data(data_fraction=args.data_fraction)
         print("=================================================================")
 
-    # Check for data leakage
+    # Verify data integrity
     check_data_leakage()
 
     # data preparation
@@ -133,8 +143,11 @@ if __name__ == "__main__":
     valset = CustomDataset('val', num_frames=args.num_frames)
     testset = CustomDataset('test', num_frames=args.num_frames)
 
-    # Create & run study, maximizing validation F1
-    study = optuna.create_study(direction="maximize")
+    # Initialize and execute Optuna study, maximizing validation F1 score
+    study = optuna.create_study(
+        direction="maximize", 
+        sampler=optuna.samplers.TPESampler(seed=0)
+    )
     study.optimize(
         lambda trial: objective(trial, trainset, valset, testset, args), 
         n_trials=args.n_trials, 
@@ -146,6 +159,7 @@ if __name__ == "__main__":
     print(f'  Params:')
     print(study.best_params.items())
 
+    # Retrieve and save the optimal model weights
     best_trial = study.best_trial
     best_path = f"models/trial_{best_trial.number}/best_model.pth"
 
@@ -158,6 +172,6 @@ if __name__ == "__main__":
 
     print(f"=================================================================\n-> Best model saved to: {final_path}")
 
-    # info on training time
+    # Display total elapsed execution time
     time_passed = time.time()-start_timestamp
     print(f'\nTraining finished in {time_passed//3600}h {(time_passed%3600)//60}min {time_passed%60:.0f}s\n')
