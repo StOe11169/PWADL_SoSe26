@@ -1,4 +1,5 @@
 import os
+import torch
 import torch.nn.functional as F
 from torchcodec.decoders import AudioDecoder
 
@@ -46,7 +47,6 @@ def filter_audio_dataframe(df, exclude_path_parts=None):
     print(f"Audio filtering: kept {len(filtered_df)} / {len(df)} samples")
     print(f"Audio filtering: removed {len(df) - len(filtered_df)} samples")
     return filtered_df
-
 
 def has_decodable_audio(filepath, sample_rate=16000, mono=True):
     """
@@ -129,3 +129,31 @@ def normalize_audio(waveform, eps=1e-8):
     if max_abs < eps:
         return waveform
     return waveform / max_abs
+
+def sample_audio_clips(waveform, num_clips, samples_per_clip):
+    #Sample fixed-length clips evenly across a waveform.
+    #Returns: Tensor[num_clips, samples_per_clip]
+
+    total_samples = waveform.shape[-1]
+
+    #padd short videos once, then reuse
+    if total_samples <= samples_per_clip:
+        padded = pad_or_truncate_audio(waveform, samples_per_clip)
+
+        return padded.unsqueeze(0).repeat(
+            num_clips,1)
+
+    #latest valid starting position
+    max_start = total_samples - samples_per_clip
+
+    #evenly spread clip across video
+    start_positions = torch.linspace(0, max_start, steps=num_clips).long()
+
+    clips = []
+
+    for start in start_positions:
+        start = int(start.item())
+        end = start + samples_per_clip
+        clips.append(waveform[start:end])
+
+    return torch.stack(clips)

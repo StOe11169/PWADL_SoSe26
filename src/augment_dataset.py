@@ -5,7 +5,6 @@ import numpy as np
 import subprocess   
 import tempfile
 from tqdm import tqdm
-from src.data import get_all_data_paths
 
 
 """
@@ -16,6 +15,41 @@ also get the same incremented id. This leads to eg. 001-male and 001-female alwa
 together. While not perfect, the effects while shuffling are considered to be neglible, as long as they are always only ever 
 in train, test or val
 """
+
+def get_augmentation_data_paths(input_root):
+    #find videos for augmentation
+    rows = []
+
+    for root, _, files in os.walk(input_root):
+        for file in files:
+
+            #process only supported video
+            if not file.lower().endswith((".mp4", ".avi")):
+                continue
+
+            filepath = os.path.join(root, file)
+
+            #remove extension
+            filename = os.path.splitext(file)[0]
+
+            #remove suffix of converted files
+            if filename.endswith("-converted"):
+                filename = filename.removesuffix("-converted")
+
+            parts = filename.split("-")
+
+            if len(parts) != 3:
+                raise ValueError(f"Unexpected filename format: {filepath}")
+
+            subject_id, info, activity = parts
+
+            rows.append({"id": subject_id,
+                "info_labels": info,
+                "activity": activity,
+                "filepath": filepath})
+
+    return pd.DataFrame(rows)
+
 
 def augment_video(input_path, output_path):
 
@@ -103,7 +137,7 @@ def create_augmented_dataset(input_root="data", output_root="data_augmented"):
     os.makedirs(output_root, exist_ok=True)
 
     #Load dataset
-    df = get_all_data_paths(input_root)
+    df = get_augmentation_data_paths(input_root)
 
     #determine ID range
     unique_ids = sorted(df["id"].unique())
@@ -124,18 +158,25 @@ def create_augmented_dataset(input_root="data", output_root="data_augmented"):
         for _, row in group.iterrows():
             old_path = row["filepath"]
 
-            #extract name components
-            filename = os.path.splitext(os.path.basename(old_path))[0]
-            parts = filename.split("-")
+            old_path = row["filepath"]
 
-            _, info, activity = parts
+            # Already parsed by get_augmentation_data_paths().
+            info = row["info_labels"]
+            activity = row["activity"]
+
+            #preserve folder structure to keep files from overwriting each other
+            relative_folder = os.path.relpath(os.path.dirname(old_path), input_root)
+
+            output_dir = os.path.join( output_root, relative_folder)
+            os.makedirs(output_dir, exist_ok=True)
 
             #construct new file name
             new_name = f"{new_id}-{info}-{activity}.mp4"
-            new_path = os.path.join(output_root, new_name)
+            new_path = os.path.join(output_dir, new_name)
 
             #apply augment and save
             augment_video(old_path, new_path)
+
 
     print("Augment complete")
 

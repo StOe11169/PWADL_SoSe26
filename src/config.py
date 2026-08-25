@@ -11,7 +11,8 @@ def build_config(trial: Trial, args: Namespace):
 
     #Audio
     cfg["audio_sample_rate"] = 16000
-    cfg["audio_clip_seconds"] = 5.0
+    cfg["num_audio_clips"] = 4
+    cfg["audio_clip_seconds"] = 1.0
     cfg["audio_num_samples"] = int( cfg["audio_clip_seconds"] * cfg["audio_sample_rate"] )
     cfg["audio_mono"] = True
     cfg["audio_normalize"] = True

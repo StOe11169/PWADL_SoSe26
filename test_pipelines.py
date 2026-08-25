@@ -15,10 +15,10 @@ TEST_CFG = {
     "num_frames": 4,
     #audio
     "audio_sample_rate": 16000,
-    "audio_clip_seconds": 2.0,
-    "audio_num_samples": 2 * 16000,
+    "audio_clip_seconds": 1.0,
     "audio_mono": True,
     "audio_normalize": True,
+    "num_audio_clips": 4,
     #DataLoader 
     "batch_size": 1,
     "num_workers": 0,
@@ -73,9 +73,10 @@ def check_dataset_sample(dataset, mode):
         assert tensor.shape[1] == 3
 
     elif mode == "audio":
-        #expected: fixed-length mono waveform
-        assert tensor.ndim == 1
-        assert tensor.shape[0] == TEST_CFG["audio_num_samples"]
+        #expected: fixed-length mono waveform, [num_audio_clips, samples_per_clip]
+        assert tensor.ndim == 2
+        expected_samples = int(TEST_CFG["audio_sample_rate"]* TEST_CFG["audio_clip_seconds"])
+        assert tensor.shape == (TEST_CFG["num_audio_clips"], expected_samples)
 
     print(f"[OK] {mode} dataset sample:{input_key} shape={tuple(tensor.shape)}")
 
