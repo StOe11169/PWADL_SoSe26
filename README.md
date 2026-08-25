@@ -158,6 +158,7 @@ Beispiele:
 | 001-Male-normal.mp4	| Video mit ID 001, männlich, kein Gähnen   |
 | 50-own-yawning.avi	| Eigenes Video, Gähnen                     |
 | 51-own-normal.avi	    | Eigenes Video, kein Gähnen                |
+
 Das Label wird automatisch aus dem Feld activity abgeleitet. Enthält activity den Begriff yawning, wird das Label 1 vergeben. Andernfalls wird das Label 0 vergeben.
 
 ### 4.2 Datenstruktur
