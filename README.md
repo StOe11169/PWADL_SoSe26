@@ -519,6 +519,7 @@ Die Klassenverteilung im finalen Trainingssplit trainval war in beiden Läufen:
 | yawning	    | 103       |
 | non-yawning   | 176       |
 | Gesamt        | 279       |
+
 Daraus ergab sich für die Loss-Funktion folgende Positiv-Gewichtung: \
 pos_weight = 1.709
 
