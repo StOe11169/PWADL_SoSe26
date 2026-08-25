@@ -33,7 +33,7 @@ Ziel der Arbeit ist die Entwicklung und Evaluation einer Deep-Learning-Pipeline 
 
 1. Einlesen aller Videodaten aus einem gemeinsamen Datenordner. 
 2. Automatische Erzeugung und Nutzung einer reproduzierbaren Split-Datei. 
-3. Gruppierte Aufteilung nach Personen- / Video-ID, um Datenleckage zu reduzieren. 
+3. Gruppierte Aufteilung nach Probanden-ID, um Datenleckage zu reduzieren. 
 4. Extraktion einer festen Anzahl gleichmäßig verteilter Frames pro Video. 
 5. Training eines geeigneten Modells für Videodaten. 
 6. Hyperparameteroptimierung mittels Optuna. 
@@ -168,8 +168,8 @@ data/
  videos/
   ...
  splits.csv
-src/ \
- data.py \
+src/
+ data.py
  evaluation.py
  training.py
  utils.py
@@ -569,7 +569,7 @@ Abbildung 4: Confusion Matrix des finalen Laufs auf dem unabhängigen Testsplit.
 Das finale Modell klassifizierte alle 65 Testvideos korrekt. Es traten weder False Positives noch False Negatives auf.
 
 ![Confusion Matrix Vergleichslauf](pictures/Confusion_Matrix_Vergleichslauf.png) 
-Abbildung 5: Confusion Matrix des Vergleichslauf auf dem unabhängigen Testsplit.
+Abbildung 5: Confusion Matrix des Vergleichslaufs auf dem unabhängigen Testsplit.
 
 Die Confusion Matrix des Vergleichslaufs zeigt, dass keine positive Testsequenz übersehen wurde. Gleichzeitig zeigen die sechs False Positives, dass das Modell teilweise auch andere Mundbewegungen oder gesichtsbezogene Veränderungen als Gähnen interpretiert. Der F1-Score von 0.889 zeigt insgesamt trotzdem eine gute Balance zwischen Precision und Recall.
 
@@ -719,8 +719,8 @@ Dieses Skript ist besonders nützlich, wenn ein langer Trainingslauf abgebrochen
 Das Skript final_train_only.py dient dazu, das finale Training separat nachzuholen. Es wird verwendet, wenn die Hyperparameter bereits bekannt sind, aber das finale Modell best_model_final.pt noch nicht erzeugt wurde. 
 Dies kann zum Beispiel passieren, wenn ein langer Lauf von main.py während oder nach der Cross-Validation abgebrochen wurde. In diesem Fall existieren häufig bereits Fold-Checkpoints und TensorBoard-Logs, aber noch kein finaler Checkpoint.
 Das Skript trainiert ein neues Modell mit den angegebenen Hyperparametern auf dem gesamten Split: \
-trainval\
-Dabei werden train und val gemeinsam verwendet. Anschließend wird das resultierende Modell als finaler Checkpoint gespeichert: \
+`trainval`
+Dabei werden `train` und `val` gemeinsam verwendet. Anschließend wird das resultierende Modell als finaler Checkpoint gespeichert: \
 best_model_final.pt \
 Zusätzlich wird das Modell direkt auf dem unabhängigen Testsplit evaluiert. \
 Das Skript verwendet keine erneute Hyperparameteroptimierung, sondern trainiert ausschließlich mit manuell übergebenen Hyperparametern. \
