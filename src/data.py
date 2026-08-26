@@ -8,12 +8,13 @@ from torchcodec.decoders import VideoDecoder
 
 from sklearn.model_selection import GroupShuffleSplit
 
+from src.config import Config
 
 def get_dataframe():
     file_paths = []
     file_names = []
 
-    folder_path = "data"
+    folder_path = Config.DATA_FOLDER
 
     for dirpath, _, filenames in os.walk(folder_path):
         for fname in filenames:
@@ -34,7 +35,7 @@ def get_dataframe():
     return df
 
 
-def create_splits(random_state=42):
+def create_splits(random_state=Config.RANDOM_STATE):
     """
     Creates:
         Train: 70%
@@ -53,7 +54,7 @@ def create_splits(random_state=42):
     # First split: 70% train, 30% temp
     gss1 = GroupShuffleSplit(
         n_splits=1,
-        train_size=0.70,
+        train_size=Config.TRAIN_SPLIT,
         random_state=random_state
     )
 

@@ -13,6 +13,8 @@ import os
 
 import psutil
 
+from src.config import Config
+
 class YawDDclassifier(nn.Module):
     def __init__(self, dropout):
         super().__init__()
@@ -23,9 +25,15 @@ class YawDDclassifier(nn.Module):
         
         # temporal attention pooling
         self.attn = nn.Sequential(
-            nn.Linear(backbone.fc.in_features, 128),
-            nn.Tanh(),
-            nn.Linear(128, 1),
+            nn.Linear(
+                backbone.fc.in_features,
+                Config.ATTENTION_HIDDEN
+            ),
+        nn.Tanh(),
+        nn.Linear(
+            Config.ATTENTION_HIDDEN,
+            1
+            ),
         )
 
         # classification head
@@ -82,7 +90,7 @@ def trainer(trainloader,
     best_epoch = 0
 
     # objective function is binary cross entropy loss with logits 
-    criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(2.0))
+    criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(Config.POS_WEIGHT))
     
     # set non-trainable parameters
     if freeze_backbone:
@@ -91,7 +99,7 @@ def trainer(trainloader,
 
     # Get trainable parameters and hand to optimizer
     tp = [p for p in model.parameters() if p.requires_grad]
-    optimizer = optim.AdamW(tp, lr=lr, weight_decay=1e-2) # AdamW uses weight decay with default 1e-2
+    optimizer = optim.AdamW(tp, lr=lr, weight_decay=Config.WEIGHT_DECAY) # AdamW uses weight decay with default 1e-2
     writer.add_scalar(
         "LearningRate",
         optimizer.param_groups[0]["lr"],
@@ -117,7 +125,7 @@ def trainer(trainloader,
             logits = model(frames)          
             loss    = criterion(logits, labels)
             loss.backward()        
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) # gradient clipping                
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=Config.GRAD_CLIP_NORM) # gradient clipping                
             optimizer.step()
 
             # update running loss

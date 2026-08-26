@@ -14,25 +14,20 @@ from torch.utils.tensorboard import SummaryWriter
 import psutil
 import os
 
+from src.config import Config
+
 process = psutil.Process(os.getpid())
 print(
     f"Initial RAM usage: {process.memory_info().rss / (1024 ** 3):.2f} GB"
 )
 
-
-# Optional TODOs: 
-# * Hand more hyperparameters as arguments / add to optuna search space
-# * comparison with PWADL 2025: freeze/unfreeze backbone, two separate optimizers, lr scheduler
-# * Tensorboard
-# * Logging of results / save (best) model
-
 def objective(trial):
 
     # training hyperparameters to tune
-    args.batch_size = 4
-    args.freeze_backbone = 0
-    args.lr = 0.000102997397467
-    args.dropout = 0.2
+    args.batch_size = Config.BATCH_SIZE
+    args.freeze_backbone = Config.FREEZE_BACKBONE
+    args.lr = Config.LEARNING_RATE
+    args.dropout = Config.DROPOUT
     #args.batch_size = trial.suggest_categorical("batch_size", [4, 8])
     #args.freeze_backbone = trial.suggest_categorical("freeze_backbone", [0, 1])
     #args.lr = trial.suggest_float("lr", 1e-5, 1e-3, log=True)
@@ -121,9 +116,9 @@ if __name__ == "__main__":
     # get args 
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
-    parser.add_argument("--num_frames", type=int, default=64)
-    parser.add_argument("--epochs", type=int, default=32)
-    parser.add_argument("--n_trials", type=int, default=1)
+    parser.add_argument("--num_frames", type=int, default=Config.NUM_FRAMES)
+    parser.add_argument("--epochs", type=int, default=Config.EPOCHS)
+    parser.add_argument("--n_trials", type=int, default=Config.N_TRIALS)
     args = parser.parse_args()
     
     # Create & run study, maximizing validation F1

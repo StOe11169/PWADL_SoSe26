@@ -225,8 +225,8 @@ Das Repository ist modular aufgebaut und trennt Datenverarbeitung, Modellarchite
                         evaluation.py
                         training.py
                         utils.py
+                        config.py
                 main.py
-                config.py [!!!TODO!!!]
 
 
 Diese Struktur erleichtert sowohl die Wartung als auch die Erweiterung des Projekts.
