@@ -1,4 +1,5 @@
 
+
 # Multimodal Yawning Detection from Video and Audio
 
 Praktisches Wissenschaftliches Arbeiten mit Deep Learning (PWADL) - SoSe26
@@ -184,7 +185,7 @@ One repository specific thing to note is that grouping only uses the subjects ID
 
 ### 4.1 Visual preprocessing
 
-For every video, \(T\) frame indices are selected by linear spacing from the first to the last frame. The current command-line default is \(T=64\). TorchCodec decodes the frames, after which each frame is:
+For every video, $T$ frame indices are selected by linear spacing from the first to the last frame. The current command-line default is $T=64$. TorchCodec decodes the frames, after which each frame is:
 
 1. converted to a PIL image;
 2. resized to 256 × 341 pixels;
@@ -206,7 +207,7 @@ L = 16\,000
 $$
 clips and samples per clip. When $N_i > L$, clip start positions are selected by linearly spacing four indices between 0 and $N_i-L$. Each resulting segment therefore has exactly one second of audio. This works similarly to how the visual pipeline samples frames. The length can be adjusted in the configuration.
 
-For testing purposes using dummy files the file is zero-padded to \(L\) samples and repeated four times, if the recodring is no longer than one second.Each sampled clip is peak-normalized independently when its maximum absolute amplitude is non-zero. The resulting tensor has the shape
+For testing purposes using dummy files the file is zero-padded to $L$ samples and repeated four times, if the recodring is no longer than one second.Each sampled clip is peak-normalized independently when its maximum absolute amplitude is non-zero. The resulting tensor has the shape
 
 $$
 A_i \in \mathbb{R}^{4 \times 16\,000}.
@@ -239,145 +240,561 @@ No augmentation is currently applied during the training loop.
 
 ## 5. Model architecture
 
+The project contains two independently trainable binary classifiers: a visual classifier and an audio classifier. In multimodal mode, their output scores are combined using fixed-weight late fusion. Unless stated otherwise, the following notation is used throughout this section:
+
+| Symbol | Meaning |
+| --- | --- |
+| $i$ | Video or sample index |
+| $B$ | Number of videos in a batch |
+| $t$ | Visual-frame index |
+| $T$ | Number of sampled visual frames |
+| $c$ | Audio-clip index |
+| $C$ | Number of sampled audio clips |
+| $k$ | Audio-patch index or dummy summation index |
+| $\mathbb{R}^d$ | Vector space of $d$ real-valued elements |
+| $v^\top$ | Transpose of vector $v$ |
+| $\bar v$ | Aggregated or averaged value |
+| $\sigma(\cdot)$ | Sigmoid function |
+| $\ell$ | Logit, i.e. an unbounded model score before sigmoid |
+| $W,w,b$ | Trainable matrices, weight vectors, and biases |
+| $\theta,\phi,\psi$ | Collections of model parameters |
+
+Affine transformations, activation functions, logits, sigmoid probabilities, and cross-entropy follow the standard neural-network formulation described by [Goodfellow et al. (2016)](https://mitpress.mit.edu/9780262035613/deep-learning/).
+
 ### 5.1 Visual branch
 
-The visual classifier uses an ImageNet-pretrained ResNet-18 without its final classification layer. ResNet-18 is a comparatively compact residual network and offers a practical transfer-learning baseline for a small video dataset ([He et al., 2016](https://doi.org/10.1109/CVPR.2016.90)).
+The visual classifier uses an ImageNet-pretrained ResNet-18 without its original classification layer. ResNet-18 is a comparatively compact residual network and provides a practical transfer-learning baseline for the limited amount of project-specific video data ([He et al., 2016](https://doi.org/10.1109/CVPR.2016.90); [Torchvision ResNet-18 documentation](https://docs.pytorch.org/vision/stable/models/generated/torchvision.models.resnet18.html)).
 
-Each frame is processed independently into a 512-dimensional feature. A learned attention module assigns a scalar weight to every frame, and the weighted sum is passed through the binary classification head:
+A residual block learns a residual transformation $F$ and adds it to the block input:
+
+$$
+z_{r+1}=F(z_r;\theta_r)+z_r,
+$$
+
+where $z_r$ is the input to residual block $r$, $F$ is its learned transformation, and $\theta_r$ denotes its parameters. The skip connection allows information and gradients to pass directly through the block ([He et al., 2016](https://doi.org/10.1109/CVPR.2016.90)).
+
+Each sampled frame is processed independently into a 512-dimensional feature vector. A learned attention module assigns a scalar weight to every frame. The weighted feature sum is then passed through a binary classification head:
 
 | Module | Input | Output | Function |
 | --- | --- | --- | --- |
-| ResNet-18 feature extractor | $B \times T \times 3 \times 224 \times 224$ | $B \times T \times 512$ | Extracts one spatial appearance vector per frame |
-| Attention scorer | $B \times T \times 512$ | $B \times T \times 1$ | Scores the relevance of each sampled frame |
-| Weighted pooling | Features and normalized scores | $B \times 512$ | Produces one clip representation |
-| Classification head | $B \times 512$ | $B$ | Layers 512 → 256 → 128 → 1 with batch normalization, ReLU, and dropout |
+| ResNet-18 feature extractor | $B\times T\times3\times224\times224$ | $B\times T\times512$ | Extracts one spatial appearance vector per frame |
+| Attention scorer | $B\times T\times512$ | $B\times T\times1$ | Calculates one relevance score per frame |
+| Softmax normalization | $B\times T\times1$ | $B\times T\times1$ | Produces positive frame weights that sum to one |
+| Weighted pooling | Features and normalized weights | $B\times512$ | Produces one video representation |
+| Classification head | $B\times512$ | $B$ | Applies layers $512\rightarrow256\rightarrow128\rightarrow1$ |
 
-Let $X_i = (x_{i1},\ldots,x_{iT})$ be the sampled frames for clip $i$. The frame features are
-
-$$
-h_{it} = R_{\theta}(x_{it}) \in \mathbb{R}^{512}.
-$$
-
-The attention score and normalized weight are
+Let
 
 $$
-e_{it} = w_2^\top \tanh(W_1 h_{it} + b_1) + b_2,
+X_i=(x_{i1},\ldots,x_{iT})
+$$
+
+be the sampled frames from video $i$. Each frame
+
+$$
+x_{it}\in\mathbb{R}^{3\times224\times224}
+$$
+
+contains three RGB channels and has a spatial resolution of $224\times224$ pixels.
+
+The ResNet feature extractor $R_\theta$ transforms each frame into
+
+$$
+h_{it}=R_\theta(x_{it})\in\mathbb{R}^{512},
+$$
+
+where $\theta$ denotes the ResNet parameters and $h_{it}$ is the feature vector for frame $t$ of video $i$.
+
+#### Attention scoring
+
+The attention module calculates one unnormalized scalar score per frame:
+
+$$
+e_{it}=w_2^\top\tanh(W_1h_{it}+b_1)+b_2.
+$$
+
+For the implemented attention hidden dimension of 128,
+
+$$
+W_1\in\mathbb{R}^{128\times512}, \qquad b_1\in\mathbb{R}^{128}, \qquad w_2\in\mathbb{R}^{128}, \qquad b_2\in\mathbb{R}.
+$$
+
+The first affine transformation is
+
+$$
+u_{it}=W_1h_{it}+b_1\in\mathbb{R}^{128}.
+$$
+
+The hyperbolic tangent is applied element-wise:
+
+$$
+q_{it}=\tanh(u_{it})\in\mathbb{R}^{128}, \qquad \tanh(x)=\frac{\exp(x)-\exp(-x)} {\exp(x)+\exp(-x)}.
+$$
+
+The second affine transformation reduces the 128-dimensional hidden vector to the scalar score $e_{it}$. This score is not a probability and may be positive or negative.
+
+The scores are normalized across the $T$ frames from the same video:
+
+$$
+\alpha_{it} = \frac{\exp(e_{it})} {\sum_{k=1}^{T}\exp(e_{ik})}.
+$$
+
+The exponential makes every weight positive, while division by the sum ensures
+
+$$
+\alpha_{it}>0, \qquad \sum_{t=1}^{T}\alpha_{it}=1.
+$$
+
+If all frames receive the same score, then $\alpha_{it}=1/T$. Otherwise, frames with higher relative scores receive greater weights. This trainable aggregation is related to attention-based multiple-instance learning, where one label is available for a collection of instances rather than for each instance individually ([Ilse et al., 2018](https://proceedings.mlr.press/v80/ilse18a.html)).
+
+#### Attention pooling
+
+The video-level visual representation is the weighted sum
+
+$$
+\bar h_i = \sum_{t=1}^{T}\alpha_{it}h_{it} \in\mathbb{R}^{512}
+$$
+
+For an individual feature dimension $j$, the operation is
+
+$$
+\bar h_{i,j} = \sum_{t=1}^{T}\alpha_{it}h_{it,j}.
+$$
+
+Because the weights are positive and sum to one, $\bar h_i$ is a convex combination of the frame features. Frames considered more relevant to the prediction have a larger influence on this representation.
+
+The weighted sum is permutation-invariant: reordering the frame-feature and attention-weight pairs does not change the result. Consequently, the attention module can learn which frames are informative, but it does not explicitly represent the order in which they occurred.
+
+#### Classification head
+
+The classification head applies two hidden layers followed by a scalar output layer:
+
+$$
+z_{i1} = \text{Dropout} \left( \text{ReLU} \left( \text{BN} \left( W_{c1}\bar h_i+b_{c1} \right) \right) \right),
 $$
 
 $$
-\alpha_{it} = \frac{\exp(e_{it})}{\sum_{k=1}^{T}\exp(e_{ik})}.
+z_{i2}=
+\text{Dropout}
+\left(
+\text{ReLU}
+\left(
+\text{BN}
+\left(
+W_{c2}z_{i1}+b_{c2} \right) \right) \right),
 $$
 
-The clip representation is
-
 $$
-\bar{h}_i = \sum_{t=1}^{T}\alpha_{it} h_{it} \in \mathbb{R}^{512},
+\ell_{v,i}=w_{c3}^{\top}z_{i2}+b_{c3}.
 $$
 
-and the classification head produces the visual logit
+The parameter dimensions are
 
 $$
-\ell_{v,i} = C_{\phi}(\bar{h}_i) \in \mathbb{R}.
+W_{c1}\in\mathbb{R}^{256\times512},
+\qquad
+W_{c2}\in\mathbb{R}^{128\times256},
+\qquad
+w_{c3}\in\mathbb{R}^{128}.
 $$
 
-Attention pooling is appropriate for a weakly labelled clip because only some frames may display a yawn. It's related to attention-based multiple-instance aggregation ([Ilse et al., 2018](https://proceedings.mlr.press/v80/ilse18a.html)). However, this implementation has no positional encoding, recurrence, or temporal convolution. The weighted sum is permutation-invariant, so it selects informative frames but **does not model frame order or motion direction**. Simply put: it learns the most important frames, but not how they relate to time. It could for example not differentiate between a closing and opening mouth. CNN-LSTM yawning detectors such as [Zhang and Su (2017)](https://doi.org/10.1109/SSCI.2017.8285343) provide a relevant recurrent baseline. Inflated 3D convolution is another stronger video baseline because it learns joint spatial-temporal filters, although at substantially higher computational cost ([Carreira and Zisserman, 2017](https://doi.org/10.1109/CVPR.2017.502)).
-The main reasons for using the Resnet archictecture where the pretrained weights and its comparatively low computational costs.
+For activation $z_j$ in feature dimension $j$, batch normalization performs
+
+$$
+\text{BN}(z_j)=
+\gamma_j
+\frac{z_j-\mu_{\mathcal B,j}}
+{\sqrt{\sigma_{\mathcal B,j}^2+\varepsilon}}
++\beta_j,
+$$
+
+where $\mu_{\mathcal B,j}$ and $\sigma_{\mathcal B,j}^2$ are the mini-batch mean and variance, $\varepsilon$ prevents division by zero, and $\gamma_j$ and $\beta_j$ are learned scale and offset parameters. During evaluation, stored running statistics are used instead of the current mini-batch statistics ([Ioffe and Szegedy, 2015](https://proceedings.mlr.press/v37/ioffe15.html)).
+
+The rectified linear unit is
+
+$$
+\text{ReLU}(z)=\max(0,z).
+$$
+
+It sets negative activations to zero and retains positive activations.
+
+During training, dropout can be written as
+
+$$
+\text{Dropout}(z_j)=
+\frac{m_jz_j}{1-p},
+\qquad
+m_j\sim\operatorname{Bernoulli}(1-p),
+$$
+
+where $p$ is the dropout probability and $m_j$ is a random binary mask. Dropout is disabled during evaluation ([Srivastava et al., 2014](https://www.jmlr.org/papers/v15/srivastava14a.html)).
+
+The resulting visual logit is
+
+$$
+\ell_{v,i}=C_\phi(\bar h_i)\in\mathbb{R},
+$$
+
+where $C_\phi$ denotes the complete classification head and $\phi$ contains its trainable parameters. The logit is an unbounded score: positive values support the yawning class and negative values support the non-yawning class.
+
+The visual branch was selected because pretrained ResNet-18 weights are available and a frame-based 2D network has moderate computational requirements compared with explicitly temporal video architectures. Its principal limitation is that it does not model frame order or motion direction. For example, it cannot explicitly distinguish a mouth-opening sequence from the same frames presented in reverse order. A CNN-LSTM yawning detector provides a relevant recurrent baseline ([Zhang and Su, 2017](https://doi.org/10.1109/SSCI.2017.8285343)). Inflated 3D convolution provides another alternative by learning joint spatial-temporal filters, but at higher computational cost ([Carreira and Zisserman, 2017](https://doi.org/10.1109/CVPR.2017.502)).
 
 ### 5.2 Audio branch
 
-The audio classifier uses a PyTorch port of YAMNet. The official YAMNet is a MobileNet-v1-based network pretrained to recognize 521 AudioSet event classes. AudioSet contains large-scale human-labelled sound events and provides a useful starting point for transfer learning ([Gemmeke et al., 2017](https://doi.org/10.1109/ICASSP.2017.7952261)), similar to the pretrained Resnet.
+The audio classifier uses a PyTorch port of YAMNet. The official YAMNet architecture is based on MobileNet-v1 and was pretrained to recognize 521 AudioSet event classes. AudioSet contains a large collection of human-labelled sound events and therefore provides a useful starting point for audio transfer learning ([Gemmeke et al., 2017](https://doi.org/10.1109/ICASSP.2017.7952261); [official TensorFlow YAMNet documentation](https://www.tensorflow.org/hub/tutorials/yamnet)).
 
-Each video is represented by \(C=4\) sampled audio clips:
+Each video is represented by $C=4$ sampled audio clips:
 
 $$
-A_i = (a_{i1},\ldots,a_{iC})
-\in \mathbb{R}^{C \times L},
+A_i=(a_{i1},\ldots,a_{iC})
+\in\mathbb{R}^{C\times L},
 \qquad
 C=4,
-\quad
+\qquad
 L=16\,000.
 $$
 
-For each clip $a_{ic}$, the YAMNet frontend produces overlapping log-mel patches. After removal of the original 521-class output layer, the frozen YAMNet backbone produces a 1024-dimensional representation for every patch:
+Here, $A_i$ is the complete audio input for video $i$, while
 
 $$
-g_{ick} = A_{\psi}(p_{ick})
-\in \mathbb{R}^{1024}.
+a_{ic}\in\mathbb{R}^{16000}
 $$
+
+is the waveform vector for clip $c$. At a sampling rate of 16 kHz, $L=16\,000$ corresponds to one second of audio.
+
+#### Log-mel preprocessing
+
+The YAMNet frontend transforms each waveform into a time-frequency representation. Schematically, this can be expressed as
+
+$$
+P_{ic}=
+\log\left(
+M\left(
+\left|
+\text{STFT}(a_{ic})
+\right|
+\right)
++\varepsilon
+\right),
+$$
+
+where:
+
+- $\operatorname{STFT}$ is the short-time Fourier transform;
+- $|\cdot|$ converts the complex Fourier coefficients to magnitudes;
+- $M$ applies the mel filterbank;
+- $\varepsilon$ prevents taking the logarithm of zero; and
+- $P_{ic}$ is the resulting log-mel spectrogram.
+
+The official YAMNet preprocessing uses 16 kHz mono audio, a 25 ms short-time Fourier-transform window, a 10 ms hop, 64 mel-frequency bands, and stabilized logarithmic mel values ([official YAMNet model documentation](https://github.com/tensorflow/models/blob/master/research/audioset/yamnet/README.md)).
+
+The spectrogram is divided into overlapping patches
+
+$$
+P_{ic}=(p_{ic1},\ldots,p_{icK_{ic}}),
+$$
+
+where $p_{ick}$ is patch $k$ from clip $c$, and $K_{ic}$ is the number of patches obtained from that clip.
+
+#### Frozen YAMNet feature extraction
+
+After removal of the original 521-class output layer, the YAMNet backbone produces one 1024-dimensional embedding for each patch:
+
+$$
+g_{ick}=
+E_\psi(p_{ick})
+\in\mathbb{R}^{1024}.
+$$
+
+Here:
+
+- $E_\psi$ is the YAMNet encoder;
+- $\psi$ denotes its pretrained parameters; and
+- $g_{ick}$ is the embedding of patch $k$.
+
+The notation $E_\psi$ is used instead of $A_\psi$ to avoid confusing the encoder with the audio input $A_i$.
+
+The YAMNet backbone remains frozen during training. Its embeddings are still computed during the forward pass, but its parameters are not updated:
+
+$$
+\nabla_\psi\mathcal L=0.
+$$
+
+Only the binary audio-classification head receives parameter updates.
+
+#### Audio pooling
 
 The patch embeddings are first averaged within each sampled clip:
 
 $$
-\tilde{g}_{ic} = \frac{1}{K_{ic}} \sum_{k=1}^{K_{ic}} g_{ick}
+\tilde g_{ic}=
+\frac{1}{K_{ic}}
+\sum_{k=1}^{K_{ic}}g_{ick}
+\in\mathbb{R}^{1024}.
 $$
 
-The four clip representations are then averaged to obtain one representation for the complete video:
+Every patch within a clip receives weight $1/K_{ic}$. Reordering the patches does not change this mean, so the within-clip patch order is discarded.
+
+The four clip representations are then averaged:
 
 $$
-\bar{g}_i=\frac{1}{C} \sum_{c=1}^{C}\tilde{g}_{ic}
+\bar g_i=
+\frac{1}{C}
+\sum_{c=1}^{C}\tilde g_{ic}
+\in\mathbb{R}^{1024}.
 $$
 
-Finally, a dropout-plus-linear head produces the audio logit:
+Substituting the first average gives
 
 $$
-\ell_{a,i}=w_a^\top\operatorname{Dropout}(\bar{g}_i)+b_a
+\bar g_i=
+\frac{1}{C}
+\sum_{c=1}^{C}
+\left(
+\frac{1}{K_{ic}}
+\sum_{k=1}^{K_{ic}}g_{ick}
+\right).
 $$
 
-The YAMNet backbone currently remains frozen and only the binary classification head is trained. Sampling several short intervals increases temporal coverage without processing the complete waveform, but averaging discards clip order and can dilute a localized sound event.
-Similar to how the Resnet does not preserve this order, which is one of the reasons YamNet was chosen for the aduio pipeline in addition to the pretrained weights and comparetivly low computational costs.
-> 
+This is a two-level mean rather than a single mean over all patches. Each sampled clip receives total weight $1/C$, even if clips contain different numbers of patches. Mean aggregation is permutation-invariant and therefore cannot represent clip order ([Zaheer et al., 2017](https://papers.nips.cc/paper_files/paper/2017/hash/f22e4747da1aa27e363d86d40ff442fe-Abstract.html)).
+
+#### Audio classification head
+
+A dropout-plus-linear head produces the audio logit:
+
+$$
+\ell_{a,i}=
+w_a^\top
+\text{Dropout}(\bar g_i)
++b_a,
+$$
+
+where
+
+$$
+w_a\in\mathbb{R}^{1024}, \qquad b_a\in\mathbb{R}, \qquad \ell_{a,i}\in\mathbb{R}.
+$$
+
+The dot product can be expanded as
+
+$$
+w_a^\top\bar g_i=
+\sum_{j=1}^{1024}w_{a,j}\bar g_{i,j}.
+$$
+
+Each embedding feature therefore contributes according to its learned weight. Because the YAMNet backbone is frozen, the primary trainable audio parameters are $w_a$ and $b_a$.
+
+YAMNet was selected because its AudioSet-pretrained embeddings provide an efficient transfer-learning baseline without requiring an audio network to be trained from scratch. Sampling several intervals increases coverage of the source video without processing its complete waveform. However, averaging can dilute a short localized yawn sound, and neither the patch mean nor clip mean preserves event order. This lost temporal information is a limitation of the current design, not a reason for selecting YAMNet.
 
 ### 5.3 Late fusion
 
-For a fixed visual weight $\lambda \in [0,1]$, the fused logit is
+The multimodal system uses score-level late fusion. Each branch first produces an independent logit, after which the two logits are combined. Late fusion is a standard strategy for combining independently trained classifiers and modalities ([Kittler et al., 1998](https://doi.org/10.1109/34.667881); [Baltrušaitis et al., 2019](https://doi.org/10.1109/TPAMI.2018.2798607)).
+
+For a fixed visual weight $\lambda\in[0,1]$, the fused logit is
 
 $$
-\ell_{f,i} = \lambda\ell_{v,i} + (1-\lambda)\ell_{a,i}.
+\ell_{f,i}=
+\lambda\ell_{v,i}
++
+(1-\lambda)\ell_{a,i}.
 $$
 
-The final probability and label are
+The coefficients have the following interpretations:
+
+| Value | Result |
+| ---: | --- |
+| $\lambda=0$ | Audio-only prediction |
+| $\lambda=0.5$ | Equal numerical weighting of both logits |
+| $\lambda=1$ | Visual-only prediction |
+
+The default is $\lambda=0.5$.
+
+The fused probability is calculated using the sigmoid function:
 
 $$
-\hat{p}_i = \sigma(\ell_{f,i}) = \frac{1}{1+\exp(-\ell_{f,i})},
+\hat p_i=
+\sigma(\ell_{f,i})=
+\frac{1}{1+\exp(-\ell_{f,i})}.
 $$
 
-$$
-\hat{y}_i = \mathbb{1}[\hat{p}_i > 0.5]
-           = \mathbb{1}[\ell_{f,i} > 0].
-$$
-
-The default is $\lambda = 0.5$. Because neural-network logits can have different scales and may be poorly calibrated ([Guo et al., 2017](https://proceedings.mlr.press/v70/guo17a.html)), equal numerical weights do not necessarily mean equal information. The fusion weight must be fixed in advance or selected only inside the inner cross-validation loop. Selecting it from outer-test performance would leak test information.
-
-The implementation also records
+Here, $\ell_{f,i}\in\mathbb{R}$ is an unbounded logit, while
 
 $$
-c_{v,i} = \lambda\ell_{v,i},
+\hat p_i\in(0,1)
+$$
+
+is interpreted as the predicted probability of yawning.
+
+The predicted label is
+
+$$
+\hat y_i=
+\mathbb{1}[\hat p_i>0.5],
+$$
+
+where $\mathbb{1}[\cdot]$ equals 1 when its condition is true and 0 otherwise. Because sigmoid is strictly increasing and
+
+$$
+\sigma(0)=0.5,
+$$
+
+the decision can equivalently be written as
+
+$$
+\hat y_i=
+\mathbb{1}[\ell_{f,i}>0].
+$$
+
+Therefore, a positive fused logit predicts yawning and a negative fused logit predicts non-yawning.
+
+Neural-network logits may have different scales and may be poorly calibrated ([Guo et al., 2017](https://proceedings.mlr.press/v70/guo17a.html)). Consequently, $\lambda=0.5$ assigns equal numerical coefficients but does not guarantee that both branches contribute equal predictive information.
+
+The fusion weight must be fixed in advance or selected using only the inner cross-validation loop. Selecting $\lambda$ based on outer-test performance would leak test information into model selection.
+
+#### Logged modality contributions
+
+The implementation records the weighted terms
+
+$$
+c_{v,i}=
+\lambda\ell_{v,i},
 \qquad
-c_{a,i} = (1-\lambda)\ell_{a,i},
+c_{a,i}=
+(1-\lambda)\ell_{a,i}.
 $$
 
-and their absolute shares. These values describe the magnitude of the two terms in the fusion equation. They are **not causal feature importance** and cannot replace a proper ablation experiment.
+These satisfy
+
+$$
+\ell_{f,i}=c_{v,i}+c_{a,i}.
+$$
+
+Positive values support yawning, whereas negative values support the non-yawning class.
+
+The implementation also records absolute contribution shares:
+
+$$
+s_{v,i}=
+\frac{|c_{v,i}|}
+{|c_{v,i}|+|c_{a,i}|},
+$$
+
+$$
+s_{a,i}=
+\frac{|c_{a,i}|}
+{|c_{v,i}|+|c_{a,i}|}.
+$$
+
+If at least one contribution is non-zero, then
+
+$$
+s_{v,i}+s_{a,i}=1.
+$$
+
+When both contributions are zero, the denominator is zero. The implementation therefore records $s_{v,i}=s_{a,i}=0.5$ by convention.
+
+The absolute shares describe the relative magnitudes of the two terms in the fusion equation. They discard the signs of the contributions and are not causal feature-importance values. They therefore cannot replace a controlled modality-ablation experiment.
 
 ### 5.4 Training objective
 
-Both trainable branches are binary classifiers; late fusion itself has no learned parameters. For a model logit $\ell_i$ and ground-truth label $y_i \in \{0,1\}$, the weighted binary cross-entropy is
+Both trainable branches are binary classifiers. The visual and audio branches are optimized independently, while late fusion itself contains no learned parameters.
+
+For model logit $\ell_i$ and ground-truth label $y_i\in\{0,1\}$, weighted binary cross-entropy is
 
 $$
-\mathcal{L}_i =-\left[w_+ y_i \log\sigma(\ell_i)+ (1-y_i)\log(1-\sigma(\ell_i))
-\right]
+\mathcal L_i=-
+\left[
+w_+y_i\log\sigma(\ell_i)
++
+(1-y_i)\log\left(1-\sigma(\ell_i)\right)
+\right].
 $$
+
+Here:
+
+- $y_i=1$ denotes yawning;
+- $y_i=0$ denotes non-yawning;
+- $\ell_i$ is the visual or audio logit;
+- $\sigma(\ell_i)$ is the corresponding positive-class probability; and
+- $w_+$ is the positive-class loss weight.
+
+For a positive example, $y_i=1$, and the loss reduces to
+
+$$
+\mathcal L_i=
+-w_+\log\sigma(\ell_i).
+$$
+
+For a negative example, $y_i=0$, and the loss reduces to
+
+$$
+\mathcal L_i=
+-\log\left(1-\sigma(\ell_i)\right).
+$$
+
+The weight therefore affects positive examples but does not directly multiply the loss of negative examples.
 
 The positive-class weight is calculated separately from the training data of each inner fold:
 
 $$
-w_+ = \frac{N_-}{N_+},
+w_+=
+\frac{N_-}{N_+},
 $$
 
-where $N_-$ and $N_+$ are the numbers of negative and positive videos in that fold’s training partition. Validation and test labels are not used in this calculation. The weight is recalculated for the final training split and the class counts and resulting ratio are recorded with the experiment configuration.
+where $N_-$ and $N_+$ are the numbers of negative and positive videos in that fold’s training partition. Validation and test labels are not included.
 
-PyTorch’s fused [BCEWithLogitsLoss](https://docs.pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html) is used for numerical stability. 
-Training and validation losses are reported as sample-weighted means rather than sums of batch means, making the logged loss values comparable across the configured batch sizes.
+This choice equalizes the aggregate nominal class coefficients because
 
+$$
+N_+w_+=N_+\frac{N_-}{N_+}=N_-
+$$
+
+The positive examples therefore receive the same total nominal coefficient as the unweighted negative examples. This changes the loss contribution without duplicating or removing training videos.
+
+The gradient with respect to the logit is
+
+$$
+\frac{\partial\mathcal L_i}{\partial\ell_i}=
+\begin{cases}
+w_+\left(\sigma(\ell_i)-1\right), & y_i=1,\\
+\sigma(\ell_i), & y_i=0.
+\end{cases}
+$$
+
+Thus, increasing $w_+$ increases the magnitude of parameter updates caused by misclassified positive examples.
+
+The weight is recalculated for the final training split. The positive and negative class counts and the resulting ratio are stored with the experiment configuration.
+
+PyTorch’s fused [`BCEWithLogitsLoss`](https://docs.pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html) is used. It combines the sigmoid and binary-cross-entropy operations using a numerically stable formulation based on the log-sum-exp technique. The model must therefore pass raw logits to the loss function:
+
+$$
+\text{model output }\ell_i
+\longrightarrow
+\text{BCEWithLogitsLoss}(\ell_i,y_i).
+$$
+
+Sigmoid must not be applied before `BCEWithLogitsLoss`, because the loss already applies the required transformation internally.
+
+For $N$ videos, the mean loss is
+
+$$
+\mathcal L=
+\frac{1}{N}
+\sum_{i=1}^{N}\mathcal L_i.
+$$
+
+When losses are accumulated over $M$ batches with potentially different batch sizes, the corresponding sample-weighted mean is
+
+$$
+\mathcal L=
+\frac{
+\sum_{b=1}^{M}n_b\bar{\mathcal L}_b
+}{
+\sum_{b=1}^{M}n_b
+},
+$$
+
+where $n_b$ is the number of samples in batch $b$ and $\bar{\mathcal L}_b$ is that batch’s mean loss. Training and validation losses are logged using this sample-weighted calculation rather than an unweighted mean of batch means. This makes the logged losses comparable across different batch sizes and correctly handles a smaller final batch.
 ## 6. Experimental design
 
 ### 6.1 Nested model selection
@@ -869,7 +1286,12 @@ Expand after training:
 25. Carreira, J., & Zisserman, A. (2017). [Quo vadis, action recognition? A new model and the Kinetics dataset](https://doi.org/10.1109/CVPR.2017.502). _Proceedings of CVPR_, 4724–4733.
 26. Saurav, S., Mathur, S., Sang, I., et al. (2020). [Yawn detection for driver's drowsiness prediction using bi-directional LSTM with CNN features](https://doi.org/10.1007/978-3-030-44689-5_17). _Intelligent Human Computer Interaction_, 189–200.
 27. Jabbar, R., Al-Khalifa, K., Kharbeche, M., et al. (2018). [Real-time driver drowsiness detection for Android application using deep neural networks techniques](https://doi.org/10.1016/j.procs.2018.04.060). _Procedia Computer Science, 130_, 400–407.
+28. Goodfellow, I., Bengio, Y., & Courville, A. (2016). *Deep Learning*. MIT Press. [https://mitpress.mit.edu/9780262035613/deep-learning/](https://mitpress.mit.edu/9780262035613/deep-learning/)
+29. Ioffe, S., & Szegedy, C. (2015). Batch normalization: Accelerating deep network training by reducing internal covariate shift. *Proceedings of the 32nd International Conference on Machine Learning*, 448–456. [https://proceedings.mlr.press/v37/ioffe15.html](https://proceedings.mlr.press/v37/ioffe15.html)
+30. Kittler, J., Hatef, M., Duin, R. P. W., & Matas, J. (1998). On combining classifiers. *IEEE Transactions on Pattern Analysis and Machine Intelligence, 20*(3), 226–239. [https://doi.org/10.1109/34.667881](https://doi.org/10.1109/34.667881)
+31. PyTorch. (n.d.). `BCEWithLogitsLoss`. *Official PyTorch documentation*. [https://docs.pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html](https://docs.pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html)
+32. TensorFlow. (n.d.). Sound classification with YAMNet. *Official TensorFlow Hub documentation*. [https://www.tensorflow.org/hub/tutorials/yamnet](https://www.tensorflow.org/hub/tutorials/yamnet)
+33. Zaheer, M., Kottur, S., Ravanbakhsh, S., Póczos, B., Salakhutdinov, R., & Smola, A. J. (2017). Deep Sets. *Advances in Neural Information Processing Systems 30*. [https://papers.nips.cc/paper_files/paper/2017/hash/f22e4747da1aa27e363d86d40ff442fe-Abstract.html](https://papers.nips.cc/paper_files/paper/2017/hash/f22e4747da1aa27e363d86d40ff442fe-Abstract.html)
 
----
 
-_This project was developed for the university course “Praktisches Wissenschaftliches Arbeiten mit Deep Learning.”_
+
