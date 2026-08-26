@@ -110,12 +110,12 @@ The distribution of of participants of the self made, un-augmented dataset used 
 | Recording device and microphone | **TBD** |
 | Video resolution and frame rate | **3840x2160px ; 29,97frames/s** |
 | Original sample rate | **48.000kHz** |
-| Clip duration distribution | **TBD** |
+| Avg. Clip Duration | **~30s** |
 
 
 After recording, the custom videos were initially converted with VLC Media Player to approximate the resolution, frame rate, and bitrate of the YawDD videos. Because TorchCodec could not reliably seek within or decode the resulting MP4 files, the final copies were subsequently normalized using FFmpeg. This normalization regenerated presentation timestamps, shifted negative timestamps to zero, re-encoded the video as H.264 with YUV 4:2:0 pixel format, retained the audio as AAC, and rebuilt the MP4 container index. This normalization step was separate from data augmentation and did not change the labels.
 To increase the limited dataset all videos where augmented once (doubling the dataset size) using the augment_dataset.py script found in this repository and treated as new participants.
-This knowingly introduces data leakage, as the random transformations can not be so extreme that the participants cant't be recoginzed as the same person, while still producing a usefull video. This was deemed a worty compromise in order to gain sufficient data for the nested-cross validation.
+This knowingly introduces data leakage, as the random transformations can not be so extreme that the participants cant be recognized as the same person, while still producing a useful video. This was deemed a worthy compromise in order to gain sufficient data for the nested-cross validation.
 
 ### 3.3 Labels and filename convention
 
@@ -177,7 +177,7 @@ The current nested cross-validation structure is:
 
 Although the final splitter is configured with two folds, the implementation calls `next(...)` and therefore uses only its first split; it does not train two additional final models.
 
-Nested cross-validation is important here because using the same cross-validation results both to select hyperparameters and to report performance creates optimistic bias. This risk and the role of nested evaluation are demonstrated by [Varma and Simon (2006)](https://doi.org/10.1186/1471-2105-7-91) and [Cawley and Talbot (2010)](https://www.jmlr.org/papers/v11/cawley10a.html).
+Nested cross-validation is important here because using the same cross-validation results both to select hyper parameters and to report performance creates optimistic bias. This risk and the role of nested evaluation are demonstrated by [Varma and Simon (2006)](https://doi.org/10.1186/1471-2105-7-91) and [Cawley and Talbot (2010)](https://www.jmlr.org/papers/v11/cawley10a.html).
 
 One repository specific thing to note is that grouping only uses the subjects ID. In the Mirror naming scheme, a male and a female participant can share the same number. They are consequently placed in the same fold even though they are different people. This is avoids data leakage, but it reduces the effective number of groups and can make stratification less flexible. A final version should preferably use unambiguous participant key such as gender plus numeric ID.
 
@@ -193,11 +193,11 @@ For every video, $T$ frame indices are selected by linear spacing from the first
 4. converted to a channel-first floating-point tensor; and
 5. normalized with ImageNet mean $(0.485, 0.456, 0.406)$ and standard deviation $(0.229, 0.224, 0.225)$.
 
-These dimensions and normalization match the standard preprocessing associated with pretrained Torchvision ResNet-18 weights. Uniform sampling results in a fixed memory use and coveres the full clip, but it can miss yawns or only capture them partialy. This type of sampling was chosen with the eventual use-case in mind. To have the model run on edge devices in cars with limited ressources.
+These dimensions and normalization match the standard preprocessing associated with pretrained Torchvision ResNet-18 weights. Uniform sampling results in a fixed memory use and covers the full clip, but it can miss yawns or only capture them partially. This type of sampling was chosen with the eventual use-case in mind. To have the model run on edge devices in cars with limited resources.
 
 ### 4.2 Audio preprocessing
 
-The audio loader uses TorchCodec to decode the complete audio stream and resample it to 16 kHz mono. It then samples four one-second clips distributed linearly across the complete recording. Number and length of the aduio clips was chosen in order not to sample to much of a given video, lasting aproximatly ~30s.
+The audio loader uses TorchCodec to decode the complete audio stream and resample it to 16 kHz mono. It then samples four one-second clips distributed linearly across the complete recording. Number and length of the audio clips was chosen in order not to sample to much of a given video, lasting approximately ~30s.
 
 For a waveform containing $N_i$ samples, the default configuration uses
 $$
@@ -213,7 +213,7 @@ $$
 A_i \in \mathbb{R}^{4 \times 16\,000}.
 $$
 
-This sampling allows to cover the whole video, while keeping memory and compute costs constant, again similar to the visual pipeline. It can nevertheless miss a short yawn that falls between the sampled intervals. Event-centred sampling or sliding-window inference would provide stronger temporal coverage.
+This sampling allows to cover the whole video, while keeping memory and compute costs constant, again similar to the visual pipeline. It can nevertheless miss a short yawn that falls between the sampled intervals. Event-centered sampling or sliding-window inference would provide stronger temporal coverage.
 
 Sixteen-kilohertz mono audio and log-mel input remain consistent with the official [YAMNet preprocessing specification](https://github.com/tensorflow/models/tree/master/research/audioset/yamnet).
 
@@ -229,7 +229,7 @@ The optional **src/augment_dataset.py** utility applies:
 - Gaussian noise; and
 - optional Gaussian blur.
 
-The augmentation scanner now handles MP4 and AVI files independently of the main dataset loader. It removes a trailing `-converted` suffix before parsing filenames and preserves the input subdirectory hierarchy in the augmented output directory. MOV files are not processed by this utility, they are also not present in the current dataset.
+The augmentation scanner now handles MP4 and AVI files independently of the main dataset loader. It removes a trailing `-converted` suffix before parsing filenames and preserves the input sub-directory hierarchy in the augmented output directory. MOV files are not processed by this utility, they are also not present in the current dataset.
 Flip, rotation, brightness, contrast, noise strength, and blur selection are sampled once per video so that the principal transformation does not flicker between frames. The noise realization itself varies by frame, but its strength is consistent across the video. Applying coherent spatial transformations is preferable to independently warping each frame because a video model should not learn artificial temporal discontinuities. See [Shorten and Khoshgoftaar (2019)](https://doi.org/10.1186/s40537-019-0197-0) for image augmentation and [Cauli and Reforgiato Recupero (2022)](https://doi.org/10.3390/fi14030093) for video-specific augmentation considerations.
 
 **Leakage warning:** the offline utility assigns augmented copies new IDs and is not integrated into the fold-specific training loader. Do not combine original and augmented copies before cross-validation if they can be assigned to different folds. The scientifically safe alternatives are:
@@ -424,7 +424,7 @@ $$
 \text{Dropout}(z_j)=
 \frac{m_jz_j}{1-p},
 \qquad
-m_j\sim\operatorname{Bernoulli}(1-p),
+m_j\sim\text{Bernoulli}(1-p),
 $$
 
 where $p$ is the dropout probability and $m_j$ is a random binary mask. Dropout is disabled during evaluation ([Srivastava et al., 2014](https://www.jmlr.org/papers/v15/srivastava14a.html)).
@@ -480,7 +480,7 @@ $$
 
 where:
 
-- $\operatorname{STFT}$ is the short-time Fourier transform;
+- $\text{STFT}$ is the short-time Fourier transform;
 - $|\cdot|$ converts the complex Fourier coefficients to magnitudes;
 - $M$ applies the mel filterbank;
 - $\varepsilon$ prevents taking the logarithm of zero; and
@@ -1015,24 +1015,24 @@ For multimodal experiments, each completed outer fold additionally stores `fusio
 Let TP, TN, FP, and FN denote true positives, true negatives, false positives, and false negatives for the yawning class.
 
 $$
-\operatorname{Accuracy} =
+	ext{Accuracy} =
 \frac{TP+TN}{TP+TN+FP+FN}
 $$
 
 $$
-\operatorname{Precision} =
+	ext{Precision} =
 \frac{TP}{TP+FP}
 $$
 
 $$
-\operatorname{Recall} =
+	ext{Recall} =
 \frac{TP}{TP+FN}
 $$
 
 $$
 F_1 =
-\frac{2\cdot\operatorname{Precision}\cdot\operatorname{Recall}}
-{\operatorname{Precision}+\operatorname{Recall}}
+\frac{2\cdot	ext{Precision}\cdot	ext{Recall}}
+{	ext{Precision}+	ext{Recall}}
 $$
 
 The primary selection metric is positive-class F1 because it balances false alarms and missed yawns and is more informative than accuracy alone when the classes are unequal. The interpretation of these measures and their dependence on the confusion matrix is discussed by [Sokolova and Lapalme (2009)](https://doi.org/10.1016/j.ipm.2009.03.002).
