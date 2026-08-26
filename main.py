@@ -55,6 +55,7 @@ if __name__ == "__main__":
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     study_name = f"study_{args.mode}_{timestamp}"
     study_dir = os.path.join("logs", study_name) #replace vision with audio or multimodal later
+    os.makedirs(study_dir, exist_ok=True)
 
     console_path = os.path.join(study_dir, "console.log")
     original_stdout = sys.stdout
@@ -109,23 +110,6 @@ if __name__ == "__main__":
     if exit_code:
         raise SystemExit(exit_code)
 
-    os.makedirs(study_dir, exist_ok=True)
-
-    tb_process = start_tensorboard(study_dir)
-
-    try:
-        run_experiment(df, args, study_dir)
-    except Exception:
-        print("[ERROR] Training failed.")
-        raise
-
-    else:
-        print("Training completed successfully.")
-
-    finally:
-        tb_process.terminate() #always terminate tensorboard
-        time_passed = time.time() - start_timestamp
-        print(f'\nTraining finished in {time_passed//3600}h {(time_passed%3600)//60}min {time_passed%60:.0f}s\n')
-
+   
     
     
