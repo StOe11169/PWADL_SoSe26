@@ -5,8 +5,7 @@
 Praktisches Wissenschaftliches Arbeiten mit Deep Learning (PWADL) - SoSe26
 
 **Author:** [Stefan Oelbracht]  
-**Repository:** [PWADL_SoSe26 - StOe_Multimodal branch](https://github.com/StOe11169/PWADL_SoSe26/tree/StOe_Multimodal)  
-**Implementation documented:** commit [ed63ed6](https://github.com/StOe11169/PWADL_SoSe26/tree/ed63ed6fceca70cec29c3f422d6adbd7ced0fd8b)  
+**Repository:** [PWADL_SoSe26 - StOe_Multimodal branch](https://github.com/StOe11169/PWADL_SoSe26/tree/StOe_Multimodal)   
 **Project status:** The pipelines are implemented and tested, but  models have not yet been trained. All numerical result fields below are therefore placeholders and will be added at a later date.
 
 ## Table of contents
@@ -116,6 +115,8 @@ The distribution of of participants of the self made, un-augmented dataset used 
 After recording, the custom videos were initially converted with VLC Media Player to approximate the resolution, frame rate, and bitrate of the YawDD videos. Because TorchCodec could not reliably seek within or decode the resulting MP4 files, the final copies were subsequently normalized using FFmpeg. This normalization regenerated presentation timestamps, shifted negative timestamps to zero, re-encoded the video as H.264 with YUV 4:2:0 pixel format, retained the audio as AAC, and rebuilt the MP4 container index. This normalization step was separate from data augmentation and did not change the labels.
 To increase the limited dataset all videos where augmented once (doubling the dataset size) using the augment_dataset.py script found in this repository and treated as new participants.
 This knowingly introduces data leakage, as the random transformations can not be so extreme that the participants cant be recognized as the same person, while still producing a useful video. This was deemed a worthy compromise in order to gain sufficient data for the nested-cross validation.
+Before augmentation the dataset consisted of the 320 YawDD Videos and the 48 selfmade videos for a total of 368 videos.
+All 368 videos are used for training the visual pipeline, but as the YawDD videos do not contain audio only 96 videos can be used to train the audio and multimodal pipelines.
 
 ### 3.3 Labels and filename convention
 
@@ -143,7 +144,7 @@ $$y_i =
 \end{cases}$$
 
 
-The label applies to the complete video even though the actual yawn occupies only a short interval. This is a known source of label noise and should be kept in mind when interpreting attention weights or failure cases. A different approach (insert yawdd paper with csv here)
+The label applies to the complete video even though the actual yawn occupies only a short interval. This is a known source of label noise and should be kept in mind when interpreting attention weights or failure cases. A different approach that would reduce the label noise significantly is described in ([Mujtaba et al., 2025](https://doi.org/10.48550/arXiv.2512.11446)) with its accompanying repository [here](https://opensource.silicon-austria.com/mujtabaa/yawdd) where each video of the original YawDD Dataset is annotated frame by frame using a csv file. This approach was not chosen in this project due to the amount of manual labbeling needed for the self produced videos.
 
 ### 3.4 Data layout
 
@@ -175,7 +176,7 @@ The current nested cross-validation structure is:
 - **Final epoch selection:** one grouped training/validation split taken from a separate 5-fold `StratifiedGroupKFold` applied only to the outer training partition.
 - **Outer test data:** used once to evaluate the selected final model for that outer fold.
 
-Although the final splitter is configured with two folds, the implementation calls `next(...)` and therefore uses only its first split; it does not train two additional final models.
+Although the final splitter is configured with five folds, the implementation calls `next(...)` and therefore uses only its first split; it does not train five additional final models.
 
 Nested cross-validation is important here because using the same cross-validation results both to select hyper parameters and to report performance creates optimistic bias. This risk and the role of nested evaluation are demonstrated by [Varma and Simon (2006)](https://doi.org/10.1186/1471-2105-7-91) and [Cawley and Talbot (2010)](https://www.jmlr.org/papers/v11/cawley10a.html).
 
@@ -801,12 +802,12 @@ where $n_b$ is the number of samples in batch $b$ and $\bar{\mathcal L}_b$ is th
 
 For every outer fold:
 
-1. keep one participant-disjoint fold untouched as the outer test set;
-2. create the same eight inner participant-disjoint folds for all Optuna trials;
-3. maximize mean validation F1 across the eight inner folds;
-4. choose the best completed trial;
-5. train a fresh final model on the outer training data, using a grouped validation split for early model selection; and
-6. evaluate the selected checkpoint once on the outer test fold.
+1. keep one participant-disjoint fold untouched as the outer test set
+2. create the same eight inner participant-disjoint folds for all Optuna trials
+3. maximize mean validation F1 across the eight inner folds
+4. choose the best completed trial
+5. train a fresh final model on the outer training data, using a grouped validation split for early model selection 
+6. evaluate the selected checkpoint once on the outer test fold
 
 In multimodal mode this process is run independently for the visual and audio branches, using the same participant splits. Their selected models are then evaluated on the same outer-test videos and fused by filepath.
 
@@ -918,8 +919,9 @@ python test_pipelines.py --mode all --visual-weight 0.5
 
 
 ### 7.4 Run experiments
+For training the YawDD Dataset must be downloaded [here](https://ieee-dataport.org/open-access/yawdd-yawning-detection-dataset) and placed in a folder called 'data' in root.
 The current command-line defaults are 64 frames per video, 50 epochs per training run, and 10 Optuna trials. The experiment code uses five outer folds and eight inner folds. Smaller values may be used for development runs, but results from reduced runs should be clearly identified and should not be reported as the final experiment.
-For testing purposes it is also advisable to reduce the number of folds. The fold counts are currently hard-coded in `run_experiment()` and `run_multimodal_experiment()` in `src/experiment.py`. All `StratifiedGroupKFold` instances require `n_splits >= 2`. The final training/validation stage uses only the first split returned by its five-fold splitter.
+For testing purposes it is also advisable to reduce the number of folds. The fold counts are currently hard-coded in `run_experiment()` and `run_multimodal_experiment()` in `src/experiment.py`. All `StratifiedGroupKFold` instances require `n_splits >= 2`. They can be found quickly when searching the document for 'n_splits'. The final training/validation stage uses only the first split returned by its five-fold splitter.
 Visual-only nested cross-validation:
 
 ~~~bash
@@ -990,10 +992,9 @@ tensorboard --logdir logs --port 6006
 | tensorboard_trial_* | Loss, F1, precision, recall, learning rate, and validation confusion matrices |
 | fusion_predictions.csv | Per-video visual, audio, and fused logits and predictions |
 | fusion_summary.json | Fused metrics and weighted-logit magnitude summary |
-| `outer_cv_summary.json` | Completed outer-fold F1 scores, mean, standard deviation, and completion status |
+| `outer_cv_summary.json` | Completed outer-fold F1 scores, accuracy, precision, recall |
 | `console.log` | Complete console output, warnings, runtime, and error traceback |
 | `outer_test_predictions.csv` | Standalone per-video labels, logits, probabilities, and predictions |
-| `outer_cv_summary.json` | Per-fold and aggregate accuracy, precision, recall, and F1 |
 
 After every successfully completed outer fold, the experiment overwrites `outer_cv_summary.json` in the study root. This preserves partial progress if a later fold fails. The file contains:
 
@@ -1219,17 +1220,15 @@ Expand after training:
 ## 11. Limitations and threats to validity
 
 1. **No final empirical results yet.** The architecture and protocol are documented, but effectiveness remains unmeasured until the outer-fold experiments are complete.
-2. **Dataset mismatch across modalities.** YawDD supports the visual branch, whereas multimodal evaluation depends on separate custom recordings. Claims about the value of sound must use the common audio-capable subset.
+2. **Dataset mismatch across modalities.** YawDD supports the visual branch, whereas multimodal evaluation depends on only $48*2=96$ custom recordings. Claims about the value of sound must use the common audio-capable subset.
 3. **Weak clip labels and sparse temporal sampling.** A positive filename does not identify yawn onset and offset. Uniform visual sampling and four sparse one-second audio intervals can miss the labelled event.
 4. **Attention is not temporal dynamics.** Visual pooling can emphasize frames but is invariant to their order. It cannot distinguish opening from closing motion by sequence direction.
 5. **No explicit face or mouth detector.** The centre crop includes the full scene and may devote capacity to background, camera, identity, or illumination cues.
-6. **Frozen generic audio representation.** YAMNet was trained for broad AudioSet events, not specifically for yawning. Training only the head may underfit.
+6. **Frozen generic audio representation.** YAMNet was trained for broad AudioSet events, not specifically for yawning. Training only the simple head may underfit.
 7. **Raw-logit fusion.** Different calibration and scale between encoders can distort a weighted sum. Fusion weights and calibration must be chosen without outer-test access.
 8. **Augmentation is not fold-safe by default.** The offline augmentation script is not called by training and will leak augmented if originals and copies are combined with different group IDs.
-9. **Audio filtering is path-based.** The configured missing-audio policy is not enforced by decoding checks in the main workflow.
-10. **Participant-ID collisions.** Grouping male and female participants who share a numeric ID is conservative but reduces the independent group count.
-11. **External validity.** YawDD was recorded in parked vehicles, and custom data may be collected under limited conditions. Performance cannot be assumed to generalize to moving vehicles, different cameras, languages, microphones, noise, demographics, or spontaneous rather than acted yawns.
-12. **Safety.** The project is a research classifier, not a validated driver-safety device. It must not be used as the sole basis for safety-critical decisions.
+9. **Participant-ID collisions.** Grouping male and female participants who share a numeric ID is conservative but reduces the independent group count.
+10. **External validity.** YawDD was recorded in parked vehicles, and custom data may be collected under limited conditions. Performance cannot be assumed to generalize to moving vehicles, different cameras, languages, microphones, noise, demographics, or spontaneous rather than acted yawns.
 
 ## 12. Repository structure
 
@@ -1237,8 +1236,6 @@ Expand after training:
 .
 ├── main.py                         # CLI and experiment entry point
 ├── requirements.txt               # Pinned Python dependencies
-├── Jupyter_Notebooks/
-│   └── annotationen_yawdd.ipynb   # Exploratory YawDD annotation analysis
 ├── src/
 │   ├── augment_dataset.py         # Hierarchy-preserving offline video augmentation
 │   ├── config.py                  # Optuna search space and fixed settings
@@ -1253,7 +1250,7 @@ Expand after training:
 │   └── models/
 │       ├── visual/model.py        # ResNet-18 attention classifier
 │       └── audio/yamnet.py        # Frozen YAMNet with clip/video mean pooling
-├── test_pipelines.py              # ├── test_pipelines.py              # Batch-size-two preprocessing, inference, and fusion tests
+├── test_pipelines.py              # Batch-size-two preprocessing, inference, and fusion tests
 └── tests/                         # Three synthetic audio-video fixtures
 ~~~
 
@@ -1292,6 +1289,7 @@ Expand after training:
 31. PyTorch. (n.d.). `BCEWithLogitsLoss`. *Official PyTorch documentation*. [https://docs.pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html](https://docs.pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html)
 32. TensorFlow. (n.d.). Sound classification with YAMNet. *Official TensorFlow Hub documentation*. [https://www.tensorflow.org/hub/tutorials/yamnet](https://www.tensorflow.org/hub/tutorials/yamnet)
 33. Zaheer, M., Kottur, S., Ravanbakhsh, S., Póczos, B., Salakhutdinov, R., & Smola, A. J. (2017). Deep Sets. *Advances in Neural Information Processing Systems 30*. [https://papers.nips.cc/paper_files/paper/2017/hash/f22e4747da1aa27e363d86d40ff442fe-Abstract.html](https://papers.nips.cc/paper_files/paper/2017/hash/f22e4747da1aa27e363d86d40ff442fe-Abstract.html)
+34. Mujtaba, A., Radchenko, G., Masana, M., & Prodan, R. (2025). [YawDD+: Frame-level annotations for accurate yawn prediction](https://doi.org/10.48550/arXiv.2512.11446). *arXiv preprint arXiv:2512.11446*.
 
 
 
