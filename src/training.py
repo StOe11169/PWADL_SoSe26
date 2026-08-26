@@ -10,6 +10,7 @@ from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 from src.evaluation import evaluate
 from src.utils import get_writer, plot_confusion_matrix, build_optimizer, build_scheduler
+from torch.utils.data import DataLoader
 
 #check Logs folder is there
 os.makedirs("logs", exist_ok=True)
@@ -45,6 +46,10 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
 
     optimizer = build_optimizer(model, cfg)
     scheduler = build_scheduler(optimizer, cfg)
+
+    #use every training sample for metrics, without random ordering
+    train_eval_loader = DataLoader( trainloader.dataset, batch_size=trainloader.batch_size, num_workers=cfg["num_workers"], shuffle=False, drop_last=False)
+
     # train loop
     for epoch in range(epochs): 
 
@@ -85,7 +90,7 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
         print(f" Train Loss: {epoch_loss:0.4f}", f"    LR: {current_lr}")
 
         # evaluate train and validation data; loaders here shuffle and drop leftovers
-        train_metrics = evaluate(trainloader, model, device, criterion, input_key= input_key)
+        train_metrics = evaluate(train_eval_loader, model, device, criterion, input_key= input_key)
         val_metrics = evaluate(valloader, model, device, criterion, input_key=input_key) 
 
         #optuna pruning per epoch
@@ -114,7 +119,7 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
             writer.add_text("status", f"Completed (best_f1={best_f1:.4f}, epoch={best_epoch})", global_step=0)
 
         print(f"Train Acc: {train_metrics['accuracy']:.3f}   --   Val Acc: {val_metrics['accuracy']:.3f}")
-        print(f"Train F1: {train_metrics['f1']:.3f}   --   Val F1c: {val_metrics['f1']:.3f}")  
+        print(f"Train F1: {train_metrics['f1']:.3f}   --   Val F1: {val_metrics['f1']:.3f}")  
         
 
         # Save best model weights and hyperparameters based on validation F1

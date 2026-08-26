@@ -227,7 +227,7 @@ def run_inner_study(train_df_outer, inner_splits, args, study_dir, mode):
     study = optuna.create_study(direction="maximize", pruner=optuna.pruners.MedianPruner(n_startup_trials=2, n_warmup_steps=2, interval_steps=1))
 
     #each trial uses same, predefined inner cv folds so none "get lucky" with the splits and trials are comparable
-    study.optimize(lambda trial: objective(trial, train_df_outer, inner_splits, args, study_dir, mode), n_trials=args.n_trials, show_progress_bar=True)
+    study.optimize(lambda trial: objective(trial, train_df_outer, inner_splits, args, study_dir, mode), n_trials=args.n_trials, show_progress_bar=False)
 
     #ensure at least one trial finishes
     completed_trials = [trial for trial in study.trials if trial.state == optuna.trial.TrialState.COMPLETE]
@@ -308,7 +308,7 @@ def run_multimodal_experiment(df, args, study_dir):
         os.makedirs(fusion_dir, exist_ok=True)
 
         #create inner folds once -> visual and audio see same ids 
-        inner_cv = StratifiedGroupKFold(n_splits=3, shuffle=True, random_state=42)
+        inner_cv = StratifiedGroupKFold(n_splits=8, shuffle=True, random_state=42)
 
         inner_splits = list(inner_cv.split(train_df_outer, y=train_df_outer["yawning"], groups=train_df_outer["id"]))
 
@@ -328,7 +328,7 @@ def run_multimodal_experiment(df, args, study_dir):
 
         #make ONE final train/val split
         #both modalities must use the same videos
-        final_cv = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+        final_cv = StratifiedGroupKFold(n_splits=1, shuffle=True, random_state=42)
 
         final_train_idx, final_val_idx = next(final_cv.split(train_df_outer, y=train_df_outer["yawning"], groups=train_df_outer["id"]))
 
@@ -382,10 +382,10 @@ def run_experiment(df, args, study_dir):
     input_key = get_input_key(mode)
         
     #Outer Loop
-    sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+    outer_cv = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
     outer_results = []
     
-    for fold, (train_idx, test_idx) in enumerate(sgkf.split(df, y=df["yawning"], groups=df["id"])):
+    for fold, (train_idx, test_idx) in enumerate(outer_cv.split(df, y=df["yawning"], groups=df["id"])):
         print(f"\n================ OUTER FOLD {fold} ================")
 
         #fixed grouped splits to prevent identity leakage and trial-specific luck
@@ -397,7 +397,7 @@ def run_experiment(df, args, study_dir):
         os.makedirs(fold_dir, exist_ok=True)
 
         #same inner folds vor every trial so one trial does not get a lucky split (->running multiple outer folds prevents having "one unlucky split")
-        inner_cv = StratifiedGroupKFold(n_splits=3, shuffle=True, random_state=42)
+        inner_cv = StratifiedGroupKFold(n_splits=8, shuffle=True, random_state=42)
         inner_splits = list(inner_cv.split(train_df_outer, y=train_df_outer["yawning"], groups=train_df_outer["id"]))
     
         #Inner Loop
@@ -405,7 +405,7 @@ def run_experiment(df, args, study_dir):
                                         pruner=optuna.pruners.MedianPruner(n_startup_trials=2, #dont prune immediatly
                                                                             n_warmup_steps=2, #wait one epoch
                                                                             interval_steps=1))
-        study.optimize(lambda trial: objective(trial, train_df_outer,inner_splits, args, fold_dir, mode), n_trials=args.n_trials, show_progress_bar=True)
+        study.optimize(lambda trial: objective(trial, train_df_outer,inner_splits, args, fold_dir, mode), n_trials=args.n_trials, show_progress_bar=False)
     
         #Skip if trial pruned to early
         completed_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
@@ -427,8 +427,8 @@ def run_experiment(df, args, study_dir):
         model = build_model(best_cfg, mode, device)
        
         #Final val split only from outer training data
-        final_sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
-        final_train_idx, final_val_idx, = next(final_sgkf.split(train_df_outer, y=train_df_outer["yawning"], groups=train_df_outer["id"]))
+        final_cv = StratifiedGroupKFold(n_splits=1, shuffle=True, random_state=42)
+        final_train_idx, final_val_idx, = next(final_cv.split(train_df_outer, y=train_df_outer["yawning"], groups=train_df_outer["id"]))
 
         final_train_df = train_df_outer.iloc[final_train_idx].reset_index(drop=True)
         final_val_df = train_df_outer.iloc[final_val_idx].reset_index(drop=True)

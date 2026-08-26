@@ -17,8 +17,8 @@ if __name__ == "__main__":
     # get client args
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default='YawDD')
-    parser.add_argument("--num_frames", type=int, default=32)
-    parser.add_argument("--epochs", type=int, default=20)
+    parser.add_argument("--num_frames", type=int, default=64)
+    parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--n_trials", type=int, default=10)
 
     #testing audio/fusion pipeline
