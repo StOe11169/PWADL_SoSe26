@@ -393,11 +393,29 @@ Die Auswahl des besten Modells erfolgte anhand des F1-Scores auf dem Validierung
 
 ### Darstellung der Metriken:
 
-Das Training wurde über 32 Epochen durchgeführt. Bereits nach wenigen Epochen zeigte das Modell deutliche Lernfortschritte. Der Trainingsverlust sank kontinuierlich von etwa 1,0 auf unter 0,1 und näherte sich gegen Ende des Trainings einem stabilen Minimum an. Ab ungefähr 15 Epochen fängt es an, dass Overfitting ersichtlich wird. Daher wird ein Training mit 15 Epochen empfohlen.
+Das Training wurde über 32 Epochen durchgeführt. Bereits nach wenigen Epochen zeigte das Modell deutliche Lernfortschritte. Der Train-Loss sank kontinuierlich von etwa 1,0 auf unter 0,1 und näherte sich gegen Ende des Trainings einem stabilen Minimum an.
+
+![alt text](Images/image.png)
  
-Gleichzeitig stiegen die Kennzahlen Accuracy, Precision, Recall und F1-Score sowohl auf den Trainings- als auch auf den Validierungsdaten kontinuierlich an. Gegen Ende des Trainings wurden auf beiden Datensätzen Werte von nahezu 100 % erreicht. Dies weißt auf Overfitting hin.
+Gleichzeitig stiegen die Kennzahlen Accuracy, Precision, Recall und F1-Score sowohl auf den Trainings- als auch auf den Validierungsdaten kontinuierlich an. Gegen Ende des Trainings wurden auf beiden Datensätzen Werte von nahezu 100 % erreicht, was auf Overfitting hinweist.
+
+![alt text](Images/image-8.png)
+
+![alt text](Images/image-1.png)
+
+![alt text](Images/image-2.png)
+
+![alt text](Images/image-3.png)
+
+![alt text](Images/image-4.png)
+
+![alt text](Images/image-5.png)
  
-Der beste während des Trainings erreichte F1-Score auf dem Validierungsdatensatz lag bei ungefähr 0,94.
+Der beste während des Trainings erreichte F1-Score auf dem Validierungsdatensatz lag bei ungefähr 0,94. Ab ungefähr 15 Epochen fängt es an, dass Overfitting ersichtlich wird. Daher wird ein Training mit 15 Epochen empfohlen.
+
+![alt text](Images/image-6.png)
+
+![alt text](Images/image-7.png)
  
 Die TensorBoard-Kurven zeigen dabei einen insgesamt sehr stabilen Trainingsverlauf ohne größere Schwankungen oder Instabilitäten. Besonders deutlich wird dies an dem stetigen Anstieg der Precision- und Recall-Werte sowie dem gleichmäßigen Rückgang des Trainingsverlustes.
 
