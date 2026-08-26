@@ -14,9 +14,9 @@ def fuse_logits(visual_predictions, audio_predictions, visual_weight=0.5):
     audio_weight = 1.0 - visual_weight
 
     #match predictions per video
-    fused = pd.merge(visual_predictions, audio_predictions, on="filepath", suffixes=("_visual", "_audio"), validate="one_to_one")
+    fused = pd.merge(visual_predictions, audio_predictions, on="filepath", suffixes=("_visual", "_audio"), validate="one_to_one") #one_to_one avoids duplicate predictions for same video
 
-    #ensure labels describe the same video
+    #ensure labels describe the same video, after multimod alignment
     if not np.array_equal(fused["label_visual"].to_numpy(), fused["label_audio"].to_numpy()):
         raise ValueError("visual and audo labels dont match")
 
@@ -30,6 +30,7 @@ def fuse_logits(visual_predictions, audio_predictions, visual_weight=0.5):
     fused["fused_logit"] = (fused["visual_contribution"] + fused["audio_contribution"])
 
     #convert fused logits to prob with sigmoid
+    #Note: raw logits of each mode may have different scales -> ToDo: research logit calibration or using probabilities instead.
     fused_logits = torch.tensor(fused["fused_logit"].to_numpy(), dtype=torch.float32)
     fused["fused_probability"] = (torch.sigmoid(fused_logits).numpy())
 
@@ -74,7 +75,7 @@ def get_contribution_summary(fused,visual_weight,):
         "mean_visual_abs_share": float(fused["visual_abs_share"].mean()), "mean_audio_abs_share": float(fused["audio_abs_share"].mean())}
 
 def save_fusion_results(fused, metrics, contribution_summary, fold_dir,):
-    #result for every video
+    #result for every video, saves per video metrics seperately from summarised metrics
     fused.to_csv(os.path.join(fold_dir, "fusion_predictions.csv"), index=False)
     summary = {"metrics": metrics, "contributions": contribution_summary}
     with open(os.path.join(fold_dir, "fusion_summary.json"), "w") as f: json.dump(summary, f, indent=4)

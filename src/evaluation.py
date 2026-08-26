@@ -21,10 +21,10 @@ def evaluate(loader, model, device, criterion=None, input_key="frames"):
 
             # forward pass
             logits = model(inputs)
-            probs = torch.sigmoid(logits)
+            probs = torch.sigmoid(logits) #probability threshold of 0.5 equals a logit threshold of zero
             preds = (probs > 0.5).float()
 
-            #compute loss
+            #accumulate batch-mean losses; NOT a sample-weighted epoch mean
             if criterion is not None:
                 loss = criterion(logits, labels)
                 total_loss += loss.item()
@@ -55,7 +55,7 @@ def evaluate(loader, model, device, criterion=None, input_key="frames"):
         return results
 
 
-@torch.inference_mode() #https://docs.pytorch.org/docs/2.9/notes/autograd.html#inference-mode
+@torch.inference_mode() #https://docs.pytorch.org/docs/2.9/notes/autograd.html#inference-mode -> avoids some overhead during fusion preds
 def predict_logits(loader, model, device, input_key):
     #return raw logits for late fusion, one row for each video
     model.eval()
@@ -70,7 +70,7 @@ def predict_logits(loader, model, device, input_key):
         labels = batch["labels"].cpu()
         filepath = batch["filepath"]
 
-        #save one prediction per video
+        #save one prediction per video, keep filepath for alignment
         for filepath, label, logit in zip(filepath, labels, logits):
             rows.append({"filepath": filepath, "label": int(label.item()), "logit": float(logit.item())}) #Note:label and logit are pytorch tensors
 

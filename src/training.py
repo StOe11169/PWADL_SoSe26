@@ -15,7 +15,7 @@ from src.utils import get_writer, plot_confusion_matrix, build_optimizer, build_
 os.makedirs("logs", exist_ok=True)
 
 def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg, trial= None, writer = None, input_key="frames", pruning_step_offset=0):
-    
+    #trains one model per fold
     epochs = cfg["epochs"]
     best_f1 = -1 # -1 so best model is saved at least once, even if it does not improve F1 score
     best_epoch = 0
@@ -51,7 +51,7 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
         # init running loss
         running_loss = 0
 
-        # go through all data
+        # go through all data; re-enable dropout and bachtnorm for each epoch
         model.train()
         for batch in tqdm(trainloader, desc=f"Epoch {epoch}"):
             #shift data to device
@@ -60,11 +60,11 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
 
 
             # forward + backward pass
-            optimizer.zero_grad()
+            optimizer.zero_grad() #reset gradient before forward pass
             logits = model(inputs)          
             loss   = criterion(logits, labels)
             loss.backward()        
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) # gradient clipping                
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) # gradient clipping to reduce aggressive jumps         
             optimizer.step()
 
             # update running loss
@@ -76,13 +76,13 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
         current_lr = optimizer.param_groups[0]["lr"]
         print(f"  Loss: {running_loss:0.4f}", f"    LR: {current_lr}")
 
-        # evaluate train and validation data
+        # evaluate train and validation data; loaders here shuffle and drop leftovers
         train_metrics = evaluate(trainloader, model, device, criterion, input_key= input_key)
-        val_metrics = evaluate(valloader, model, device, criterion, input_key=input_key)
+        val_metrics = evaluate(valloader, model, device, criterion, input_key=input_key) 
 
         #optuna pruning per epoch
         if trial is not None:
-            #keep pruning steps unique across folds
+            #Offset pruning steps so inner folds use unique Optuna step indices
             pruning_step = pruning_step_offset + epoch
             trial.report(val_metrics["f1"], pruning_step)
 
@@ -109,7 +109,7 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
         print(f"Train F1: {train_metrics['f1']:.3f}   --   Val F1c: {val_metrics['f1']:.3f}")  
         
 
-        # Save best model weights and hyperparameters
+        # Save best model weights and hyperparameters based on validation F1
         if val_metrics['f1'] > best_f1:
             best_f1 = val_metrics['f1']
             best_epoch = epoch
@@ -121,11 +121,11 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
                 writer.add_figure("Confusion_Matrix/val", fig, epoch)
             plt.close(fig)
             
-        #Save best Checkpoint
+        #Save best Checkpoint, overwrite last checkpoint
         torch.save({'epoch': epoch, 'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict(), 'loss': running_loss,
                      'cfg': cfg, 'trial_number': trial_number}, checkpoint_path)
             
-    #Close Tensorboard writer
+    #Close Tensorboard writer, flush remaining events
     if writer:
         writer.close()
 

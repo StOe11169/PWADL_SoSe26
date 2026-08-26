@@ -10,14 +10,14 @@ class YawDDclassifier(nn.Module):
         backbone = resnet18(weights=ResNet18_Weights.DEFAULT)
         self.feature_extractor = nn.Sequential(*list(backbone.children())[:-1]) # keep only the model backbone and remove the final head
         
-        # temporal attention pooling
+        # temporal attention pooling, scores each frame -> does NOT model ordering of frames in video
         self.attn = nn.Sequential(
             nn.Linear(backbone.fc.in_features, 128),
             nn.Tanh(),
             nn.Linear(128, 1),
         )
 
-        # classification head
+        # classification head, convert video embedding into logit
         self.cls_head = nn.Sequential(
             nn.Linear(backbone.fc.in_features, 256),
             nn.BatchNorm1d(256),
@@ -41,9 +41,9 @@ class YawDDclassifier(nn.Module):
 
         # attention pooling over time
         scores = self.attn(x)               # Calculate attention scores Tensor Shape: (B, T, 1)
-        weights = torch.softmax(scores, dim=1) # scales scores from 0 to 1, shape unchanged
+        weights = torch.softmax(scores, dim=1) # scales scores from 0 to 1, shape unchanged, adds up to 1 across frames within a video -> distributes importance among frames
         pooled = (x * weights).sum(dim=1)   # (B, F), single feature vector per sequence
 
-        # final logits
+        # final logits, returning raw logits, BCEWithLogitsLoss applies sigmoid internally
         logits = self.cls_head(pooled).squeeze(-1)  # (B,)
         return logits

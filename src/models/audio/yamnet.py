@@ -11,7 +11,7 @@ from torch_audioset.data.torch_input_processing import WaveformToInput
 class YamNetAudioClassifier(nn.Module):
     """
     pretrained yamnet backbone with binary yawning classifier
-    input: waveform [batch, samples]
+    input: waveform [batch, num_clips, samples_per_clip]
     output: logits [batch]
 
     https://github.com/w-hc/torch_audioset.git
@@ -27,6 +27,7 @@ class YamNetAudioClassifier(nn.Module):
         self.frontend = WaveformToInput()
 
         #load pretrained weights
+        #Note: First run needs internet connection to download weights
         self.backbone = yamnet(pretrained=True)
         
         #Note: yamnet maps 1024 features -> 521 classes
@@ -44,6 +45,7 @@ class YamNetAudioClassifier(nn.Module):
                 parameter.requires_grad = False
 
     def forward(self, waveform):
+        #fail early to not waste time
         if waveform.ndim != 3:
             raise ValueError("Expected waveform shape [batch, num_clips, samples_per_clip], got {tuple(waveform.shape)}")
 
@@ -51,6 +53,7 @@ class YamNetAudioClassifier(nn.Module):
 
         #process each videos audio separetly
         # waveform: [batch, num_clips, samples_per_clip]
+        #merges patches into clips, then clips into video embeddings
         for video_clips in waveform:
             clip_embeddings = []
 
@@ -60,12 +63,13 @@ class YamNetAudioClassifier(nn.Module):
 
             for clip in video_clips:
                 # [samples] -> [1, samples]
-                clip = clip.unsqueeze(0)
+                clip = clip.unsqueeze(0) #frontend uses cpu; move clips back to model device
 
                 #convert clip to YAMNet-compatible patches
                 patches, _ = self.frontend.wavform_to_log_mel(clip.cpu(), self.sample_rate)
                 patches = patches.to(waveform.device)
 
+                #avoid autograd for frozen backbone
                 if self.freeze_backbone:
                     self.backbone.eval()
 
@@ -77,10 +81,12 @@ class YamNetAudioClassifier(nn.Module):
 
                 #average YAMNet patches within this specific audio 
                 #[num_patches, 1024] -> [1024]
+                #Note: mean pooling removes order from patches and clips, same as with frames
                 clip_embedding = embeddings.mean(dim=0)
                 clip_embeddings.append(clip_embedding)
 
             #average sampled clips into one representation for the hole video
+            #stack only after all videos are processed as stacking inside the loop would break the batches
             #[num_clips, 1024] -> [1024]
             video_embedding = torch.stack(clip_embeddings).mean(dim=0)
             video_embeddings.append(video_embedding)

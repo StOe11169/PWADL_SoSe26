@@ -17,13 +17,14 @@ in train, test or val
 """
 
 def get_augmentation_data_paths(input_root):
-    #find videos for augmentation
+    #find videos for augmentation; uses separate parses to acount for suffices of converted files
     rows = []
 
     for root, _, files in os.walk(input_root):
         for file in files:
 
             #process only supported video
+            #note: only works for MP4 and AVI
             if not file.lower().endswith((".mp4", ".avi")):
                 continue
 
@@ -69,7 +70,7 @@ def augment_video(input_path, output_path):
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter(temp_video, fourcc, fps, (width, height))
 
-    #Sample augment params once per video for temporal consistency
+    #Sample augment params once per video to avoid flickering
     flip = np.random.rand() < 0.5
     alpha = 0.9 + 0.2 *np.random.rand() #rnd contrast in rage [0.9, 1.1]
     beta = np.random.randint(-20,20) #rnd brightness 
@@ -95,7 +96,7 @@ def augment_video(input_path, output_path):
             frame = cv2.flip(frame,1)
 
         #Rotation
-        frame = cv2.warpAffine(frame, rot_mat, (width, height), borderMode=cv2.BORDER_REFLECT)
+        frame = cv2.warpAffine(frame, rot_mat, (width, height), borderMode=cv2.BORDER_REFLECT) #reflext to avoid black borders after rot
 
         #Brightness and contrast
         frame = cv2.convertScaleAbs(frame, alpha=alpha, beta=beta)
@@ -124,12 +125,13 @@ def augment_video(input_path, output_path):
         "-c:v", "copy",     #copy vid
         "-c:a", "aac",      #encode audio
         "-map", "0:v:0",    #take vid from temp
-        "-map", "1:a:0?",    #take audio from og vid
+        "-map", "1:a:0?",    #take audio from og vid; ? allows for vids without audio (og yawdd vids)
         output_path   
     ]
 
     subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     #clean up temp file
+    #TODO: move cleanup into finally block to avoid leaking temporary files
     os.remove(temp_video)
 
 def create_augmented_dataset(input_root="data", output_root="data_augmented"):
@@ -146,10 +148,10 @@ def create_augmented_dataset(input_root="data", output_root="data_augmented"):
 
     print(F"Starting augment from ID: {next_id}")
 
-    #group by id for augment
+    #group by id for augment -> one new aug vid for each og vid
     grouped = df.groupby("id")
 
-    for old_id, group in tqdm(grouped, desc="Augmenting subjects"):
+    for old_id, group in tqdm(grouped, desc="Augmenting subjects"): #new ids avoid name colissions, but need fold-safe group mapping
         #assign new id to augmented subject
         new_id = f"{next_id:03d}" #pad with leading zeros, min 3 digits long
         next_id += 1

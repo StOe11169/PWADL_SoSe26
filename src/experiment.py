@@ -54,11 +54,11 @@ def with_fold_class_weight(cfg, train_df, label_column="yawning"):
     if positive_count == 0 or negative_count == 0:
         raise ValueError("Each training fold must contain both classes to calculate pos_weight.Found positive={positive_count}, negative={negative_count}.")
 
-    #don't modify shared Optuna config
-    #every inner fold may have a different distirbution
+    #copy cfg so we dont modify shared Optuna config; every inner fold may have a different distirbution
+    #-> avoids leaking values into later folds
     fold_cfg = dict(cfg)
 
-    #multiply only positive BCE term
+    #balance total + and + loss contributions
     fold_cfg["pos_weight"] = negative_count / positive_count
 
     # Store counts so the exact calculation is reproducible 
@@ -111,14 +111,15 @@ def build_model(cfg, mode, device):
 
 def build_loaders(trainset, valset, cfg):
    #build train and val-dataloaders depending on mode
+   #drop_last avoids BatchNorm training batches containing one sample
     trainloader = DataLoader(trainset,batch_size=cfg["batch_size"],num_workers=cfg["num_workers"],shuffle=True,drop_last=True,)
 
-    valloader = DataLoader(valset,batch_size=cfg["batch_size"],num_workers=cfg["num_workers"],shuffle=False,)
+    valloader = DataLoader(valset,batch_size=cfg["batch_size"],num_workers=cfg["num_workers"],shuffle=False,) #shuffle=False to maintain ordering for reproducability
 
     return trainloader, valloader
 
 def prepare_dataframe_for_mode(df, args):
-    #Applies mode-specific df filtering before cv
+    #Applies mode-specific df filtering before cv so both modalities use same videos
     if args.mode in ("audio", "multimodal"):
         df = filter_audio_dataframe(df,exclude_path_parts=args.audio_exclude_path_parts)
         if len(df) == 0:
@@ -133,6 +134,7 @@ def evaluate_multimodal(test_df, visual_model, audio_model, visual_cfg, audio_cf
     audio_testset = build_dataset(test_df, audio_cfg, "audio")
 
     #build dataloaders, no shuffling so predictions logs stay deterministic
+    #logit fusion also needs stable filepath association
     audio_loader = DataLoader(audio_testset, batch_size=audio_cfg["batch_size"], shuffle=False)
     visual_loader = DataLoader(visual_testset, batch_size=visual_cfg["batch_size"], shuffle=False)
 
@@ -148,7 +150,7 @@ def evaluate_multimodal(test_df, visual_model, audio_model, visual_cfg, audio_cf
     contribution_summary = get_contribution_summary(fused, visual_weight=visual_weight)
     save_fusion_results(fused, fusion_metrics, contribution_summary, fold_dir)
 
-    return fusion_metrics, contribution_summary
+    return fusion_metrics, contribution_summary #evaluate one optuna cfg over every fixed inner split
 
 def objective(trial,train_df_outer,inner_splits,args, study_dir, mode):
     try:
@@ -172,7 +174,7 @@ def objective(trial,train_df_outer,inner_splits,args, study_dir, mode):
             train_df = train_df_outer.iloc[train_idx].reset_index(drop=True)
             val_df = train_df_outer.iloc[val_idx].reset_index(drop=True)
             #calculate pos_weight only from this inner fold
-            #val_df is deliberately not passed to the calculation.
+            #val_df is deliberately not passed to the calculation
             fold_cfg = with_fold_class_weight(cfg, train_df)
 
             #build datasets for this fold
@@ -191,6 +193,7 @@ def objective(trial,train_df_outer,inner_splits,args, study_dir, mode):
 
             inner_f1_scores.append(f1_val)
             inner_best_epochs.append(epoch)
+            #save fold class balance separatly as its not a tunable hyperparam
             inner_class_balance.append({"inner_fold": inner_fold, "positive": fold_cfg["train_class_counts"]["positive"],"negative": fold_cfg["train_class_counts"]["negative"],"pos_weight": fold_cfg["pos_weight"]})
         mean_f1 = float(np.mean(inner_f1_scores))
         
@@ -199,7 +202,7 @@ def objective(trial,train_df_outer,inner_splits,args, study_dir, mode):
         with open(os.path.join(study_dir, f"trial_{trial.number}_summary.json"), "w") as f:
             json.dump(trial_summary, f, indent=4)
 
-        return mean_f1
+        return mean_f1 #remove partial artifacts so failed trials cant look complete
     
     except Exception as e:
         #Remove incomplete files
@@ -219,9 +222,10 @@ def run_inner_study(train_df_outer, inner_splits, args, study_dir, mode):
     #keep visual/audio checkpoints and logs separate
     os.makedirs(study_dir, exist_ok=True)
 
+    #prune weak trials after warm up
     study = optuna.create_study(direction="maximize", pruner=optuna.pruners.MedianPruner(n_startup_trials=2, n_warmup_steps=2, interval_steps=1))
 
-    #each trial uses same, predefined inner cv folds so none "get lucky" with the splits
+    #each trial uses same, predefined inner cv folds so none "get lucky" with the splits and trials are comparable
     study.optimize(lambda trial: objective(trial, train_df_outer, inner_splits, args, study_dir, mode), n_trials=args.n_trials, show_progress_bar=True)
 
     #ensure at least one trial finishes
@@ -245,9 +249,10 @@ def run_inner_study(train_df_outer, inner_splits, args, study_dir, mode):
 def train_final_model(final_train_df, final_val_df, cfg, mode, device, model_dir):
     #train one final unimodal model using its best config
     #The outer test set is deliberately not passed here
+    
 
     input_key = get_input_key(mode)
-    #calculate pos_weight from final distribution
+    #calculate pos_weight from final distribution, # recomputing as final_train_df differs frominner folds
     final_cfg = with_fold_class_weight(cfg, final_train_df)
     #build fresh model for final training
     model = build_model(final_cfg, mode, device)
@@ -341,10 +346,11 @@ def run_multimodal_experiment(df, args, study_dir):
 
         # -------------------------Late fusion-------------------------
         print("\n----- LATE FUSION -----")
+        #Log aggregate diagnostics only; per-video values are saved as CS
         fusion_metrics, contributions = evaluate_multimodal(test_df=test_df_outer, visual_model=visual_model, audio_model=audio_model, visual_cfg=visual_cfg, audio_cfg=audio_cfg, device=device, fold_dir=fusion_dir, visual_weight=visual_weight)
 
         print(f"Fold {fold} fused F1:{fusion_metrics['f1']:.4f}")
-        print(f"Mean contribution share: visual={contributions["mean_visual_abs_share"]:.3f} audio={contributions["mean_audio_abs_share"]:.3f}")
+        print(f"Mean contribution share: visual={contributions['mean_visual_abs_share#']:.3f} audio={contributions['mean_audio_abs_share']:.3f}")
 
         #sending only aggregate results to tensorboard
         fusion_writer.add_scalar("F1/fused", fusion_metrics["f1"], fold)
@@ -361,7 +367,7 @@ def run_multimodal_experiment(df, args, study_dir):
     print(f"Std F1:  {np.std(outer_results):.4f}")
 
 def run_experiment(df, args, study_dir):
-    """Dispatch the requested experiment mode.
+    """run requested experiment mode
     Visual/audio use one model and one input key.
     Multimodal coordinates both pipelines"""
 
@@ -380,7 +386,8 @@ def run_experiment(df, args, study_dir):
     
     for fold, (train_idx, test_idx) in enumerate(sgkf.split(df, y=df["yawning"], groups=df["id"])):
         print(f"\n================ OUTER FOLD {fold} ================")
-    
+
+        #fixed grouped splits to prevent identity leakage and trial-specific luck
         train_df_outer = df.iloc[train_idx].reset_index(drop=True)
         test_df_outer = df.iloc[test_idx].reset_index(drop=True)
     
@@ -447,8 +454,8 @@ def run_experiment(df, args, study_dir):
         testset = build_dataset(test_df_outer, final_cfg, mode)
         testloader = DataLoader(testset, batch_size=final_cfg["batch_size"], num_workers=best_cfg["num_workers"], shuffle=False)
 
-        model.eval()
-        test_metrics = evaluate(testloader, model, device, input_key=input_key)
+        model.eval() 
+        test_metrics = evaluate(testloader, model, device, input_key=input_key) #one independent score per outer fold
     
         print(f"Fold {fold} F1: {test_metrics['f1']:.4f}")
         outer_results.append(test_metrics["f1"])

@@ -32,8 +32,9 @@ if __name__ == "__main__":
     #validate_video_decoding(df, num_frames=2)
 
     #Create unique folder for study
-    study_name = datetime.now().strftime("%Y%m%d_%H%M%S") 
-    study_dir = os.path.join("logs","vision", f"study_{study_name}") #replace vision with audio or multimodal later
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    study_name = f"study_{args.mode}_{timestamp}"
+    study_dir = os.path.join("logs", f"study_{study_name}") #replace vision with audio or multimodal later
     os.makedirs(study_dir, exist_ok=True)
 
     tb_process = start_tensorboard(study_dir)

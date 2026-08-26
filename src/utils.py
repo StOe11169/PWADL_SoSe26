@@ -13,12 +13,12 @@ from torch.utils.tensorboard import SummaryWriter
 
 def setup_env(seed):
 
-    # set python, numpy, torch random seed
+    #set python, numpy, torch random seed
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
 
-    # when running on the CuDNN backend
+    #when running on the CuDNN backend prefer deterministic kernels for reproducability
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
@@ -26,7 +26,7 @@ def setup_env(seed):
         torch.backends.cudnn.benchmark = False
 
     # set precision
-    torch.set_float32_matmul_precision('high')     
+    torch.set_float32_matmul_precision('high') #allows high-throughput matrix multiplication
 
 
 #Create Summary Writer for specific Study/Trial
@@ -53,7 +53,8 @@ def start_tensorboard(study_dir, port=6006):
    return process
 
 def  plot_confusion_matrix(y_true, y_pred, title="Confusion Matrix"):
-    cm = confusion_matrix(y_true, y_pred)
+    #plots raw counts instead of normalized percentages
+    cm = confusion_matrix(y_true, y_pred) 
     fig = plt.figure()
     sns.heatmap(cm, fmt="d", cmap="Blues")
     plt.xlabel("Predicted")
@@ -62,7 +63,10 @@ def  plot_confusion_matrix(y_true, y_pred, title="Confusion Matrix"):
     return fig
 
 def get_device():
-    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"device name = {torch.cuda.get_device_name}")
+    print(f"device type = {device.type}")
+    return device
 
 def build_optimizer(model, cfg):
     # Get trainable parameters and hand to optimizer

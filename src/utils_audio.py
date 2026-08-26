@@ -23,7 +23,7 @@ def load_audio_from_video(filepath, sample_rate=16000, mono=True):
     samples = decoder.get_all_samples()
     waveform = samples.data.float()
 
-    if mono and waveform.dim() == 2:
+    if mono and waveform.dim() == 2: #TorchCodec returns mono audio as [1, samples]
         waveform = waveform.squeeze(0)
 
     return waveform
@@ -42,7 +42,7 @@ def filter_audio_dataframe(df, exclude_path_parts=None):
     #Remove videos without audio
     exclude_path_parts = exclude_path_parts or []
 
-    keep_mask = df["filepath"].apply(lambda p: not is_excluded_audio_path(p, exclude_path_parts)) #what files to keep?
+    keep_mask = df["filepath"].apply(lambda p: not is_excluded_audio_path(p, exclude_path_parts)) #what files to keep? Note: does not very that audio is decodable
     filtered_df = df[keep_mask].reset_index(drop=True)
     print(f"Audio filtering: kept {len(filtered_df)} / {len(df)} samples")
     print(f"Audio filtering: removed {len(df) - len(filtered_df)} samples")
@@ -51,6 +51,7 @@ def filter_audio_dataframe(df, exclude_path_parts=None):
 def has_decodable_audio(filepath, sample_rate=16000, mono=True):
     """
     Returns True if TorchCodec can decode audio from filepath.
+    Note: Avoid if all videos have decodable audio, as this takes a while for a lot of videos
     """
     try:
         waveform = load_audio_from_video(
@@ -125,7 +126,7 @@ def pad_or_truncate_audio(waveform, num_samples):
 
 def normalize_audio(waveform, eps=1e-8):
     #normalize waveform peaks to [-1,1]. Helps with very silent yawns
-    max_abs = waveform.abs().max().item()
+    max_abs = waveform.abs().max().item() #dont boost silence or near zero noise
     if max_abs < eps:
         return waveform
     return waveform / max_abs
@@ -136,7 +137,7 @@ def sample_audio_clips(waveform, num_clips, samples_per_clip):
 
     total_samples = waveform.shape[-1]
 
-    #padd short videos once, then reuse
+    #padd short videos once, then repeat to preserve fixed shape [clips, samples]
     if total_samples <= samples_per_clip:
         padded = pad_or_truncate_audio(waveform, samples_per_clip)
 
@@ -147,7 +148,7 @@ def sample_audio_clips(waveform, num_clips, samples_per_clip):
     max_start = total_samples - samples_per_clip
 
     #evenly spread clip across video
-    start_positions = torch.linspace(0, max_start, steps=num_clips).long()
+    start_positions = torch.linspace(0, max_start, steps=num_clips).long() #include first and last valid positions
 
     clips = []
 
