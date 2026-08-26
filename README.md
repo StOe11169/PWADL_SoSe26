@@ -44,8 +44,8 @@ To evaluate the model's generalization capabilities, the baseline was supplement
 A key distinction between the foundational dataset and the custom extension lies in their demographic and geographic origins. The YawDD dataset features a diverse subject pool primarily originating from the Caucasus, Middle East, Asia, and Africa. In contrast, the custom OOD dataset consists exclusively of Central European subjects. While YawDD inherently provides high variance in lighting and vehicle backgrounds, this demographic discrepancy introduces a distinct domain shift (e.g., varying facial topologies, features, and skin tones). 
 
 <p align="center">
-  <img src="assets/YawDD_41_Female.png" width="30%" alt="YawDD Sample">
-  <img src="assets/Central_European_100_Female.png" width="30%" alt="Custom OOD Sample">
+  <img src="assets/YawDD_41_Female.png" width="40%" alt="YawDD Sample">
+  <img src="assets/Central_European_100_Female.png" width="40%" alt="Custom OOD Sample">
   <br>
   <em>Figure 1: Visual comparison illustrating the domain shift between datasets. Left: Subject from the YawDD Dataset. Right: Subject from the Custom Central European Dataset.</em>
 </p>
@@ -127,8 +127,8 @@ The hyperparameter search concluded successfully after 15 trials, with Trial 12 
 The model achieved its peak validation F1-Score early in the training process, successfully locking in the best checkpoint at **Epoch 9**. The model weights from this specific epoch were extracted and utilized for all subsequent evaluations.
 
 <p align="center">
-  <img src="assets/loss_curve_trial12.png" width="30%" alt="Training & Validation Loss">
-  <img src="assets/f1_curve_trial12.png" width="30%" alt="Training & Validation F1-Score">
+  <img src="assets/loss_curve_trial12.png" width="45%" alt="Training & Validation Loss">
+  <img src="assets/f1_curve_trial12.png" width="45%" alt="Training & Validation F1-Score">
   <br>
   <em>Figure 2: Training dynamics of the best-performing model (Trial 12). Left: Loss progression vs epochs. Right: F1-Score vs epochs (Best model saved at Epoch 9).</em>
 </p>
