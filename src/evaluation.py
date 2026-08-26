@@ -13,6 +13,7 @@ def evaluate(loader, model, device, criterion=None, input_key="frames"):
         all_labels = []
         all_preds = []
         total_loss = 0
+        total_samples = 0
 
         for batch in tqdm(loader):
             #shift data to device
@@ -27,12 +28,17 @@ def evaluate(loader, model, device, criterion=None, input_key="frames"):
             #accumulate batch-mean losses; NOT a sample-weighted epoch mean
             if criterion is not None:
                 loss = criterion(logits, labels)
-                total_loss += loss.item()
+                batch_samples = labels.numel()
+                total_loss += loss.item() * batch_samples
+                total_samples += batch_samples
             
             # save labels and predictions
             all_labels.append(labels.cpu())
             all_preds.append(preds.cpu())
-            
+
+        if not all_labels:
+            raise RuntimeError("Cannot evaluate an empty DataLoader.")
+        
         # convert to numpy
         y_true = torch.cat(all_labels).numpy()
         y_pred = torch.cat(all_preds).numpy()   
@@ -46,7 +52,7 @@ def evaluate(loader, model, device, criterion=None, input_key="frames"):
         }
         #add loss if available
         if criterion is not None:
-            results["loss"] = total_loss
+            results["loss"] = total_loss / total_samples
 
         #raw data for confusion matrix
         results["y_true"] = y_true

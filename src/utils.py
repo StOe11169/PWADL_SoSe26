@@ -43,9 +43,11 @@ def start_tensorboard(study_dir, port=6006):
    print(f"Executing: {' '.join(cmd)}")
 
    #Call tensorboard via cmd
-   process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+   process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
    # Give it a moment to start
    time.sleep(5)
+   if process.poll() is not None:
+        raise RuntimeError(f"TensorBoard failed to start on port {port}. Check whether another process already uses that port.")
 
     # Open browser
    webbrowser.open(f"http://localhost:{port}")
@@ -64,8 +66,8 @@ def  plot_confusion_matrix(y_true, y_pred, title="Confusion Matrix"):
 
 def get_device():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"device name = {torch.cuda.get_device_name}")
-    print(f"device type = {device.type}")
+    device_name = (torch.cuda.get_device_name(0) if device.type == "cuda"else "CPU")
+    print(f"Device: {device} ({device_name})")
     return device
 
 def build_optimizer(model, cfg):

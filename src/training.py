@@ -48,8 +48,9 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
     # train loop
     for epoch in range(epochs): 
 
-        # init running loss
-        running_loss = 0
+        # init running loss; track  sample-weighted epoch loss
+        running_loss_sum = 0.0
+        running_samples = 0
 
         # go through all data; re-enable dropout and bachtnorm for each epoch
         model.train()
@@ -68,13 +69,20 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
             optimizer.step()
 
             # update running loss
-            running_loss += loss.item()
+            batch_samples = labels.numel()
+            running_loss_sum += loss.item() * batch_samples
+            running_samples += batch_samples
             writer.flush()
+
+        if running_samples == 0:
+            raise RuntimeError("Training DataLoader produced no batches.")
+
+        epoch_loss = running_loss_sum / running_samples
 
         if scheduler is not None:   
             scheduler.step()
         current_lr = optimizer.param_groups[0]["lr"]
-        print(f"  Loss: {running_loss:0.4f}", f"    LR: {current_lr}")
+        print(f" Train Loss: {epoch_loss:0.4f}", f"    LR: {current_lr}")
 
         # evaluate train and validation data; loaders here shuffle and drop leftovers
         train_metrics = evaluate(trainloader, model, device, criterion, input_key= input_key)
@@ -94,7 +102,7 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
 
         #Log to Tensorboard
         if writer:
-            writer.add_scalar("Loss/train", running_loss, epoch)
+            writer.add_scalar("Loss/train", epoch_loss, epoch)
             writer.add_scalar("Loss/val", val_metrics["loss"], epoch)
             writer.add_scalar("F1/train", train_metrics['f1'], epoch)
             writer.add_scalar("F1/val", val_metrics['f1'], epoch)
@@ -122,7 +130,7 @@ def trainer(trainloader, valloader, model, device, trial_number, study_dir, cfg,
             plt.close(fig)
             
         #Save best Checkpoint, overwrite last checkpoint
-        torch.save({'epoch': epoch, 'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict(), 'loss': running_loss,
+        torch.save({'epoch': epoch, 'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict(), 'loss': epoch_loss,
                      'cfg': cfg, 'trial_number': trial_number}, checkpoint_path)
             
     #Close Tensorboard writer, flush remaining events

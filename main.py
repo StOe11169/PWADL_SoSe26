@@ -1,8 +1,9 @@
 import os
+import torch
 from datetime import datetime
 import argparse, time
-from src.utils import setup_env, start_tensorboard
-from src.data import  get_all_data_paths, validate_video_decoding
+from src.utils import setup_env, start_tensorboard, get_device
+from src.data import  get_all_data_paths
 from src.experiment import run_experiment
 
 if __name__ == "__main__":
@@ -11,6 +12,7 @@ if __name__ == "__main__":
 
     #set seed and precision before doing anything else
     setup_env(seed=0)    
+    device = get_device()
 
     # get client args
     parser = argparse.ArgumentParser()
@@ -34,17 +36,24 @@ if __name__ == "__main__":
     #Create unique folder for study
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     study_name = f"study_{args.mode}_{timestamp}"
-    study_dir = os.path.join("logs", f"study_{study_name}") #replace vision with audio or multimodal later
+    study_dir = os.path.join("logs", study_name) #replace vision with audio or multimodal later
     os.makedirs(study_dir, exist_ok=True)
 
     tb_process = start_tensorboard(study_dir)
 
     try:
         run_experiment(df, args, study_dir)
+    except Exception:
+        print("[ERROR] Training failed.")
+        raise
+
+    else:
+        print("Training completed successfully.")
 
     finally:
+        tb_process.terminate() #always terminate tensorboard
         time_passed = time.time() - start_timestamp
         print(f'\nTraining finished in {time_passed//3600}h {(time_passed%3600)//60}min {time_passed%60:.0f}s\n')
 
-    tb_process.terminate()
+    
     

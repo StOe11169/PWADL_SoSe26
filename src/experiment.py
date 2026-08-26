@@ -111,8 +111,9 @@ def build_model(cfg, mode, device):
 
 def build_loaders(trainset, valset, cfg):
    #build train and val-dataloaders depending on mode
-   #drop_last avoids BatchNorm training batches containing one sample
-    trainloader = DataLoader(trainset,batch_size=cfg["batch_size"],num_workers=cfg["num_workers"],shuffle=True,drop_last=True,)
+   # BatchNorm1d fails only when the final training batch contains one video.
+    drop_last = len(trainset) % cfg["batch_size"] == 1
+    trainloader = DataLoader(trainset,batch_size=cfg["batch_size"],num_workers=cfg["num_workers"],shuffle=True,drop_last=drop_last)
 
     valloader = DataLoader(valset,batch_size=cfg["batch_size"],num_workers=cfg["num_workers"],shuffle=False,) #shuffle=False to maintain ordering for reproducability
 
@@ -350,7 +351,7 @@ def run_multimodal_experiment(df, args, study_dir):
         fusion_metrics, contributions = evaluate_multimodal(test_df=test_df_outer, visual_model=visual_model, audio_model=audio_model, visual_cfg=visual_cfg, audio_cfg=audio_cfg, device=device, fold_dir=fusion_dir, visual_weight=visual_weight)
 
         print(f"Fold {fold} fused F1:{fusion_metrics['f1']:.4f}")
-        print(f"Mean contribution share: visual={contributions['mean_visual_abs_share#']:.3f} audio={contributions['mean_audio_abs_share']:.3f}")
+        print(f"Mean contribution share: visual={contributions['mean_visual_abs_share']:.3f} audio={contributions['mean_audio_abs_share']:.3f}")
 
         #sending only aggregate results to tensorboard
         fusion_writer.add_scalar("F1/fused", fusion_metrics["f1"], fold)
@@ -412,7 +413,7 @@ def run_experiment(df, args, study_dir):
             print("No completed trials in this fold. Skipping...")
             continue  # skip this outer fold entirely
     
-        print(f"Bestial F1 (inner): {study.best_value:4f}")
+        print(f"Best F1 (inner): {study.best_value:4f}")
         best_trial = study.best_trial
         best_summary_path = os.path.join(fold_dir,f"trial_{best_trial.number}_summary.json",)
 
