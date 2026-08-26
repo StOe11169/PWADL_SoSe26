@@ -532,7 +532,7 @@ def run_experiment(df, args, study_dir):
         save_outer_summary(study_dir=study_dir, mode=mode, outer_results=outer_results, expected_folds=outer_cv.n_splits)
     
     #print final results
-        f1_scores = [result["f1"] for result in outer_results]
+    f1_scores = [result["f1"] for result in outer_results]
 
     print("\n================ FINAL RESULTS ================")
     print(f"Mean F1: {np.mean(f1_scores):.4f}")
