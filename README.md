@@ -1,3 +1,4 @@
+
 # Multimodal Yawning Detection from Video and Audio
 
 Praktisches Wissenschaftliches Arbeiten mit Deep Learning (PWADL) - SoSe26
@@ -98,7 +99,7 @@ As the published YawDD files are distributed without audio. Therefore own videos
 | With sunglasses      |                  2 |                      2 | All participants                      |
 
 The recordings were made consecutivly in a parked car during a partially cloudy day.Specifically Thursday,11 June 2026 in Gelsenkirchen, Germany.
-The distribution of of praticipants of the selfmade, un-augmented dataset used here are:
+The distribution of of participants of the self made, un-augmented dataset used here, as well as the technical details of the un-augmented dataset are:
 
 |  |  |
 | --- | --- |
@@ -106,13 +107,12 @@ The distribution of of praticipants of the selfmade, un-augmented dataset used h
 | Number of videos | 48 |
 | Positive / negative videos | **24 / 24** |
 | Recording device and microphone | **TBD** |
-| Video resolution and frame rate | **TBD** |
-| Audio codec and original sample rate | **TBD** |
+| Video resolution and frame rate | **3840x2160px ; 29,97frames/s** |
+| Original sample rate | **48.000kHz** |
 | Clip duration distribution | **TBD** |
-| Recording conditions | **TBD** |
 
 
-After recording, the custom videos were initially converted with VLC Media Player to approximate the resolution, frame rate, and bitrate of the YawDD videos. Because TorchCodec could not reliably seek within or decode the resulting MP4 files, the final copies were subsequently normalized with FFmpeg. This normalization regenerated presentation timestamps, shifted negative timestamps to zero, re-encoded the video as H.264 with YUV 4:2:0 pixel format, retained the audio as AAC, and rebuilt the MP4 container index. This normalization step was separate from data augmentation and did not change the labels.
+After recording, the custom videos were initially converted with VLC Media Player to approximate the resolution, frame rate, and bitrate of the YawDD videos. Because TorchCodec could not reliably seek within or decode the resulting MP4 files, the final copies were subsequently normalized using FFmpeg. This normalization regenerated presentation timestamps, shifted negative timestamps to zero, re-encoded the video as H.264 with YUV 4:2:0 pixel format, retained the audio as AAC, and rebuilt the MP4 container index. This normalization step was separate from data augmentation and did not change the labels.
 To increase the limited dataset all videos where augmented once (doubling the dataset size) using the augment_dataset.py script found in this repository and treated as new participants.
 This knowingly introduces data leakage, as the random transformations can not be so extreme that the participants cant't be recoginzed as the same person, while still producing a usefull video. This was deemed a worty compromise in order to gain sufficient data for the nested-cross validation.
 
@@ -198,21 +198,19 @@ These dimensions and normalization match the standard preprocessing associated w
 
 The audio loader uses TorchCodec to decode the complete audio stream and resample it to 16 kHz mono. It then samples four one-second clips distributed linearly across the complete recording. Number and length of the aduio clips was chosen in order not to sample to much of a given video, lasting aproximatly ~30s.
 
-For a waveform containing \(N_i\) samples, the default configuration uses
-
-\[
+For a waveform containing $N_i$ samples, the default configuration uses
+$$
 C = 4,
-\qquad
+\quad
 L = 16\,000
-\]
-
-clips and samples per clip. When \(N_i > L\), clip start positions are selected by linearly spacing four indices between 0 and \(N_i-L\). Each resulting segment therefore has exactly one second of audio. This works similarly to how the visual pipeline samples frames. The length can be adjusted in the configuration.
+$$
+clips and samples per clip. When $N_i > L$, clip start positions are selected by linearly spacing four indices between 0 and $N_i-L$. Each resulting segment therefore has exactly one second of audio. This works similarly to how the visual pipeline samples frames. The length can be adjusted in the configuration.
 
 For testing purposes using dummy files the file is zero-padded to \(L\) samples and repeated four times, if the recodring is no longer than one second.Each sampled clip is peak-normalized independently when its maximum absolute amplitude is non-zero. The resulting tensor has the shape
 
-\[
+$$
 A_i \in \mathbb{R}^{4 \times 16\,000}.
-\]
+$$
 
 This sampling allows to cover the whole video, while keeping memory and compute costs constant, again similar to the visual pipeline. It can nevertheless miss a short yawn that falls between the sampled intervals. Event-centred sampling or sliding-window inference would provide stronger temporal coverage.
 
@@ -291,47 +289,39 @@ The audio classifier uses a PyTorch port of YAMNet. The official YAMNet is a Mob
 
 Each video is represented by \(C=4\) sampled audio clips:
 
-\[
+$$
 A_i = (a_{i1},\ldots,a_{iC})
 \in \mathbb{R}^{C \times L},
 \qquad
 C=4,
 \quad
 L=16\,000.
-\]
+$$
 
-For each clip \(a_{ic}\), the YAMNet frontend produces overlapping log-mel patches. After removal of the original 521-class output layer, the frozen YAMNet backbone produces a 1024-dimensional representation for every patch:
+For each clip $a_{ic}$, the YAMNet frontend produces overlapping log-mel patches. After removal of the original 521-class output layer, the frozen YAMNet backbone produces a 1024-dimensional representation for every patch:
 
-\[
+$$
 g_{ick} = A_{\psi}(p_{ick})
 \in \mathbb{R}^{1024}.
-\]
+$$
 
 The patch embeddings are first averaged within each sampled clip:
 
-\[
-\tilde{g}_{ic}
-=
-\frac{1}{K_{ic}}
-\sum_{k=1}^{K_{ic}} g_{ick}.
-\]
+$$
+\tilde{g}_{ic} = \frac{1}{K_{ic}} \sum_{k=1}^{K_{ic}} g_{ick}
+$$
 
 The four clip representations are then averaged to obtain one representation for the complete video:
 
-\[
-\bar{g}_i
-=
-\frac{1}{C}
-\sum_{c=1}^{C}\tilde{g}_{ic}.
-\]
+$$
+\bar{g}_i=\frac{1}{C} \sum_{c=1}^{C}\tilde{g}_{ic}
+$$
 
 Finally, a dropout-plus-linear head produces the audio logit:
 
-\[
-\ell_{a,i}
-=
-w_a^\top\operatorname{Dropout}(\bar{g}_i)+b_a.
-\]
+$$
+\ell_{a,i}=w_a^\top\operatorname{Dropout}(\bar{g}_i)+b_a
+$$
 
 The YAMNet backbone currently remains frozen and only the binary classification head is trained. Sampling several short intervals increases temporal coverage without processing the complete waveform, but averaging discards clip order and can dilute a localized sound event.
 Similar to how the Resnet does not preserve this order, which is one of the reasons YamNet was chosen for the aduio pipeline in addition to the pretrained weights and comparetivly low computational costs.
@@ -373,20 +363,17 @@ and their absolute shares. These values describe the magnitude of the two terms 
 Both trainable branches are binary classifiers; late fusion itself has no learned parameters. For a model logit $\ell_i$ and ground-truth label $y_i \in \{0,1\}$, the weighted binary cross-entropy is
 
 $$
-\mathcal{L}_i =
--\left[
-w_+ y_i \log\sigma(\ell_i)
-+ (1-y_i)\log(1-\sigma(\ell_i))
-\right].
+\mathcal{L}_i =-\left[w_+ y_i \log\sigma(\ell_i)+ (1-y_i)\log(1-\sigma(\ell_i))
+\right]
 $$
 
 The positive-class weight is calculated separately from the training data of each inner fold:
 
-\[
+$$
 w_+ = \frac{N_-}{N_+},
-\]
+$$
 
-where \(N_-\) and \(N_+\) are the numbers of negative and positive videos in that fold’s training partition. Validation and test labels are not used in this calculation. The weight is recalculated for the final training split and the class counts and resulting ratio are recorded with the experiment configuration.
+where $N_-$ and $N_+$ are the numbers of negative and positive videos in that fold’s training partition. Validation and test labels are not used in this calculation. The weight is recalculated for the final training split and the class counts and resulting ratio are recorded with the experiment configuration.
 
 PyTorch’s fused [BCEWithLogitsLoss](https://docs.pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html) is used for numerical stability. 
 Training and validation losses are reported as sample-weighted means rather than sums of batch means, making the logged loss values comparable across the configured batch sizes.
@@ -425,7 +412,7 @@ Optuna’s median pruner stops unpromising trials after a warm-up, reducing comp
 | Exponential gamma | 0.85 to 0.99 |
 | Step size | 2 to 10 epochs |
 | Step gamma | 0.1 to 0.9 |
-| Positive-class weight | Training-fold ratio \(N_-/N_+\), recalculated for every inner and final training split |
+| Positive-class weight | Training-fold ratio $N_-/N_+$, recalculated for every inner and final training split |
 | Gradient clipping | Maximum norm 1.0 |
 | Data-loader workers | 0 |
 | Visual fusion weight | Command line; default 0.5 |
@@ -638,15 +625,10 @@ The workflow is configured for five outer folds. The current implementation repo
 $$
 \bar{m} = \frac{1}{K}\sum_{k=1}^{K}m_k,
 \qquad
-\sigma_{\mathrm{CV}}
-=
-\sqrt{
-\frac{1}{K}
-\sum_{k=1}^{K}(m_k-\bar{m})^2
-}.
+\sigma_{\mathrm{CV}}=\sqrt{\frac{1}{K}\sum_{k=1}^{K}(m_k-\bar{m})^2}
 $$
 
-For a complete experiment, \(K=5\). The `complete` field in `outer_cv_summary.json` must be `true` before the mean and standard deviation are treated as final results. If a fold is skipped because no Optuna trial completes, the file contains a partial summary calculated from the remaining completed folds.
+For a complete experiment, $K=5$. The `complete` field in `outer_cv_summary.json` must be `true` before the mean and standard deviation are treated as final results. If a fold is skipped because no Optuna trial completes, the file contains a partial summary calculated from the remaining completed folds.
 
 ## 9. Results template
 
