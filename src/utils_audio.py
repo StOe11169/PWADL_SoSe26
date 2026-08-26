@@ -124,7 +124,7 @@ def pad_or_truncate_audio(waveform, num_samples):
     return waveform
 
 def normalize_audio(waveform, eps=1e-8):
-    #normalize waveform peaks to [-1,1]
+    #normalize waveform peaks to [-1,1]. Helps with very silent yawns
     max_abs = waveform.abs().max().item()
     if max_abs < eps:
         return waveform

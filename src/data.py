@@ -46,59 +46,16 @@ def get_all_data_paths(root="data"):
     # pd.notna + str() to safely handle missing or non-string values
     df['yawning'] = df['activity'].apply(lambda x: 1.0 if pd.notna(x) and 'yawning' in str(x).lower() else 0.0) #keep Talking&Yawning in the positive class
 
-
     # Optional: ensure consistent ordering (for reproducibility)
     #df = df.sort_values(by='filepath').reset_index(drop=True)
 
     return df
 
-def create_splits(df, test_size=0.2, val_size=0.1, seed=42):
-    """
-    Splits dataset into train, validation, and test sets.
-
-    Parameters:
-    - df: DataFrame returned by get_all_data_paths()
-    - test_size: fraction of total data used for test set
-    - val_size: fraction of total data used for validation set
-    - seed: random seed for reproducibility
-
-    Returns:
-    - train_df, val_df, test_df (all disjoint)
-
-    Notes:
-    - Splitting is done at VIDEO LEVEL
-    - test set size is determined by 1-test_size - val_size
-    """
-
-    #Split into train+val and test
-    train_val_df, test_df = train_test_split(
-        df,
-        test_size=test_size,
-        stratify=df['yawning'],   # maintain class distribution
-        random_state=seed
-    )
-
-    #Split train+val into train and validation
-    # Adjust validation size relative to remaining data
-    val_relative_size = val_size / (1 - test_size)
-
-    train_df, val_df = train_test_split(
-        train_val_df,
-        test_size=val_relative_size,
-        stratify=train_val_df['yawning'],
-        random_state=seed
-    )
-
-    # Data leakage sanity check
-    assert set(train_df.filepath).isdisjoint(val_df.filepath)
-    assert set(train_df.filepath).isdisjoint(test_df.filepath)
-    assert set(val_df.filepath).isdisjoint(test_df.filepath)
-
-    return train_df, val_df, test_df
 
 def create_group_splits(df, output_dir, file_col = 'filepath', test_size = 0.15, val_size = 0.15, seed=42):
     """
     Splits dataset into train, validation, and test sets.
+    Keeps every video from one person in one partition
 
     Parameters:
     - df: DataFrame returned by get_all_data_paths()
@@ -242,3 +199,49 @@ class YawDDDataset(Dataset):
 
         return {"frames": torch.stack(images), "labels": torch.tensor(labels)#torch.stack converts list of tensors into one, torch.tensor turns scalar labels into a tensor
                 , "filepath": self.image_paths[idx]} #used to align visual and audio predictions
+
+
+#deprecated video-level split; nested experiments use grouped folds instead
+def create_splits(df, test_size=0.2, val_size=0.1, seed=42):
+    """
+    Splits dataset into train, validation, and test sets.
+
+    Parameters:
+    - df: DataFrame returned by get_all_data_paths()
+    - test_size: fraction of total data used for test set
+    - val_size: fraction of total data used for validation set
+    - seed: random seed for reproducibility
+
+    Returns:
+    - train_df, val_df, test_df (all disjoint)
+
+    Notes:
+    - Splitting is done at VIDEO LEVEL
+    - test set size is determined by 1-test_size - val_size
+    """
+
+    #Split into train+val and test
+    train_val_df, test_df = train_test_split(
+        df,
+        test_size=test_size,
+        stratify=df['yawning'],   # maintain class distribution
+        random_state=seed
+    )
+
+    #Split train+val into train and validation
+    # Adjust validation size relative to remaining data
+    val_relative_size = val_size / (1 - test_size)
+
+    train_df, val_df = train_test_split(
+        train_val_df,
+        test_size=val_relative_size,
+        stratify=train_val_df['yawning'],
+        random_state=seed
+    )
+
+    # Data leakage sanity check
+    assert set(train_df.filepath).isdisjoint(val_df.filepath)
+    assert set(train_df.filepath).isdisjoint(test_df.filepath)
+    assert set(val_df.filepath).isdisjoint(test_df.filepath)
+
+    return train_df, val_df, test_df

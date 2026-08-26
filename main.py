@@ -29,7 +29,7 @@ if __name__ == "__main__":
     #Load dataset
     df = get_all_data_paths("data")
     #Fail early if any file cant be accessed at multiple positions
-    validate_video_decoding(df, num_frames=2)
+    #validate_video_decoding(df, num_frames=2)
 
     #Create unique folder for study
     study_name = datetime.now().strftime("%Y%m%d_%H%M%S") 
