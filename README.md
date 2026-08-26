@@ -395,7 +395,7 @@ Die Auswahl des besten Modells erfolgte anhand des F1-Scores auf dem Validierung
 
 Das Training wurde über 32 Epochen durchgeführt. Bereits nach wenigen Epochen zeigte das Modell deutliche Lernfortschritte. Der Trainingsverlust sank kontinuierlich von etwa 1,0 auf unter 0,1 und näherte sich gegen Ende des Trainings einem stabilen Minimum an. Ab ungefähr 15 Epochen fängt es an, dass Overfitting ersichtlich wird. Daher wird ein Training mit 15 Epochen empfohlen.
  
-Gleichzeitig stiegen die Kennzahlen Accuracy, Precision, Recall und F1-Score sowohl auf den Trainings- als auch auf den Validierungsdaten kontinuierlich an. Gegen Ende des Trainings wurden auf beiden Datensätzen Werte von nahezu 100 % erreicht.
+Gleichzeitig stiegen die Kennzahlen Accuracy, Precision, Recall und F1-Score sowohl auf den Trainings- als auch auf den Validierungsdaten kontinuierlich an. Gegen Ende des Trainings wurden auf beiden Datensätzen Werte von nahezu 100 % erreicht. Dies weißt auf Overfitting hin.
  
 Der beste während des Trainings erreichte F1-Score auf dem Validierungsdatensatz lag bei ungefähr 0,94.
  
@@ -417,13 +417,13 @@ Gleichzeitig fällt auf, dass die Leistung auf dem Testdatensatz sichtbar unter 
 
 ### Vergleich mit anderen wissenschaftlichen Arbeiten:
 
-Die automatische Erkennung von Müdigkeit und insbesondere von Gähnvorgängen ist seit mehreren Jahren Gegenstand aktueller Forschung. Während frühe Ansätze hauptsächlich auf handentwickelten Merkmalen wie dem Mouth Aspect Ratio (MAR), Gesichtslandmarken oder klassischen Bildverarbeitungsverfahren basierten, kommen heute überwiegend Deep-Learning-Modelle zum Einsatz. Dabei werden Convolutional Neural Networks (CNNs), Objekterkennungsverfahren wie YOLO oder zunehmend auch Transformer-basierte Architekturen verwendet. 【1-bd2f23】【2-efb472】
+Die automatische Erkennung von Müdigkeit und insbesondere von Gähnvorgängen ist seit mehreren Jahren Gegenstand aktueller Forschung. Während frühe Ansätze hauptsächlich auf handentwickelten Merkmalen wie dem Mouth Aspect Ratio (MAR), Gesichtslandmarken oder klassischen Bildverarbeitungsverfahren basierten, kommen heute überwiegend Deep-Learning-Modelle zum Einsatz. Dabei werden Convolutional Neural Networks (CNNs), Objekterkennungsverfahren wie YOLO oder zunehmend auch Transformer-basierte Architekturen verwendet.
  
 Das in dieser Arbeit entwickelte Modell basiert auf einem vortrainierten ResNet18 als Feature-Extraktor sowie einer zusätzlichen temporalen Attention-Schicht zur Verarbeitung mehrerer Videoframes. Im Gegensatz zu vielen klassischen Ansätzen werden nicht einzelne Bilder, sondern vollständige Videosequenzen betrachtet. Die zeitliche Information wird dabei durch die Attention-Gewichtung der einzelnen Frames berücksichtigt.
  
-Auf dem verwendeten Testdatensatz wurde eine Accuracy von 86,67 % erreicht. Dieser Wert liegt unter den Ergebnissen aktueller Spitzenmodelle aus der Literatur, die häufig Genauigkeiten zwischen etwa 96 % und 99 % berichten. Beispielsweise erreichen Majeed et al. (2023) für ihre CNN-basierte Müdigkeitserkennung eine durchschnittliche Accuracy von 96,69 %. 【1-bd2f23】 Eine aktuelle Arbeit von Makhmudov et al. (2024) berichtet für ein CNN-basiertes Müdigkeitserkennungssystem eine Testgenauigkeit von 96,54 %. 【2-efb472】 Für speziell auf dem YawDD-Datensatz entwickelte Verfahren werden teilweise sogar Genauigkeiten von über 99 % angegeben. So berichten Lindskog et al. (2024) eine Accuracy von 99,2 % auf Basis eines föderierten Lernansatzes unter Verwendung von YawDD. 【3-ad228a】 Ebenso zeigt das kürzlich veröffentlichte YawDD+-Projekt auf Basis genauer Frame-Annotationen Klassifikationsgenauigkeiten von bis zu 99,34 %. 【4-931c73】
+Auf dem verwendeten Testdatensatz wurde eine Accuracy von 86,67 % erreicht. Dieser Wert liegt unter den Ergebnissen aktueller Spitzenmodelle aus der Literatur, die häufig Genauigkeiten zwischen etwa 96 % und 99 % berichten. Beispielsweise erreichen Majeed et al. (2023) für ihre CNN-basierte Müdigkeitserkennung eine durchschnittliche Accuracy von 96,69 %. Eine aktuelle Arbeit von Makhmudov et al. (2024) berichtet für ein CNN-basiertes Müdigkeitserkennungssystem eine Testgenauigkeit von 96,54 %. Für speziell auf dem YawDD-Datensatz entwickelte Verfahren werden teilweise sogar Genauigkeiten von über 99 % angegeben. So berichten Lindskog et al. (2024) eine Accuracy von 99,2 % auf Basis eines föderierten Lernansatzes unter Verwendung von YawDD. Ebenso zeigt das kürzlich veröffentlichte YawDD+-Projekt auf Basis genauer Frame-Annotationen Klassifikationsgenauigkeiten von bis zu 99,34 %.
  
-Die Unterschiede zu diesen Ergebnissen lassen sich jedoch nicht ausschließlich auf die Modellarchitektur zurückführen. Die genannten Arbeiten nutzen oftmals deutlich umfangreichere Vorverarbeitungsschritte, Datenaugmentation, präzisere Frame-Level-Annotationen oder speziell auf Müdigkeitserkennung optimierte Netzwerke. Darüber hinaus erschweren unterschiedliche Datensplits und Evaluationsverfahren einen direkten Vergleich der Ergebnisse. 【4-931c73】【1-bd2f23】
+Die Unterschiede zu diesen Ergebnissen lassen sich jedoch nicht ausschließlich auf die Modellarchitektur zurückführen. Die genannten Arbeiten nutzen oftmals deutlich umfangreichere Vorverarbeitungsschritte, Datenaugmentation, präzisere Frame-Level-Annotationen oder speziell auf Müdigkeitserkennung optimierte Netzwerke. Darüber hinaus erschweren unterschiedliche Datensplits und Evaluationsverfahren einen direkten Vergleich der Ergebnisse.
  
 Trotz der geringeren Testgenauigkeit besitzt der im Rahmen dieses Projekts entwickelte Ansatz mehrere Vorteile. Das verwendete ResNet18 ist vergleichsweise kompakt und benötigt deutlich weniger Rechenleistung als moderne Video-Transformer oder große CNN-Modelle. Gleichzeitig kann durch die Nutzung eines vortrainierten Backbones auf umfangreiche Bildmerkmale zurückgegriffen werden, ohne dass ein sehr großer Trainingsdatensatz erforderlich ist. Die zusätzliche Attention-Schicht ermöglicht es dem Modell, relevante Frames innerhalb einer Videosequenz gezielt stärker zu gewichten.
  
@@ -458,5 +458,17 @@ Die aktuell verwendete Architektur verarbeitet die zeitliche Information nur ind
 Zusätzlich wurden keine Verfahren wie Early Stopping oder Learning-Rate-Scheduling eingesetzt. Zwar wurden diese hier als nicht unbedingt nötig angesehen, dennoch könnten beide Methoden helfen, die Generalisierungsfähigkeit des Netzwerks weiter zu verbessern und Overfitting zu reduzieren.
  
 Eine weitere Möglichkeit wäre die Vergrößerung des Datensatzes durch zusätzliche Aufnahmen oder gezielte Data-Augmentation-Verfahren. Die Erweiterung des Datensatzes wird stark empfohlen und würde das neuronale Netz besser an seine Aufgabe anpassbar machen.
+
+---
+
+### Quellen Kapitel 4:
+
+- https://www.mdpi.com/1424-8220/23/21/8741
+
+- https://www.mdpi.com/1424-8220/24/23/7810
+
+- https://arxiv.org/pdf/2405.03311
+
+- https://arxiv.org/abs/2512.11446
 
 ---
