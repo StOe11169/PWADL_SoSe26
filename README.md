@@ -395,9 +395,12 @@ Die Auswahl des besten Modells erfolgte anhand des F1-Scores auf dem Validierung
 
 Das Training wurde über 32 Epochen durchgeführt. Bereits nach wenigen Epochen zeigte das Modell deutliche Lernfortschritte. Der Train-Loss sank kontinuierlich von etwa 1,0 auf unter 0,1 und näherte sich gegen Ende des Trainings einem stabilen Minimum an.
 
+
 ![alt text](Images/image.png)
  
+
 Gleichzeitig stiegen die Kennzahlen Accuracy, Precision, Recall und F1-Score sowohl auf den Trainings- als auch auf den Validierungsdaten kontinuierlich an. Gegen Ende des Trainings wurden auf beiden Datensätzen Werte von nahezu 100 % erreicht, was auf Overfitting hinweist.
+
 
 ![alt text](Images/image-8.png)
 
@@ -411,24 +414,27 @@ Gleichzeitig stiegen die Kennzahlen Accuracy, Precision, Recall und F1-Score sow
 
 ![alt text](Images/image-5.png)
  
+
 Der beste während des Trainings erreichte F1-Score auf dem Validierungsdatensatz lag bei ungefähr 0,94. Ab ungefähr 15 Epochen fängt es an, dass Overfitting ersichtlich wird. Daher wird ein Training mit 15 Epochen empfohlen.
+
 
 ![alt text](Images/image-6.png)
 
 ![alt text](Images/image-7.png)
  
+
 Die TensorBoard-Kurven zeigen dabei einen insgesamt sehr stabilen Trainingsverlauf ohne größere Schwankungen oder Instabilitäten. Besonders deutlich wird dies an dem stetigen Anstieg der Precision- und Recall-Werte sowie dem gleichmäßigen Rückgang des Trainingsverlustes.
 
 Zur abschließenden Bewertung wurde das trainierte Modell auf einem zuvor nicht verwendeten Testdatensatz untersucht.
- 
+
 Dabei wurde eine Test Accuracy von
 
 **86,67 %**
 
 erzielt.
- 
+
 Dieses Ergebnis zeigt, dass das Modell einen Großteil der Testvideos korrekt klassifizieren konnte und die während des Trainings erlernten Muster grundsätzlich auf bisher unbekannte Daten übertragen kann.
- 
+
 Gleichzeitig fällt auf, dass die Leistung auf dem Testdatensatz sichtbar unter den Ergebnissen von Trainings- und Validierungsdaten liegt. Während in den Trainings- und Validierungsdaten nahezu perfekte Werte erreicht wurden, sinkt die Accuracy auf dem Testdatensatz auf 86,67 %.
 
 ---
@@ -436,15 +442,15 @@ Gleichzeitig fällt auf, dass die Leistung auf dem Testdatensatz sichtbar unter 
 ### Vergleich mit anderen wissenschaftlichen Arbeiten:
 
 Die automatische Erkennung von Müdigkeit und insbesondere von Gähnvorgängen ist seit mehreren Jahren Gegenstand aktueller Forschung. Während frühe Ansätze hauptsächlich auf handentwickelten Merkmalen wie dem Mouth Aspect Ratio (MAR), Gesichtslandmarken oder klassischen Bildverarbeitungsverfahren basierten, kommen heute überwiegend Deep-Learning-Modelle zum Einsatz. Dabei werden Convolutional Neural Networks (CNNs), Objekterkennungsverfahren wie YOLO oder zunehmend auch Transformer-basierte Architekturen verwendet.
- 
+
 Das in dieser Arbeit entwickelte Modell basiert auf einem vortrainierten ResNet18 als Feature-Extraktor sowie einer zusätzlichen temporalen Attention-Schicht zur Verarbeitung mehrerer Videoframes. Im Gegensatz zu vielen klassischen Ansätzen werden nicht einzelne Bilder, sondern vollständige Videosequenzen betrachtet. Die zeitliche Information wird dabei durch die Attention-Gewichtung der einzelnen Frames berücksichtigt.
- 
+
 Auf dem verwendeten Testdatensatz wurde eine Accuracy von 86,67 % erreicht. Dieser Wert liegt unter den Ergebnissen aktueller Spitzenmodelle aus der Literatur, die häufig Genauigkeiten zwischen etwa 96 % und 99 % berichten. Beispielsweise erreichen Majeed et al. (2023) für ihre CNN-basierte Müdigkeitserkennung eine durchschnittliche Accuracy von 96,69 %. Eine aktuelle Arbeit von Makhmudov et al. (2024) berichtet für ein CNN-basiertes Müdigkeitserkennungssystem eine Testgenauigkeit von 96,54 %. Für speziell auf dem YawDD-Datensatz entwickelte Verfahren werden teilweise sogar Genauigkeiten von über 99 % angegeben. So berichten Lindskog et al. (2024) eine Accuracy von 99,2 % auf Basis eines föderierten Lernansatzes unter Verwendung von YawDD. Ebenso zeigt das kürzlich veröffentlichte YawDD+-Projekt auf Basis genauer Frame-Annotationen Klassifikationsgenauigkeiten von bis zu 99,34 %.
- 
+
 Die Unterschiede zu diesen Ergebnissen lassen sich jedoch nicht ausschließlich auf die Modellarchitektur zurückführen. Die genannten Arbeiten nutzen oftmals deutlich umfangreichere Vorverarbeitungsschritte, Datenaugmentation, präzisere Frame-Level-Annotationen oder speziell auf Müdigkeitserkennung optimierte Netzwerke. Darüber hinaus erschweren unterschiedliche Datensplits und Evaluationsverfahren einen direkten Vergleich der Ergebnisse.
- 
+
 Trotz der geringeren Testgenauigkeit besitzt der im Rahmen dieses Projekts entwickelte Ansatz mehrere Vorteile. Das verwendete ResNet18 ist vergleichsweise kompakt und benötigt deutlich weniger Rechenleistung als moderne Video-Transformer oder große CNN-Modelle. Gleichzeitig kann durch die Nutzung eines vortrainierten Backbones auf umfangreiche Bildmerkmale zurückgegriffen werden, ohne dass ein sehr großer Trainingsdatensatz erforderlich ist. Die zusätzliche Attention-Schicht ermöglicht es dem Modell, relevante Frames innerhalb einer Videosequenz gezielt stärker zu gewichten.
- 
+
 Insgesamt erreicht das Modell zwar noch nicht die Leistungsfähigkeit aktueller Spitzenverfahren, bewegt sich jedoch im Bereich leistungsfähiger CNN-basierter Ansätze für die Gähnerkennung. Die Ergebnisse zeigen, dass bereits eine vergleichsweise einfache Architektur aus ResNet18 und temporaler Attention in der Lage ist, Müdigkeitsmerkmale zuverlässig aus Videodaten zu extrahieren. Weitere Verbesserungen könnten durch Datenaugmentation, Learning-Rate-Scheduling, Early Stopping sowie den Einsatz moderner Videoarchitekturen wie 3D-CNNs oder Vision-Transformern erzielt werden.
 
 ---
@@ -470,11 +476,11 @@ Darüber hinaus konnte das Modell bereits mit vergleichsweise wenigen Trainingsd
 #### Schwächen und Verbesserungspotential:
 
 Trotz der positiven Ergebnisse existieren verschiedene Ansätze zur weiteren Verbesserung.
- 
+
 Die aktuell verwendete Architektur verarbeitet die zeitliche Information nur indirekt über die Attention-Schicht. Moderne Videoarchitekturen wie 3D-CNNs, ConvLSTMs oder Vision Transformer für Videos könnten zeitliche Bewegungsabläufe möglicherweise besser modellieren. Zusätzlich wird nur die Videokomponente verwendet. Ein multimodales Netz mit Audioeinfluss kann möglicherweise zu besseren Ergebnissen führen. Auch das Labeln der Daten findet über den Titel der Videodateien statt. Eine präzisere Anbringung des Labels innerhalb des Videos könnte zu besseren Ergebnissen führen.
- 
+
 Zusätzlich wurden keine Verfahren wie Early Stopping oder Learning-Rate-Scheduling eingesetzt. Zwar wurden diese hier als nicht unbedingt nötig angesehen, dennoch könnten beide Methoden helfen, die Generalisierungsfähigkeit des Netzwerks weiter zu verbessern und Overfitting zu reduzieren.
- 
+
 Eine weitere Möglichkeit wäre die Vergrößerung des Datensatzes durch zusätzliche Aufnahmen oder gezielte Data-Augmentation-Verfahren. Die Erweiterung des Datensatzes wird stark empfohlen und würde das neuronale Netz besser an seine Aufgabe anpassbar machen.
 
 ---
