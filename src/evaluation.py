@@ -80,4 +80,17 @@ def predict_logits(loader, model, device, input_key):
         for filepath, label, logit in zip(filepath, labels, logits):
             rows.append({"filepath": filepath, "label": int(label.item()), "logit": float(logit.item())}) #Note:label and logit are pytorch tensors
 
-    return pd.DataFrame(rows)
+    predictions = pd.DataFrame(rows)
+
+    if predictions.empty:
+        raise RuntimeError("Cannot predict an empty DataLoader.")
+
+    #Save probs and decisions so metrics can be recalculated later
+    logits = torch.tensor( predictions["logit"].to_numpy(), dtype=torch.float32)
+
+    predictions["probability"] = torch.sigmoid(logits).numpy()
+
+    #prob above 0.5 is equivalent to a logit above zero
+    predictions["y_pred"] = (predictions["logit"] > 0.0).astype(int)
+
+    return predictions

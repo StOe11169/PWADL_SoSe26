@@ -32,7 +32,8 @@ EXPECTED_FILES = {"001-driver-yawning.mp4": 1.0,
     "003-driver-yawning.mp4": 1.0}
 
 def check_fold_class_weighting():
-    """Check normal and invalid training-fold distributions."""
+    """Check normal and invalid training-fold distributions.
+        Synthetic metadata test. no video decoding occurs here"""
 
     # represents the shared Optuna configuration.
     base_cfg = {"class_weighting": "train_negative_to_positive_ratio"}

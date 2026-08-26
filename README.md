@@ -167,8 +167,6 @@ Important: the command-line option named **--data** is currently written into th
 
 Multiple clips from one participant are correlated. Random video-level splitting could place the same face in training and testing, allowing identity and background cues to inflate the measured performance. The implementation therefore uses the parsed participant ID as a group and [StratifiedGroupKFold](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.StratifiedGroupKFold.html) to keep groups disjoint while approximately preserving the class distribution.
 
-The current outer and inner split are:
-
 The current nested cross-validation structure is:
 
 - **Outer evaluation:** 5 subject-grouped folds.
@@ -176,7 +174,7 @@ The current nested cross-validation structure is:
 - **Final epoch selection:** one grouped training/validation split taken from a separate 5-fold `StratifiedGroupKFold` applied only to the outer training partition.
 - **Outer test data:** used once to evaluate the selected final model for that outer fold.
 
-Although the final splitter is configured with five folds, the implementation calls `next(...)` and therefore uses only its first split; it does not train five additional final models.
+Although the final splitter is configured with two folds, the implementation calls `next(...)` and therefore uses only its first split; it does not train two additional final models.
 
 Nested cross-validation is important here because using the same cross-validation results both to select hyperparameters and to report performance creates optimistic bias. This risk and the role of nested evaluation are demonstrated by [Varma and Simon (2006)](https://doi.org/10.1186/1471-2105-7-91) and [Cawley and Talbot (2010)](https://www.jmlr.org/papers/v11/cawley10a.html).
 
@@ -186,7 +184,7 @@ One repository specific thing to note is that grouping only uses the subjects ID
 
 ### 4.1 Visual preprocessing
 
-For every video, \(T\) frame indices are selected by linear spacing from the first to the last frame. The current command-line default is \(T=32\). TorchCodec decodes the frames, after which each frame is:
+For every video, \(T\) frame indices are selected by linear spacing from the first to the last frame. The current command-line default is \(T=64\). TorchCodec decodes the frames, after which each frame is:
 
 1. converted to a PIL image;
 2. resized to 256 × 341 pixels;
@@ -400,8 +398,8 @@ Training and validation losses are reported as sample-weighted means rather than
 For every outer fold:
 
 1. keep one participant-disjoint fold untouched as the outer test set;
-2. create the same three inner participant-disjoint folds for all Optuna trials;
-3. maximize mean validation F1 across the three inner folds;
+2. create the same eight inner participant-disjoint folds for all Optuna trials;
+3. maximize mean validation F1 across the eight inner folds;
 4. choose the best completed trial;
 5. train a fresh final model on the outer training data, using a grouped validation split for early model selection; and
 6. evaluate the selected checkpoint once on the outer test fold.
@@ -415,7 +413,7 @@ Optuna’s median pruner stops unpromising trials after a warm-up, reducing comp
 | Parameter | Search or fixed value |
 | --- | --- |
 | Frames per video | Command line; default 64 |
-| Epochs per training run | Command line; default 20 |
+| Epochs per training run | Command line; default 50 |
 | Optuna trials per study | Command line; default 10 |
 | Batch size | {4, 8} |
 | Dropout | 0.2 to 0.6 in steps of 0.1 |
@@ -449,7 +447,7 @@ The visual ResNet backbone is fine-tuned end-to-end with one optimizer. The audi
 
 Exact reproducibility can still be affected by library versions, GPU kernels, media decoding, filesystem traversal order, and hardware. The main dataset scanner does not currently sort the paths returned by `os.walk`, so the initial sample ordering can differ between systems.
 
-Training metrics also reuse the shuffled training DataLoader. When the training-set remainder would create a final batch of one video, that batch is dropped because the visual classification head contains `BatchNorm1d`. Validation metrics use the complete, non-shuffled validation loader. Record the commit, environment, dataset manifest, and hardware with every final result.
+The shuffled training loader may drop its final batch when that batch would contain only one video, because the visual classification head contains `BatchNorm1d`. Training metrics are therefore calculated with a separate non-shuffled loader over the complete training dataset using `drop_last=False`. Validation metrics likewise use the complete, non-shuffled validation dataset.
 
 ## 7. Installation and execution
 
@@ -516,9 +514,8 @@ python test_pipelines.py --mode all --visual-weight 0.5
 
 
 ### 7.4 Run experiments
-The commands below use the current defaults of 32 frames, 20 epochs, and 10 Optuna trials. Smaller values can be supplied for development runs, but results from reduced runs shouldn't be reported as the final experiment.
-For testing purposes it is also advisable to reduce the number of folds. These are currently hard-coded in experiment.py
-in the functions run_experiment() and run_multomdal_experiment(). Serach for **n_splits** and adjust the values. **THE NUMBER OF SPLITS MUST BE AT LEAST 2, excpect for the final_cv**
+The current command-line defaults are 64 frames per video, 50 epochs per training run, and 10 Optuna trials. The experiment code uses five outer folds and eight inner folds. Smaller values may be used for development runs, but results from reduced runs should be clearly identified and should not be reported as the final experiment.
+For testing purposes it is also advisable to reduce the number of folds. The fold counts are currently hard-coded in `run_experiment()` and `run_multimodal_experiment()` in `src/experiment.py`. All `StratifiedGroupKFold` instances require `n_splits >= 2`. The final training/validation stage uses only the first split returned by its five-fold splitter.
 Visual-only nested cross-validation:
 
 ~~~bash
@@ -589,10 +586,25 @@ tensorboard --logdir logs --port 6006
 | tensorboard_trial_* | Loss, F1, precision, recall, learning rate, and validation confusion matrices |
 | fusion_predictions.csv | Per-video visual, audio, and fused logits and predictions |
 | fusion_summary.json | Fused metrics and weighted-logit magnitude summary |
+| `outer_cv_summary.json` | Completed outer-fold F1 scores, mean, standard deviation, and completion status |
+| `console.log` | Complete console output, warnings, runtime, and error traceback |
+| `outer_test_predictions.csv` | Standalone per-video labels, logits, probabilities, and predictions |
+| `outer_cv_summary.json` | Per-fold and aggregate accuracy, precision, recall, and F1 |
 
-For unimodal experiments, the current workflow prints each completed outer fold’s F1 score followed by the mean and standard deviation of the collected fold F1 scores. Although accuracy, precision, and recall are calculated internally, they are not printed or persisted for the unimodal outer-test evaluation. No dedicated outer-cross-validation summary file is currently created.
+After every successfully completed outer fold, the experiment overwrites `outer_cv_summary.json` in the study root. This preserves partial progress if a later fold fails. The file contains:
 
-For multimodal experiments, `fusion_summary.json` stores accuracy, precision, recall, and F1 separately for each completed outer fold. The overall multimodal mean and standard deviation are still printed only to the console. Preserve the terminal output or add a persistent outer-fold summary before running the final experiments.
+- `mode`
+- `expected_folds`
+- `completed_folds`
+- `complete`
+- `fold_f1`
+- `mean_f1`
+- `std_f1`
+
+For unimodal experiments, the outer summary persists F1 only. Accuracy, precision, and recall are calculated for each outer-test fold but are not currently printed or saved.
+
+For multimodal experiments, each completed outer fold additionally stores `fusion_predictions.csv` and `fusion_summary.json` under `outer_fold_<fold>/fusion/`. These files contain per-video predictions and the fold’s fused accuracy, precision, recall, F1, and contribution diagnostics. The study-level `outer_cv_summary.json` aggregates only fused F1.
+**Note: `fold_f1` stores scores in completion order but does not store the corresponding outer-fold identifiers. Final results should therefore only be taken from a summary where `complete` is `true`; otherwise the missing fold cannot be identified from this file alone.**
 
 ## 8. Evaluation metrics
 
@@ -634,9 +646,7 @@ $$
 }.
 $$
 
-For a complete experiment, \(K=5\). However, the current workflow can skip an outer fold when no Optuna trial completes and will then calculate the summary from the remaining folds. Final results should therefore be accepted only after verifying that all five outer folds completed.
-
-Accuracy, precision, recall, and F1 are implemented. PR-AUC and ROC-AUC are not implemented in the documented commit. If they are added, PR curves are particularly useful when the positive class is uncommon; ROC curves can look optimistic under strong imbalance ([Saito and Rehmsmeier, 2015](https://doi.org/10.1371/journal.pone.0118432)).
+For a complete experiment, \(K=5\). The `complete` field in `outer_cv_summary.json` must be `true` before the mean and standard deviation are treated as final results. If a fold is skipped because no Optuna trial completes, the file contains a partial summary calculated from the remaining completed folds.
 
 ## 9. Results template
 
@@ -678,15 +688,18 @@ Report best cfg but note that a separate final deployment study would be needed 
 
 ### 9.4 Aggregate outer-test performance
 
-| Model | Accuracy, mean ± SD | Precision, mean ± SD | Recall, mean ± SD | F1, mean ± SD |
-| --- | ---: | ---: | ---: | ---: |
-| Visual: ResNet-18 + attention | **TBD** | **TBD** | **TBD** | **TBD** |
-| Audio: frozen YAMNet + linear head | **TBD** | **TBD** | **TBD** | **TBD** |
-| Multimodal: weighted late fusion | **TBD** | **TBD** | **TBD** | **TBD** |
+| Model | Outer-test F1, mean ± population SD | Source |
+| --- | ---: | --- |
+| Visual: ResNet-18 + attention | **TBD** | `outer_cv_summary.json` |
+| Audio: frozen YAMNet + linear head | **TBD** | `outer_cv_summary.json` |
+| Multimodal: weighted late fusion | **TBD** | `outer_cv_summary.json` |
+
+Accuracy, precision, and recall are saved for each multimodal fold in `fusion_summary.json`, but are not persisted for unimodal outer-test folds. TensorBoard validation metrics must not be reported as outer-test results.
 
 ### 9.5 Paired fold-level modality ablation
 
 Note: Use the exact same outer-test videos for all three rows in a fold.
+The multimodal workflow does not directly save separate visual-only and audio-only F1 values for the outer-test fold. They must either be calculated from the modality logits in `fusion_predictions.csv` or obtained from separate unimodal experiments using identical folds and videos.
 
 | Outer fold | Visual F1 | Audio F1 | Fused F1 | Fused − visual | Fused − audio |
 | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -712,6 +725,7 @@ Note: A high mean visual absolute-logit share is descriptive, but only a consist
 | Number of test clips where modalities disagree | **TBD** |
 
 ToDo: inspect disagreement cases qualitatively with categories like visible but acoustically silent yawns, loud speech mistaken for a yawn, covered mouths, off-axis faces, background speech, low audio level, and yawns that fall between the four sampled one-second audio intervals.
+Correction, harm, and disagreement counts are not currently included in `fusion_summary.json`. They must be derived from `fusion_predictions.csv` by thresholding the visual, audio, and fused logits at zero.
 
 ### 9.7 Training curves and result visualizations
 
@@ -799,7 +813,7 @@ Expand after training:
 - YawDD supplies visual data but not usable audio, requiring a smaller custom multimodal dataset;
 - clip-level filename labels are temporally imprecise;
 - nested optimization is computationally expensive;
-- video decoding and 32 ResNet passes per sample create high memory and I/O cost;
+- video decoding and 64 ResNet passes per sample create high memory and I/O cost;
 - yawning sound may be weak, silent, confused with speech, or absent from all four sampled one-second intervals;
 - equal fusion of uncalibrated logits may not balance the branches.
 

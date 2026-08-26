@@ -22,19 +22,55 @@ from src.utils import get_device, get_writer
 from src.fusion import fuse_logits, get_fusion_metrics, get_contribution_summary, save_fusion_results
 
 
-def save_outer_f1_summary(study_dir, mode, outer_results, expected_folds=5):
-    #save completed outer-fold F1 scores after every fold
+def save_outer_summary( study_dir, mode, outer_results, expected_folds=5):
+    """Save all completed outer-fold metrics."""
+    metric_names = ("accuracy",
+        "precision",
+        "recall",
+        "f1")
 
-    scores = [float(score) for score in outer_results]
+    # Convert NumPy values to normal Python values for JSON.
+    fold_metrics = [
+        {
+            "fold": int(result["fold"]),
+            **{
+                name: float(result[name])
+                for name in metric_names
+            },
+        }
+        for result in outer_results
+    ]
+
+    # Calculate one aggregate value for each metric
+    mean_metrics = {
+        name: float(
+            np.mean([
+                result[name]
+                for result in fold_metrics
+            ])
+        )
+        for name in metric_names
+    }
+
+    #NumPy default is standard deviation, ddof=0.
+    std_metrics = {
+        name: float(
+            np.std([
+                result[name]
+                for result in fold_metrics
+            ])
+        )
+        for name in metric_names
+    }
 
     summary = {
         "mode": mode,
         "expected_folds": expected_folds,
-        "completed_folds": len(scores),
-        "complete": len(scores) == expected_folds,
-        "fold_f1": scores,
-        "mean_f1": float(np.mean(scores)),
-        "std_f1": float(np.std(scores))}
+        "completed_folds": len(fold_metrics),
+        "complete": len(fold_metrics) == expected_folds,
+        "fold_metrics": fold_metrics,
+        "mean_metrics": mean_metrics,
+        "std_metrics": std_metrics}
 
     output_path = os.path.join(study_dir, "outer_cv_summary.json")
 
@@ -349,7 +385,7 @@ def run_multimodal_experiment(df, args, study_dir):
 
         #make ONE final train/val split
         #both modalities must use the same videos
-        final_cv = StratifiedGroupKFold(n_splits=1, shuffle=True, random_state=42)
+        final_cv = StratifiedGroupKFold(n_splits=2, shuffle=True, random_state=42)
 
         final_train_idx, final_val_idx = next(final_cv.split(train_df_outer, y=train_df_outer["yawning"], groups=train_df_outer["id"]))
 
@@ -381,13 +417,14 @@ def run_multimodal_experiment(df, args, study_dir):
 
         fusion_writer.add_scalar("Contribution/audio_abs_share", contributions["mean_audio_abs_share"], fold)
         outer_results.append(fusion_metrics["f1"])
-        save_outer_f1_summary(study_dir=study_dir, mode="multimodal", outer_results=outer_results, expected_folds=outer_cv.n_splits)
+        save_outer_summary(study_dir=study_dir, mode="multimodal", outer_results=outer_results, expected_folds=outer_cv.n_splits)
 
+    f1_scores = [result["f1"] for result in outer_results]
     fusion_writer.close()
     #final multimodal CV result
-    print("MULTIMODAL FINAL RESULTS ")
-    print(f"Mean F1: {np.mean(outer_results):.4f}")
-    print(f"Std F1:  {np.std(outer_results):.4f}")
+    print("MULTIMODAL FINAL RESULTS")
+    print(f"Mean F1: {np.mean(f1_scores):.4f}")
+    print(f"Std F1:  {np.std(f1_scores):.4f}")
 
 def run_experiment(df, args, study_dir):
     """run requested experiment mode
@@ -449,7 +486,7 @@ def run_experiment(df, args, study_dir):
         model = build_model(best_cfg, mode, device)
        
         #Final val split only from outer training data
-        final_cv = StratifiedGroupKFold(n_splits=1, shuffle=True, random_state=42)
+        final_cv = StratifiedGroupKFold(n_splits=2, shuffle=True, random_state=42)
         final_train_idx, final_val_idx, = next(final_cv.split(train_df_outer, y=train_df_outer["yawning"], groups=train_df_outer["id"]))
 
         final_train_df = train_df_outer.iloc[final_train_idx].reset_index(drop=True)
@@ -478,11 +515,21 @@ def run_experiment(df, args, study_dir):
         testloader = DataLoader(testset, batch_size=final_cfg["batch_size"], num_workers=best_cfg["num_workers"], shuffle=False)
 
         model.eval() 
-        test_metrics = evaluate(testloader, model, device, input_key=input_key) #one independent score per outer fold
+        # Run outer-test inference once and retain every prediction.
+    test_predictions = predict_logits( testloader, model, device, input_key=input_key)
+
+    predictions_path = os.path.join( fold_dir, "outer_test_predictions.csv")
+
+    test_predictions.to_csv(predictions_path, index=False)
+
+    # This helper only needs label and y_pred columns, so it also
+    # works for the standalone prediction DataFrame.
+    test_metrics = get_fusion_metrics(test_predictions)
     
-        print(f"Fold {fold} F1: {test_metrics['f1']:.4f}")
-        outer_results.append(test_metrics["f1"])
-        save_outer_f1_summary(study_dir=study_dir, mode=mode, outer_results=outer_results, expected_folds=sgkf.n_splits)
+    print(f"Fold {fold} F1: {test_metrics['f1']:.4f}")
+    outer_results.append({"fold": fold, **test_metrics})
+
+    save_outer_summary(study_dir=study_dir, mode=mode, outer_results=outer_results, expected_folds=outer_cv.n_splits)
     
     #print final results
     print("\n================ FINAL RESULTS ================")
