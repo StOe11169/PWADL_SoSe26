@@ -21,6 +21,27 @@ from src.config import build_config
 from src.utils import get_device, get_writer
 from src.fusion import fuse_logits, get_fusion_metrics, get_contribution_summary, save_fusion_results
 
+
+def save_outer_f1_summary(study_dir, mode, outer_results, expected_folds=5):
+    #save completed outer-fold F1 scores after every fold
+
+    scores = [float(score) for score in outer_results]
+
+    summary = {
+        "mode": mode,
+        "expected_folds": expected_folds,
+        "completed_folds": len(scores),
+        "complete": len(scores) == expected_folds,
+        "fold_f1": scores,
+        "mean_f1": float(np.mean(scores)),
+        "std_f1": float(np.std(scores))}
+
+    output_path = os.path.join(study_dir, "outer_cv_summary.json")
+
+    with open(output_path, "w", encoding="utf-8") as file:
+        json.dump(summary, file, indent=4)
+
+
 def with_fold_class_weight(cfg, train_df, label_column="yawning"):
     """
     Create copy of cfg using the class-weight/positive-negative-ratio for one specific training iteration
@@ -360,6 +381,7 @@ def run_multimodal_experiment(df, args, study_dir):
 
         fusion_writer.add_scalar("Contribution/audio_abs_share", contributions["mean_audio_abs_share"], fold)
         outer_results.append(fusion_metrics["f1"])
+        save_outer_f1_summary(study_dir=study_dir, mode="multimodal", outer_results=outer_results, expected_folds=outer_cv.n_splits)
 
     fusion_writer.close()
     #final multimodal CV result
@@ -460,6 +482,7 @@ def run_experiment(df, args, study_dir):
     
         print(f"Fold {fold} F1: {test_metrics['f1']:.4f}")
         outer_results.append(test_metrics["f1"])
+        save_outer_f1_summary(study_dir=study_dir, mode=mode, outer_results=outer_results, expected_folds=sgkf.n_splits)
     
     #print final results
     print("\n================ FINAL RESULTS ================")
