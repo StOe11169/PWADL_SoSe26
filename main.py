@@ -38,6 +38,9 @@ if __name__ == "__main__":
     parser.add_argument("--num_frames", type=int, default=64)
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--n_trials", type=int, default=10)
+    parser.add_argument("--outer_splits", type=int, default=5)
+    parser.add_argument("--inner_splits", type=int, default=5)
+    parser.add_argument("--final_splits", type=int, default=5)
 
     #testing audio/fusion pipeline
     parser.add_argument("--mode", type=str, default="visual", choices=["visual", "audio", "multimodal"])
@@ -45,7 +48,12 @@ if __name__ == "__main__":
     parser.add_argument("--visual_weight", type=float, default=0.5, help="Visual logit weight for late fusion.")
 
     args = parser.parse_args()
-
+    if args.outer_splits < 2:
+        parser.error("--outer_splits must be at least 2")
+    if args.inner_splits < 2:
+        parser.error("--inner_splits must be at least 2")
+    if args.final_splits < 2:
+        parser.error("--final_splits must be at least 2")
     #Load dataset
     #df = get_all_data_paths("data")
     #Fail early if any file cant be accessed at multiple positions

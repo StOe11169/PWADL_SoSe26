@@ -337,8 +337,12 @@ def run_multimodal_experiment(df, args, study_dir):
     #run visual and audio pipelien independently, then fuse their logits
     device = get_device()
 
+    outer_split_count = getattr(args, "outer_splits", 5)
+    inner_split_count = getattr(args, "inner_splits", 5)
+    final_split_count = getattr(args, "final_splits", 5)
+
     #use same outer folds for both modes
-    outer_cv = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+    outer_cv = StratifiedGroupKFold(n_splits=outer_split_count, shuffle=True, random_state=42)
     outer_results = []
 
     #clean tensorboard for fusion results
@@ -365,7 +369,7 @@ def run_multimodal_experiment(df, args, study_dir):
         os.makedirs(fusion_dir, exist_ok=True)
 
         #create inner folds once -> visual and audio see same ids 
-        inner_cv = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+        inner_cv = StratifiedGroupKFold(n_splits=inner_split_count, shuffle=True, random_state=42)
 
         inner_splits = list(inner_cv.split(train_df_outer, y=train_df_outer["yawning"], groups=train_df_outer["id"]))
 
@@ -385,7 +389,7 @@ def run_multimodal_experiment(df, args, study_dir):
 
         #make ONE final train/val split
         #both modalities must use the same videos
-        final_cv = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+        final_cv = StratifiedGroupKFold(n_splits=final_split_count, shuffle=True, random_state=42)
 
         final_train_idx, final_val_idx = next(final_cv.split(train_df_outer, y=train_df_outer["yawning"], groups=train_df_outer["id"]))
 
@@ -434,6 +438,11 @@ def run_experiment(df, args, study_dir):
     #filter data before creating cv folds -> identical samples for both modes
     df = prepare_dataframe_for_mode(df, args)
 
+    device = get_device()
+    outer_split_count = getattr(args, "outer_splits", 5)
+    inner_split_count = getattr(args, "inner_splits", 5)
+    final_split_count = getattr(args, "final_splits", 5)
+
     mode = args.mode
     if mode == "multimodal":
         return run_multimodal_experiment(df, args, study_dir)
@@ -441,7 +450,7 @@ def run_experiment(df, args, study_dir):
     input_key = get_input_key(mode)
         
     #Outer Loop
-    outer_cv = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+    outer_cv = StratifiedGroupKFold(n_splits=outer_split_count, shuffle=True, random_state=42)
     outer_results = []
     
     for fold, (train_idx, test_idx) in enumerate(outer_cv.split(df, y=df["yawning"], groups=df["id"])):
@@ -456,7 +465,7 @@ def run_experiment(df, args, study_dir):
         os.makedirs(fold_dir, exist_ok=True)
 
         #same inner folds vor every trial so one trial does not get a lucky split (->running multiple outer folds prevents having "one unlucky split")
-        inner_cv = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+        inner_cv = StratifiedGroupKFold(n_splits=inner_split_count, shuffle=True, random_state=42)
         inner_splits = list(inner_cv.split(train_df_outer, y=train_df_outer["yawning"], groups=train_df_outer["id"]))
     
         #Inner Loop
@@ -486,7 +495,7 @@ def run_experiment(df, args, study_dir):
         model = build_model(best_cfg, mode, device)
        
         #Final val split only from outer training data
-        final_cv = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+        final_cv = StratifiedGroupKFold(n_splits=final_split_count, shuffle=True, random_state=42)
         final_train_idx, final_val_idx, = next(final_cv.split(train_df_outer, y=train_df_outer["yawning"], groups=train_df_outer["id"]))
 
         final_train_df = train_df_outer.iloc[final_train_idx].reset_index(drop=True)
