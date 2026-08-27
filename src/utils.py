@@ -1,4 +1,5 @@
 import os
+import glob
 import torch
 import numpy as np
 import random
@@ -101,3 +102,26 @@ def build_scheduler(optimizer, cfg):
     
     else:
         raise ValueError(f"Unkown scheduler: {sched_name}")
+
+
+
+def cleanup_checkpoints(model_dir):
+    #Keep only the final-run model and checkpoint after  fold succeeds
+    saved_files = {"best_model_trial_final.pth","checkpoint_trial_final.pth"}
+    removed_files = []
+
+    for pattern in ("best_model_trial_*.pth", "checkpoint_trial_*.pth"):
+        for path in glob.glob(os.path.join(model_dir, pattern)):
+            if os.path.basename(path) in saved_files:
+                continue
+
+            try:
+                os.remove(path)
+                removed_files.append(path)
+            except OSError as error:
+                # Cleanup must not turn an otherwise completed fold into a failed fold. final artifacts are never deletion targets.
+                print(f"Warning: could not remove intermediate artifact {path}: {error}")
+
+    print(f"Checkpoint cleanup: removed {len(removed_files)} intermediate artifact(s) from {model_dir}")
+
+    return removed_files

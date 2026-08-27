@@ -18,7 +18,7 @@ from src.models.audio.yamnet import YamNetAudioClassifier
 from src.training import trainer
 from src.evaluation import evaluate, predict_logits
 from src.config import build_config
-from src.utils import get_device, get_writer
+from src.utils import get_device, get_writer, cleanup_checkpoints
 from src.fusion import fuse_logits, get_fusion_metrics, get_contribution_summary, save_fusion_results
 
 
@@ -422,6 +422,8 @@ def run_multimodal_experiment(df, args, study_dir):
         fusion_writer.add_scalar("Contribution/audio_abs_share", contributions["mean_audio_abs_share"], fold)
         outer_results.append({"fold": fold, **fusion_metrics})
         save_outer_summary(study_dir=study_dir, mode="multimodal", outer_results=outer_results, expected_folds=outer_cv.n_splits)
+        cleanup_checkpoints(visual_dir)
+        cleanup_checkpoints(audio_dir)
 
     f1_scores = [result["f1"] for result in outer_results]
     fusion_writer.close()
@@ -539,6 +541,8 @@ def run_experiment(df, args, study_dir):
         outer_results.append({"fold": fold, **test_metrics})
 
         save_outer_summary(study_dir=study_dir, mode=mode, outer_results=outer_results, expected_folds=outer_cv.n_splits)
+        cleanup_checkpoints(fold_dir)
+        
     
     #print final results
     f1_scores = [result["f1"] for result in outer_results]
