@@ -18,7 +18,7 @@ Praktisches Wissenschaftliches Arbeiten mit Deep Learning (PWADL) - SoSe26
 - [6. Experimental design](#6-experimental-design)
 - [7. Installation and execution](#7-installation-and-execution)
 - [8. Evaluation metrics](#8-evaluation-metrics)
-- [9. Results template](#9-results-template)
+- [9. Preliminary results](#9-preliminary-results-two-of-five-outer-folds-as-of-28-august-2026)
 - [10. Discussion](#10-discussion)
 - [11. Limitations and threats to validity](#11-limitations-and-threats-to-validity)
 - [12. Repository structure](#12-repository-structure)
@@ -82,7 +82,7 @@ YawDD was introduced specifically for yawning detection by [Abtahi et al. (2014)
 
 | Subset | Camera position | Published size | Structure |
 | --- | --- | ---: | --- |
-| Mirror / Case I | Below the front mirror | 322 videos | Three or four separate clips per participant, including normal, talking/singing, and yawning |
+| Mirror / Case I | Below the front mirror | 320 videos | Three or four separate clips per participant, including normal, talking/singing, and yawning |
 | Dash / Case II | On the dashboard | 29 videos | One longer clip per participant containing multiple mouth conditions |
 
 The recordings were made in a parked car under varying illumination, with participants of different genders and facial characteristics, including glasses and sunglasses. The [official dataset page](https://www.site.uottawa.ca/~shervin/yawning/) links to the current open-access distribution. 
@@ -200,12 +200,10 @@ These dimensions and normalization match the standard preprocessing associated w
 
 The audio loader uses TorchCodec to decode the complete audio stream and resample it to 16 kHz mono. It then samples four one-second clips distributed linearly across the complete recording. Number and length of the audio clips was chosen in order not to sample to much of a given video, lasting approximately ~30s.
 
-For a waveform containing $N_i$ samples, the default configuration uses
-$$
-C = 4,
-\quad
-L = 16\,000
-$$
+For a waveform containing $N_i$ samples, the default configuration uses 
+```math
+C= 4, \quad L=16000 
+```
 clips and samples per clip. When $N_i > L$, clip start positions are selected by linearly spacing four indices between 0 and $N_i-L$. Each resulting segment therefore has exactly one second of audio. This works similarly to how the visual pipeline samples frames. The length can be adjusted in the configuration.
 
 For testing purposes using dummy files the file is zero-padded to $L$ samples and repeated four times, if the recodring is no longer than one second.Each sampled clip is peak-normalized independently when its maximum absolute amplitude is non-zero. The resulting tensor has the shape
@@ -639,7 +637,7 @@ $$
 \sigma(0)=0.5,
 $$
 
-the decision can equivalently be written as
+the decision can also be written as
 
 $$
 \hat y_i=
@@ -1016,17 +1014,17 @@ For multimodal experiments, each completed outer fold additionally stores `fusio
 Let TP, TN, FP, and FN denote true positives, true negatives, false positives, and false negatives for the yawning class.
 
 $$
-	ext{Accuracy} =
+	{Accuracy} =
 \frac{TP+TN}{TP+TN+FP+FN}
 $$
 
 $$
-	ext{Precision} =
+	{Precision} =
 \frac{TP}{TP+FP}
 $$
 
 $$
-	ext{Recall} =
+	{Recall} =
 \frac{TP}{TP+FN}
 $$
 
@@ -1082,7 +1080,7 @@ The preliminary results correspond to the following configuration:
 
 | Experiment subset | Participants / groups | Videos | Positive | Negative | Status |
 | --- | ---: | ---: | ---: | ---: | --- |
-| Input catalogue before audio filtering | Not logged | 736 | 278 | 278 | 640 videos were removed by the audio filter |
+| Input catalogue before audio filtering | Not logged | 736 | 278 | 458 | 640 videos were removed by the audio filter |
 | Common multimodal subset | Not logged | 96 | 48 | 48 | Used to construct the grouped folds |
 | Completed outer-test subset, folds 0 & 1 | 4 observed groups | 40 | 20 | 20 | 20 independent test videos in each completed fold |
 
@@ -1128,7 +1126,7 @@ In fold 0, fusion corrects two visual false positives but also changes one corre
 
 ![Provisional per-fold modality F1](docs/images/provisional_modality_f1_by_fold.png)
 
-*Figure 1. Positive-class F1 for visual, audio, and fused predictions on the identical subject-grouped outer-test videos. Only completed outer folds 0 and 1 are shown; each contains 20 videos.*
+*Figure 1. Positive-class F1 for visual, audio and fused predictions on the identical subject-grouped outer-test videos. Only completed outer folds 0 and 1 are shown. each contains 20 videos.*
 
 ### 9.6 Fusion diagnostics
 
@@ -1146,8 +1144,8 @@ Equal fusion weights do not produce equal numerical influence because the branch
 
 ![Provisional fusion logit shares](docs/images/provisional_fusion_logit_share_by_fold.png)
 
-*Figure 2. Mean absolute weighted-logit share by completed outer fold. The fixed weights are equal, but the visual logits have much greater magnitude, particularly in fold 1.*
-
+*Figure 2. Mean absolute weighted-logit share by completed outer fold. *
+The fixed weights are equal, but the visual logits have much greater magnitude especially in fold 1.
 A qualitative error analysis should inspect the 27 disagreement clips for visible but acoustically silent yawns, loud speech mistaken for a yawn, covered mouths, off-axis faces, background speech, low audio level, and yawns that fall between the four sampled one-second audio intervals. These categories cannot be assigned from logits alone and require manually reviewing the source videos.
 
 ### 9.7 Training curves and result visualizations
@@ -1162,12 +1160,12 @@ TensorBoard identifies each immediate subdirectory as a run. The exported plots 
 
 #### 9.7.1 Outer-test confusion matrices
 
-The pooled matrices below are calculated from the 40 independent predictions in the two completed outer folds. Pooling is used here only to visualize the accumulated error types. The fold-wise means and standard deviations in Section 9.4 remain the primary cross-validation summary.
+The pooled matrices below are calculated from the 40 independent predictions in the two completed outer folds. Pooling is used here only to visualize the accumulated error types. The fold-wise means and standard deviations in Section 9.4 are the primary cross-validation summary.
 
 ![Pooled preliminary outer-test confusion matrices](docs/images/provisional_pooled_confusion_matrices.png)
 
-*Figure 3. Pooled outer-test confusion matrices for visual, audio, and fused predictions from completed outer folds 0 and 1 ($n=40$: 20 yawning and 20 non-yawning videos). The visual branch predicts 36 videos as yawning, explaining its perfect recall and low specificity. The audio branch misses 13 of 20 yawns. Fusion predicts 34 videos as yawning and retains most of the visual branch's false positives.*
-
+*Figure 3. Pooled outer-test confusion matrices for visual, audio, and fused predictions with($n=40$: 20 yawning and 20 non-yawning videos). *
+The visual branch predicts 36 videos as yawning, explaining its perfect recall and low specificity. The audio branch misses 13 of 20 yawns. Fusion predicts 34 videos as yawning and retains most of the visual branch's false positives.
 #### 9.7.2 Final-model F1 curves
 
 ![Training F1 for the four completed final models](docs/images/f1_train_all_folds.png)
@@ -1188,11 +1186,11 @@ Training F1 rises most strongly for the fold-1 visual model, while its validatio
 
 ![Validation loss for the four completed final models](docs/images/loss_val_all_folds.png)
 
-*Figure 7. Sample-weighted final-validation BCE loss by epoch for the same models. The fold-1 visual validation loss is highly variable despite its falling training loss, which is consistent with unstable generalization on the small final-validation partition.*
-
+*Figure 7. Sample-weighted final-validation BCE loss by epoch for the same models.*
+The fold-1 visual validation loss is highly variable despite its falling training loss, which is consistent with unstable generalization on the small final-validation partition.
 The loss curves should be interpreted together with F1. A lower BCE loss does not necessarily select the same epoch as the positive-class F1 objective used by the experiment.
 
-<details>
+
 <summary>Supplementary final-validation diagnostics</summary>
 
 The learning-rate schedule confirms the selected constant, step, and exponential policies:
@@ -1205,7 +1203,7 @@ The following precision and recall curves further expose the instability of the 
 
 ![Validation recall for the four completed final models](docs/images/recall_vall_all_folds.png)
 
-The four matrices below are **final-validation** matrices at the selected checkpoints, as indicated by the TensorBoard tag `Confusion_Matrix/val`. They must not be reported as outer-test results; Figure 3 is the appropriate test-level matrix.
+The four matrices below are **final-validation** matrices at the selected checkpoints, as indicated by the TensorBoard tag `Confusion_Matrix/val`. They are not outer-test results. Figure 3 is the appropriate matrix for this.
 
 | Fold 0 visual, epoch 1 | Fold 0 audio, epoch 3 |
 | --- | --- |
@@ -1215,24 +1213,24 @@ The four matrices below are **final-validation** matrices at the selected checkp
 | --- | --- |
 | ![Fold 1 visual validation confusion matrix](docs/images/confusion_matrix_outer_fold_1_visual.png) | ![Fold 1 audio validation confusion matrix](docs/images/confusion_matrix_outer_fold_1_audio.png) |
 
-</details>
+
 
 
 ### 9.8 Runtime and resource requirements
 
-The complete nested-CV runtime cannot be reported because the run has not finished, and the logger does not record per-training-run wall-clock durations, peak RAM, or artifact sizes. These fields should not be estimated and presented as measurements.
+The complete nested-CV runtime could not be reported as the run has not finished at the time of this commit. Additionaly the logger does not record per-training-run wall-clock durations or peak RAM. These fields are therefore left empty in order not to make assumptions.
 
 | Measurement | Provisional value | Interpretation |
 | --- | ---: | --- |
 | Completed outer folds | 2 / 5 | Fold 2 was still in visual optimization |
-| Visual outer-test processing | Approximately 0.83 s/video over 40 videos | Rough estimate from console progress bars; includes data loading, video decoding, preprocessing, and inference |
-| Audio outer-test processing | Approximately 0.054 s/video over 40 videos | Rough estimate from console progress bars; includes audio loading, preprocessing, and inference |
+| Visual outer-test processing | Approximately 0.83 s/video over 40 videos | Rough estimate from console progress bars. includes data loading, video decoding, preprocessing, and inference |
+| Audio outer-test processing | Approximately 0.054 s/video over 40 videos | Rough estimate from console progress bars. includes audio loading, preprocessing, and inference |
 | Fusion arithmetic | Not separately instrumented | Expected to be negligible relative to the two encoders, but it was not measured |
 | Total nested-CV time | Not available | The study is incomplete |
 | Peak GPU memory | Not applicable | CPU execution |
 | Peak RAM and checkpoint size | Not logged | Measure in the final run |
 
-The visual estimate varies substantially between the two folds because their selected batch sizes differ (4 in fold 0 and 8 in fold 1) and console progress timing is not very precise. It is therefore only a rough estimation of the end-to-end test-pipeline throughput.
+The visual estimate varies significantly between the two folds because their selected batch sizes differ (4 in fold 0 and 8 in fold 1) and console progress timing is not very precise. It is therefore only a rough estimation of the end-to-end test-pipeline throughput.
 
 These measurements are important when moving to an in-vehicle or mobile prototype: prior deployment-oriented drowsiness work shows that model size and latency can become first-class design constraints ([Jabbar et al., 2018](https://doi.org/10.1016/j.procs.2018.04.060)).
 
@@ -1257,44 +1255,52 @@ The fairest internal baselines are more important than cross-paper rank:
 - fixed equal fusion versus an inner-selected and optionally calibrated fusion weight.
 ## 10. Discussion
 
-To be completed after training. The statements below define the questions to answer.
+Just as the results this discussion is preliminary and based on the 40 outer-test video predictions, with 20 videos in each fold. The reported means and standard deviations describe only the completed folds and should not be interpreted as final estimates of generalization performance.
 
 ### 10.1 Did multimodal fusion help?
 
--mean paired change from visual to fused F1 and the number of outer folds improved. Note: small average gain accompanied by large fold variance should be described as inconclusive. If fusion helps only when the visual branch is uncertain, show representative cases. If the fused model is worse, inspect logit scale, audio quality, event timing, and background speech before concluding that sound is uninformative.
+Based on the completed folds, equal-weight late fusion did not improve positive-class F1 compared with the visual model. The visual branch achieved a mean F1 of 0.718 ± 0.051, whereas the fused model achieved 0.704 ± 0.037. This corresponds to a mean paired change of −0.014 ± 0.014. Fusion improved F1 in neither completed fold: in fold 0, visual and fused F1 were equal at 0.667, while in fold 1, F1 decreased from 0.769 to 0.741 after fusion.
+
+The remaining metrics show a similar pattern. Mean accuracy remained unchanged at 0.600, precision changed only slightly from 0.563 to 0.559, and recall decreased from 1.000 to 0.950. At the video level, fusion corrected two errors made by the visual model but also introduced two new errors. The pooled confusion matrices provide further information: fusion reduced the number of visual false positives from 16 to 15, but it also changed one correctly detected yawn into a false negative. Consequently, the additional audio information did not provide a net predictive benefit under the current fusion configuration.
+
+This result does however not establish that audio is generally uninformative for yawning detection. The audio branch was highly unstable, with an F1 of 0.000 in fold 0 and 0.609 in fold 1. Moreover, the visual and audio predictions disagreed on 27 of 40 videos, which shows that the two branches often produced different decisions. These disagreements did not translate into better fused predictions, possibly because of weak audio performance, different logit scales, sparse audio sampling, variation in the audibility of yawns and most importantly label noise. With the current ground truth being derived from the filepath an enormous amount of label noise is introduced for both modalities, but even more so for the audio branch. When sampling 4 Clips of 1 second each from a 30 second clip one covers about 13% of the video. Similarly to the visual branch one might miss or only partially capter a yawn. The most likely scenario is that background noise is labelled as yawning. Due to the sparse nature of the yawns occurring more samples would not have improved this. The solution would be to change the source of ground truth from the filepath to using a list for each video where the frames and timestamps of each yawn are recorded. Additionally the dataset was just simply way too small for meaningful results.
 
 ### 10.2 Which modality dominated?
 
-Comparing
+The visual modality dominated the preliminary system, as was expected. Firstly the visual model achieved a substantially higher mean F1 than the audio model, with 0.718 compared with 0.304. Secondly the fused result remained close to the visual result and exceeded the audio result by 0.399 F1 on average. Thirdly the reported two corrections and two newly introduced errors mean that fusion changed the visual decision for only four of the 40 test videos.
 
-1. unimodal and fused outer-fold metrics
-2. per-video correction
-3. weighted-logit magnitudes as a non-causal diagnostic
+The weighted-logit analysis supports this at the numerical level. Both logits received a fixed coefficient of 0.5, but the visual branch contributed an average of 83.9% of the absolute weighted-logit magnitude. Its share was 73.5% in fold 0 and 94.3% in fold 1. The fused scores were therefore influenced much more strongly by the visual logits, especially in fold 1.
+
+However, these magnitude shares should not be interpreted as causal importance of the modality. A branch can produce large logits because its outputs have a different scale or are poorly calibrated, without contributing more useful information. The stronger evidence comes from the paired ablation. The visual branch performed better than the audio branch, and adding audio did not improve F1 over the visual model. The appropriate conclusion is therefore that the visual branch carried most of the predictive performance under the current training and fusion setup, not that visual information is universally more important than audio information.
 
 It should be noted that we can not infer modality importance solely from the configured weight or the mean absolute share. A large-magnitude but poorly calibrated branch can numerically dominate without adding accuracy.
 
 ### 10.3 What worked well?
+An important strength of the experimental design is that visual, audio, and fused predictions were evaluated on the same outer-test videos. This made the modality comparison paired and allowed individual corrections and newly introduced errors to be identified. Alignment by filepath also reduced the risk of combining predictions from different videos. The modular late-fusion design was useful because each branch could be evaluated independently while still producing a combined result.
 
-Underpin following assesments with evidence from chapter 9
+At the protocol level, nested subject-grouped cross-validation separates hyperparameter selection and checkpoint selection from outer-test evaluation. The fold-specific hyperparameters in Section 9.3 show that model selection was succesfully repeated independently for each outer fold rather than using one configuration chosen from the test results. Saving the best validation checkpoint was also useful. For example, the fold-1 visual model reached a validation F1 of 0.800 at epoch 16 but fell to 0.400 by epoch 19. Evaluating the final epoch instead of the selected checkpoint would therefore have produced a worse model.
 
-- subject-grouped nested validation keeps model selection separate from performance estimation;
-- shared multimodal folds make paired comparison possible;
-- pretrained encoders reduce the amount of task-specific data required;
-- modular late fusion enables transparent unimodal ablations;
-- checkpoints, JSON summaries, per-video fusion output, and TensorBoard improve traceability.
+The pretrained encoders made it possible to train both branches without learning their representations entirely from scratch. The visual result suggests that the transferred ResNet-18 features were useful, although the experiment does not include a randomly initialized baseline and therefore cannot specify the benefit of pretraining. In contrast, the frozen YAMNet representation followed by a linear head did not produce stable audio performance across the completed folds.
+Either due to the reasons mentioned in the previous section or the classification head design was not appropriate. Most likely both is true.
+
+The stored artifacts also improved traceability. The selected hyperparameters and fold-level results can be reconstructed from the JSON summaries, while the per-video fusion output made the paired error analysis possible. TensorBoard curves and confusion matrices help distinguish training and validation behaviour from independent outer-test performance. These outputs make it easier to identify instability and verify how the reported results were obtained..
 
 ### 10.4 What was difficult?
-Expand after training:
-- YawDD supplies visual data but not usable audio, requiring a smaller custom multimodal dataset;
-- clip-level filename labels are temporally imprecise;
-- nested optimization is computationally expensive;
-- video decoding and 64 ResNet passes per sample create high memory and I/O cost;
-- yawning sound may be weak, silent, confused with speech, or absent from all four sampled one-second intervals;
-- equal fusion of uncalibrated logits may not balance the branches.
+The main difficulty was the limited amount of multimodal data. The audio pipeline could only use 96 of the 736 catalogued videos because the original YawDD recordings do not contain audio. The resulting common subset contained 48 positive and 48 negative videos, and the two completed test folds covered only 40 videos from four logged groups. This small data basis makes both hyperparameter selection and performance estimation extremely dependend on the particular participants assigned to each fold. The large variation of the audio F1, from 0.000 to 0.609, shows this clearly.
+
+The temporal precision of the data is another challenge. Labels apply to complete videos even though a yawn may occupy only a short part of an approximately 30-second recording. The preliminary run sampled 32 visual frames and four one-second audio intervals from each video. A yawn can therefore fall between the sampled intervals, and averaging the audio embeddings can dilute a brief sound. Some yawns may also be silent or weak, while speech and background sounds may produce misleading audio features. The 27 videos on which the branches disagreed should be inspected manually before attributing the errors to any of these causes. Additional reasons are already mentioned at the end of Section 10.1
+
+Nested cross-validation was computationally expensive, particularly because the experiment ran on a CPU. With five trials, three inner folds, two modalities, and one final model per modality, each outer fold can require up to 32 separate model fits before pruning is considered. Visual processing also required decoding a video and applying ResNet-18 to 32 frames per sample in this run. The incomplete state of the experiment—two of five outer folds—and the approximate outer-test processing times of 0.83 seconds per video for the visual branch and 0.054 seconds for the audio branch clearly show the greater cost of the visual pipeline.
+
+Equal-weight fusion of uncalibrated logits presented an additional difficulty, while being conceptually easier at first. A coefficient of 0.5 for each branch did not balance numerical influence, as the visual contribution accounted for 83.9% of the mean absolute fused-logit magnitude regardless. Future experiments should calibrate the logits or select the fusion weight using only inner-validation data. The decision threshold could be handled in the same way.
+
+Both the visual and fused models produced many false alarms. Of the 20 non-yawning test videos, the visual model classified 16 as yawning and the fused model classified 15 as yawning. Their high recall therefore came at the cost of poor rejection of non-yawning behaviour. This is particularly relevant for a practical warning system, where frequent false alarms could reduce user trust.
+
+The offline augmentation, while deemed necessary, assigns the augmented versions new participant IDs. If an original recording and its augmented version occur in different folds, visually similar recordings of the same person can appear in both training and testing. This weakens the intended subject-independent evaluation and may produce optimistic estimates (although it didnt). 
 
 ## 11. Limitations and threats to validity
 
-1. **No final empirical results yet.** The architecture and protocol are documented, but effectiveness remains unmeasured until the outer-fold experiments are complete.
+1. **No final empirical results yet.** The architecture and protocol are documented, but effectiveness remains unmeasured until all outer-fold experiments are complete.
 2. **Dataset mismatch across modalities.** YawDD supports the visual branch, whereas multimodal evaluation depends on only $48*2=96$ custom recordings. Claims about the value of sound must use the common audio-capable subset.
 3. **Weak clip labels and sparse temporal sampling.** A positive filename does not identify yawn onset and offset. Uniform visual sampling and four sparse one-second audio intervals can miss the labelled event.
 4. **Attention is not temporal dynamics.** Visual pooling can emphasize frames but is invariant to their order. It cannot distinguish opening from closing motion by sequence direction.
