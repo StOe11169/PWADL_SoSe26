@@ -1048,121 +1048,133 @@ $$
 
 For a complete experiment, $K=5$. The `complete` field in `outer_cv_summary.json` must be `true` before the mean and standard deviation are treated as final results. If a fold is skipped because no Optuna trial completes, the file contains a partial summary calculated from the remaining completed folds.
 
-## 9. Results template
+## 9. Preliminary Results: 2/5 outer folds, as of the 28th of August
 
-> **Current status:** No trained-model results are available. 
+> **Status of this Version:** Outer folds 0 and 1 have completed. The run was still in visual hyperparameter optimization for outer fold 2, and no outer-fold-2 audio or fusion result was available. The complete experiment will likely take another 24h at the time of this commmit. All numbers in this section therefore only use the two completed outer test sets. They are suitable for a initial analysis, but they are not the final nested-cross-validation result.
+
+The fold numbers below match the zero-based directory names produced by the code (`outer_fold_0`, `outer_fold_1`, and so on). Inner-validation results from the incomplete third outer fold are deliberately excluded because as they are model-selection measurements rather than independent outer-test measurements.
 
 ### 9.1 Execution environment
 
-| Item | Final value |
+| Item | Value available from the run artifacts |
 | --- | --- |
-| Git commit | **TBD** |
-| Experiment date | **TBD** |
-| Operating system | **TBD** |
-| CPU and RAM | **TBD** |
-| GPU and VRAM | **TBD** |
-| Python | **TBD** |
-| PyTorch / Torchvision / TorchCodec | **TBD** |
-| CUDA / cuDNN | **TBD** |
-| FFmpeg | **TBD** |
+| Git commit | `add comit hash` |
+| Experiment start | 27 August 2026, 12:34|
+| Operating system | Windows 11, Version 10.0.26200 Build 26200 |
+| CPU and RAM | Processor	Intel(R) Core(TM) Ultra 9 285H, 2900 Mhz, 16 Core(s), 16 Logical Processor(s)
+; 32768MB RAM |
+| Python | 3.12.13 |
+| PyTorch / Torchvision / TorchCodec | 2.12.0 / 0.27.0 / 0.13.0 |
+| FFmpeg |  8.1.1-full_build-www.gyan.dev |
+
+The provisional results correspond to the following configuration:
+
+| Setting | Value |
+| --- | ---: |
+| Mode | Multimodal |
+| Frames sampled per video | 32 |
+| Maximum epochs per training run | 20 |
+| Optuna trials per inner study | 5 |
+| Outer / inner / final splits | 5 / 3 / 5 |
+| Fixed visual / audio fusion weights | 0.5 / 0.5 |
 
 ### 9.2 Final dataset after filtering
 
-| Experiment subset | Participants / groups | Videos | Positive | Negative | Excluded |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| YawDD visual | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** |
-| Custom audio-capable | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** |
-| Common multimodal evaluation subset | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** |
+| Experiment subset | Participants / groups | Videos | Positive | Negative | Status |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Input catalogue before audio filtering | Not logged | 736 | Not logged | Not logged | 640 videos were removed by the audio filter |
+| Common multimodal subset | Not logged | 96 | 48 | 48 | Used to construct the grouped folds |
+| Completed outer-test subset, folds 0–1 | 4 observed groups | 40 | 20 | 20 | 20 independent test videos in each completed fold |
+
+The console directly reports that audio filtering retained 96 of 736 videos, removing all original YawDD videos leaving only the self recorded ones. The 48/48 class count follows from the class counts recorded for all three inner training folds and fits the split described in section 3. The completed test groups consists of IDs 51 and 52 in fold 0 and IDs 096 and 100 in fold 1. The total number of groups in the 96-video subset was not recorded at the time of running the experiment.
 
 
 ### 9.3 Selected hyperparameters
 
-Report best cfg but note that a separate final deployment study would be needed to confirm it.
+Each outer fold performs a new inner study resulting in different hyperparameter configurations. The `Inner F1` column is the mean validation F1 over the three inner folds. `Final epoch` is the (zero indexed) epoch of the checkpoint that was chosen using the final validation split. To compare see the trial specific summary .json files, e.g: `outer_fold_0__visual_trial_4_summary.json`
 
-| Outer fold | Mode | Batch | Dropout | Optimizer | LR | Weight decay | Scheduler | Best epoch |
-| ---: | --- | ---: | ---: | --- | ---: | ---: | --- | ---: |
-| 1 | Visual | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** |
-| 1 | Audio | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** |
-| ... | ... | ... | ... | ... | ... | ... | ... | ... |
-| 5 | Audio | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** |
+| Outer fold | Branch | Trial | Inner F1 | Batch | Dropout | Optimizer | Learning rate | Weight decay | Scheduler | Final epoch | Final validation F1 |
+| ---: | --- | ---: | ---: | ---: | ---: | --- | ---: | ---: | --- | ---: | ---: |
+| 0 | Visual | 4 | 0.686 | 4 | 0.5 | AdamW | 2.824e-4 | 2.655e-3 | Exponential, $ \gamma =0.907$ | 1 | 0.690 |
+| 0 | Audio | 1 | 0.444 | 4 | 0.2 | AdamW | 1.017e-4 | 2.227e-6 | Step, size 2, $\gamma=0.299$ | 3 | 0.167 |
+| 1 | Visual | 0 | 0.949 | 8 | 0.4 | AdamW | 3.183e-4 | 1.582e-5 | None | 16 | 0.800 |
+| 1 | Audio | 0 | 0.603 | 4 | 0.3 | AdamW | 6.666e-4 | 2.583e-3 | Step, size 5, $\gamma=0.550$ | 0 | 0.778 |
 
-### 9.4 Aggregate outer-test performance
+The large differences between folds, particularly for the audio branch, hint at a instable deployment configuration. These are fold-specific model-selection values which are required by nested cross-validation. These are not four independent recommendations. A deployment model would require a separate study on all development data after the evaluation protocol is complete.
 
-| Model | Outer-test F1, mean ± population SD | Source |
-| --- | ---: | --- |
-| Visual: ResNet-18 + attention | **TBD** | `outer_cv_summary.json` |
-| Audio: frozen YAMNet + linear head | **TBD** | `outer_cv_summary.json` |
-| Multimodal: weighted late fusion | **TBD** | `outer_cv_summary.json` |
+### 9.4 Aggregate outer-test metrics
 
-Accuracy, precision, and recall are saved for each multimodal fold in `fusion_summary.json`, but are not persisted for unimodal outer-test folds. TensorBoard validation metrics must not be reported as outer-test results.
+THis table shows the arithmetic mean and standard deviation across the two completed outer folds. Visual-only and audio-only metrics can be recalculated from the corresponding predictions in `fusion_predictions.csv`. The fused values lign up  with `outer_cv_summary.json`.
+
+| Model | Accuracy | Precision | Recall | F1 |
+| --- | ---: | ---: | ---: | ---: |
+| Visual: ResNet-18 + attention | 0.600 ± 0.100 | 0.562 ± 0.062 | **1.000 ± 0.000** | **0.718 ± 0.051** |
+| Audio: frozen YAMNet + linear head | 0.475 ± 0.075 | 0.269 ± 0.269 | 0.350 ± 0.350 | 0.304 ± 0.304 |
+| Multimodal: equal-weight late fusion | 0.600 ± 0.050 | 0.559 ± 0.029 | 0.950 ± 0.050 | 0.704 ± 0.037 |
+
+The visual model currently has the highest mean F1 and detects every positive test video, but its low precision indicates many false alarms. Which is expected given the large amount of label noise in the data. So for equal-weight fusion does not improve the mean F1: it is 0.014 below the visual branch. The audio result varies from complete failure to moderate performance across the two folds. Which was also to be expected as the label noise is even worse for the audio data.
 
 ### 9.5 Paired fold-level modality ablation
 
-Note: Use the exact same outer-test videos for all three rows in a fold.
-The multimodal workflow does not directly save separate visual-only and audio-only F1 values for the outer-test fold. They must either be calculated from the modality logits in `fusion_predictions.csv` or obtained from separate unimodal experiments using identical folds and videos.
+All three predictions in a row use the same outer-test videos, making the differences paired within each fold.
 
-| Outer fold | Visual F1 | Audio F1 | Fused F1 | Fused − visual | Fused − audio |
-| ---: | ---: | ---: | ---: | ---: | ---: |
-| 1 | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** |
-| 2 | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** |
-| 3 | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** |
-| 4 | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** |
-| 5 | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** |
-| Mean ± SD | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** |
+| Outer fold |  Test videos | Visual F1 | Audio F1 | Fused F1 | Fused − visual | Fused − audio |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| 0 | 20 | 0.667 | 0.000 | 0.667 | 0.000 | +0.667 |
+| 1 | 20 | 0.769 | 0.609 | 0.741 | −0.028 | +0.132 |
+| Mean ±  SD | — | 0.718 ± 0.051 | 0.304 ± 0.304 | 0.704 ± 0.037 | −0.014 ± 0.014 | +0.399 ± 0.267 |
 
-Note: A high mean visual absolute-logit share is descriptive, but only a consistent paired F1 improvement demonstrates predictive value from fusion.
+In fold 0, fusion corrects two visual false positives but also changes one correctly detected positive into a false negative. Accuracy therefore increases from 0.500 to 0.550 while F1 remains 0.667. In fold 1, fusion changes one visual true negative into a false positive and does not correct any visual error, reducing F1 by 0.028. So currently the completed folds do not show a benefit in predictions over the visual branch alone.
+
+![Provisional per-fold modality F1](docs/figures/provisional_modality_f1_by_fold.png)
+
+*Figure 1. Positive-class F1 for visual, audio, and fused predictions on the identical subject-grouped outer-test videos. Only completed outer folds 0 and 1 are shown; each contains 20 videos.*
 
 ### 9.6 Fusion diagnostics
 
-| Quantity | Final value |
-| --- | ---: |
-| Fixed or inner-selected visual weight $\lambda$ | **TBD** |
-| Audio weight $1-\lambda$ | **TBD** |
-| Mean absolute visual logit share | **TBD** |
-| Mean absolute audio logit share | **TBD** |
-| Number of test clips where fusion corrects visual | **TBD** |
-| Number of test clips where fusion harms visual | **TBD** |
-| Number of test clips where modalities disagree | **TBD** |
+| Quantity | Fold 0 | Fold 1 | Completed-fold aggregate |
+| --- | ---: | ---: | ---: |
+| Fixed visual weight $ \lambda $ | 0.500 | 0.500 | 0.500 |
+| Fixed audio weight $1-\lambda$ | 0.500 | 0.500 | 0.500 |
+| Mean absolute visual weighted-logit share | 0.735 | 0.943 | 0.839 ± 0.104 |
+| Mean absolute audio weighted-logit share | 0.265 | 0.057 | 0.161 ± 0.104 |
+| Clips where fusion corrects visual | 2 | 0 | 2 / 40 |
+| Clips where fusion harms visual | 1 | 1 | 2 / 40 |
+| Clips where visual and audio predictions disagree | 18 | 9 | 27 / 40 (67.5%) |
 
-ToDo: inspect disagreement cases qualitatively with categories like visible but acoustically silent yawns, loud speech mistaken for a yawn, covered mouths, off-axis faces, background speech, low audio level, and yawns that fall between the four sampled one-second audio intervals.
-Correction, harm, and disagreement counts are not currently included in `fusion_summary.json`. They must be derived from `fusion_predictions.csv` by thresholding the visual, audio, and fused logits at zero.
+It should be noted that equal fusion weights do not produce equal numerical influence because the branches emit logits on different scales. Here the visual branch supplies 83.9% of the mean absolute weighted-logit magnitude across the completed folds and therefore dominates the fused score, especially in fold 1. This is a descriptive scale diagnostic, not causal evidence of modality importance. The paired corrections and errors above are the relevant test of whether fusion adds predictive value, and they are balanced at two corrections and two misslabelings.
+
+![Provisional fusion logit shares](docs/figures/provisional_fusion_logit_share_by_fold.png)
+
+*Figure 2. Mean absolute weighted-logit share by completed outer fold. The fixed weights are equal, but the visual logits have much greater magnitude, particularly in fold 1.*
+
+For a qualitative error analysis should inspect the 27 disagreement clips for visible but acoustically silent yawns, loud speech mistaken for a yawn, covered mouths, off-axis faces, background speech, low audio level, and yawns that fall between the four sampled one-second audio intervals. These categories cannot be assigned from logits alone and require manually reviewing the source videos.
 
 ### 9.7 Training curves and result visualizations
 
-ToDo: Export
 
-1. training and validation loss/F1 curves for the selected model;
-2. one outer-test confusion matrix per model or an explicitly defined pooled out-of-fold matrix;
-3. a fold-level plot comparing visual, audio, and fused F1; 
-4. optionally, visual attention weights over sampled frames.
-
-Template:
-~~~markdown
-<!--
-![Training and validation curves](docs/figures/training_curves.png)
-![Out-of-fold confusion matrices](docs/figures/confusion_matrices.png)
-![Outer-fold modality comparison](docs/figures/modality_f1_by_fold.png)
-![Visual attention weights](docs/figures/attention_weights.png)
--->
-~~~
-
-ToDo: Caption every plot with the dataset subset, split level, metric aggregation, and model configuration. Note: validation confusion matrix is not a test result
 
 ### 9.8 Runtime and resource requirements
 
-| Mode | Total nested-CV time | Mean time per training run | Peak GPU memory | Peak RAM | Checkpoint size |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Visual | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** |
-| Audio | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** |
-| Multimodal complete study | **TBD** | **TBD** | **TBD** | **TBD** | **TBD** |
+The complete nested-CV runtime cannot be reported because the run has not finished, and the logger does not record per-training-run wall-clock durations, peak RAM, or artifact sizes. These fields should not be estimated and presented as measurements.
 
-ToDo: report per-video inference time and whether decoding is included. Training time from the older template must not be reused because the current nested protocol trains many more models.
+| Measurement | Provisional value | Interpretation |
+| --- | ---: | --- |
+| Completed outer folds | 2 / 5 | Fold 2 was still in visual optimization |
+| Visual outer-test processing | Approximately 0.83 s/video over 40 videos | Rough estimate from console progress bars; includes data loading, video decoding, preprocessing, and inference |
+| Audio outer-test processing | Approximately 0.054 s/video over 40 videos | Rough estimate from console progress bars; includes audio loading, preprocessing, and inference |
+| Fusion arithmetic | Not separately instrumented | Expected to be negligible relative to the two encoders, but it was not measured |
+| Total nested-CV time | Not available | The study is incomplete |
+| Peak GPU memory | Not applicable | CPU execution |
+| Peak RAM and checkpoint size | Not logged | Measure in the final run |
 
-These measurements matter if the work is later moved from an offline study to an in-vehicle or mobile prototype: prior deployment-oriented drowsiness work shows that model size and latency can become first-class design constraints ([Jabbar et al., 2018](https://doi.org/10.1016/j.procs.2018.04.060)).
+The visual estimate varies substantially between the two folds because their selected batch sizes differ (4 in fold 0 and 8 in fold 1) and console progress timing is not very precise. It is therefore only a rough estimation of the end-to-end test-pipeline throughput.
+
+These measurements are important when moving to an in-vehicle or mobile prototype: prior deployment-oriented drowsiness work shows that model size and latency can become first-class design constraints ([Jabbar et al., 2018](https://doi.org/10.1016/j.procs.2018.04.060)).
 
 ### 9.9 Comparison with prior work
 
-It should be notet that reported values from the literature can only serve as context, not a leaderboard. The label granularity, camera view, preprocessing, participant split, and metric definition differ across papers, they are therfore not directly comparible among each other and with this project.
+Reported values from the literature can only serve as context, not a leaderboard. Label granularity, camera view, preprocessing, participant split, and metric definitions differ across papers. The results are therefore not directly comparable with one another or with this project.
 
 | Work | Core approach | Reported result | Relationship to this project |
 | --- | --- | --- | --- |
@@ -1171,7 +1183,7 @@ It should be notet that reported values from the literature can only serve as co
 | [Saurav et al., 2020](https://doi.org/10.1007/978-3-030-44689-5_17) | Mouth-region features from a pretrained CNN, followed by 1D CNN and bidirectional LSTM | Evaluated on manually annotated clips from YawDD and NTHU-DDD | Closely related order-aware yawn classifier; protocol and clip extraction differ |
 | [Kielty et al., 2023](https://doi.org/10.1117/12.2680327) | Event-camera representation with CNN, self-attention, and recurrence | 95.9% precision and 94.7% recall on their unseen-subject test; 89.9% and 91.0% on simulated public data | Strong subject-disjoint temporal comparison, but a different sensor representation and dataset |
 | [Lu et al., 2023](https://doi.org/10.1109/TITS.2023.3285923) | Key-frame selection, face frontalization, head-pose and facial-action fusion | State-of-the-art YawDD results reported in the paper | Addresses pose and face localization omitted by the present model |
-| This work | ResNet-18 attention + YAMNet + weighted late fusion | **TBD** | Adds an audio ablation and nested subject-grouped evaluation |
+| This work (provisional) | ResNet-18 attention + YAMNet + equal-weight late fusion | Fused accuracy 0.600 ± 0.050 and F1 0.704 ± 0.037 over two of five outer folds | Adds a paired audio ablation and nested subject-grouped evaluation; incomplete result, not a final comparison |
 
 The fairest internal baselines are more important than cross-paper rank:
 
@@ -1179,7 +1191,6 @@ The fairest internal baselines are more important than cross-paper rank:
 - visual attention versus an order-aware GRU, LSTM, or temporal convolution;
 - visual-only versus audio-only versus fused predictions on identical folds;
 - fixed equal fusion versus an inner-selected and optionally calibrated fusion weight.
-
 ## 10. Discussion
 
 To be completed after training. The statements below define the questions to answer.
