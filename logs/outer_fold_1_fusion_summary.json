@@ -1,0 +1,18 @@
+{
+    "metrics": {
+        "accuracy": 0.65,
+        "precision": 0.5882352941176471,
+        "recall": 1.0,
+        "f1": 0.7407407407407407
+    },
+    "contributions": {
+        "visual_weight": 0.5,
+        "audio_weight": 0.5,
+        "mean_visual_contribution": 0.689745346736163,
+        "mean_audio_contribution": 0.009223801782354712,
+        "mean_abs_visual_contribution": 0.878199463058263,
+        "mean_abs_audio_contribution": 0.020069871749728917,
+        "mean_visual_abs_share": 0.9432090131090668,
+        "mean_audio_abs_share": 0.05679098689093324
+    }
+}

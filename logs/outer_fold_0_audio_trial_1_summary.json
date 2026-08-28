@@ -1,0 +1,59 @@
+{
+    "trial_number": 1,
+    "mean_f1_val": 0.44385849263898053,
+    "fold_f1": [
+        0.6486486486486487,
+        0.6829268292682927,
+        0.0
+    ],
+    "best_epoch": [
+        0,
+        0,
+        0
+    ],
+    "fold_class_balance": [
+        {
+            "inner_fold": 0,
+            "positive": 24,
+            "negative": 24,
+            "pos_weight": 1.0
+        },
+        {
+            "inner_fold": 1,
+            "positive": 24,
+            "negative": 24,
+            "pos_weight": 1.0
+        },
+        {
+            "inner_fold": 2,
+            "positive": 28,
+            "negative": 28,
+            "pos_weight": 1.0
+        }
+    ],
+    "params": {
+        "data": "YawDD",
+        "epochs": 20,
+        "num_frames": 32,
+        "audio_sample_rate": 16000,
+        "num_audio_clips": 4,
+        "audio_clip_seconds": 1.0,
+        "audio_num_samples": 16000,
+        "audio_mono": true,
+        "audio_normalize": true,
+        "audio_missing_policy": "skip",
+        "audio_exclude_path_parts": [
+            "Mirror"
+        ],
+        "batch_size": 4,
+        "num_workers": 0,
+        "dropout": 0.2,
+        "class_weighting": "train_negative_to_positive_ratio",
+        "optimizer": "adamw",
+        "lr": 0.00010172612476539774,
+        "weight_decay": 2.2268999078936613e-06,
+        "scheduler": "step",
+        "step_size": 2,
+        "gamma": 0.2986506530271895
+    }
+}
